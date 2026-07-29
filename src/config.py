@@ -3,6 +3,7 @@
 SCREEN_W, SCREEN_H = 480, 720
 FPS = 60
 TITLE = "Blocky Bird"
+CREDITS = "por Douglas e Pedro"
 
 GRAVITY = 0.45
 FLAP_IMPULSE = -8.5

@@ -7,7 +7,7 @@ import pygame
 from src import score, textures, ui
 from src.biome import BiomeManager
 from src.bird import Bird
-from src.config import BLOCK, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
+from src.config import BLOCK, CREDITS, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
 from src.input import ACTION_FLAP, ACTION_MUTE, ACTION_PAUSE, InputManager
@@ -27,7 +27,7 @@ class Game:
     def __init__(self) -> None:
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-        pygame.display.set_caption(TITLE)
+        pygame.display.set_caption(f"{TITLE} - {CREDITS}")
         self.clock = pygame.time.Clock()
         self.running = True
         self.textures = textures.generate_all(BLOCK)

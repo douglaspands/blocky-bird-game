@@ -2,7 +2,7 @@
 
 import pygame
 
-from src.config import SCREEN_H, SCREEN_W
+from src.config import CREDITS, SCREEN_H, SCREEN_W
 
 FONT_NAME = "couriernew"
 SHADOW_COLOR = (40, 30, 20)
@@ -51,8 +51,15 @@ def draw_ready_screen(surface: pygame.Surface) -> None:
     draw_text(surface, "BLOCKY BIRD", (SCREEN_W // 2, SCREEN_H // 3), base_size=18, color=(255, 220, 60))
     draw_text(
         surface,
+        CREDITS.upper(),
+        (SCREEN_W // 2, SCREEN_H // 3 + 28),
+        base_size=8,
+        color=(230, 230, 230),
+    )
+    draw_text(
+        surface,
         "ESPACO / CLIQUE PARA VOAR",
-        (SCREEN_W // 2, SCREEN_H // 3 + 60),
+        (SCREEN_W // 2, SCREEN_H // 3 + 70),
         base_size=10,
     )
 
