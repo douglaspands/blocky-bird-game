@@ -10,6 +10,7 @@ from src.bird import Bird
 from src.config import BLOCK, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
+from src.input import ACTION_FLAP, ACTION_MUTE, ACTION_PAUSE, InputManager
 from src.particles import ParticleSystem
 from src.pipes import PipeManager
 from src.sounds import SoundManager
@@ -31,6 +32,7 @@ class Game:
         self.running = True
         self.textures = textures.generate_all(BLOCK)
         self.sounds = SoundManager()
+        self.input = InputManager()
         self.score = 0
         self.highscore = score.load_highscore()
         self.reset()
@@ -64,18 +66,15 @@ class Game:
             self.state = GameState.JOGANDO
 
     def handle_events(self) -> None:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key in (pygame.K_SPACE, pygame.K_UP):
-                    self._flap_action()
-                elif event.key in (pygame.K_ESCAPE, pygame.K_p):
-                    self._toggle_pause()
-                elif event.key == pygame.K_m:
-                    self.sounds.toggle_mute()
-            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                self._flap_action()
+        actions, quit_requested = self.input.poll()
+        if quit_requested:
+            self.running = False
+        if ACTION_FLAP in actions:
+            self._flap_action()
+        if ACTION_PAUSE in actions:
+            self._toggle_pause()
+        if ACTION_MUTE in actions:
+            self.sounds.toggle_mute()
 
     def _collision_texture(self) -> str | None:
         """Retorna a chave da textura do bloco atingido, ou None se nao houve colisao (R3.2)."""

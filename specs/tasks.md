@@ -35,7 +35,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **11. Áudio sintetizado**
   Implementar `sounds.py`: flap, score, hit, portal; tecla M para mudo; degradação graciosa sem mixer. Integrar aos eventos. _(R8, R3.2)_
 
-- [ ] **11b. Suporte a controle de Xbox**
+- [x] **11b. Suporte a controle de Xbox**
   Implementar `input.py` (`InputManager`): mapear teclado/mouse/joystick para ações abstratas (A → voar/reiniciar, Start → pausar, Y → mudo), inicialização via `pygame.joystick` e hotplug com `JOYDEVICEADDED`/`JOYDEVICEREMOVED`. Refatorar os estados para consumir ações. _(R10)_
 
 - [ ] **12. Calibração de gameplay**
