@@ -111,9 +111,16 @@ class Biome:
 BIOMES = [
     Biome("overworld", "Overworld", 0,  2.5, 160, ...),
     Biome("cave",      "Cave",      10, 3.0, 145, ...),
-    Biome("nether",    "Nether",    25, 3.5, 130, ...),
+    Biome("nether",    "Nether",    25, 3.3, 140, ...),
 ]
 ```
+
+Calibrado na task 12 (R5.3, R9.1): a velocidade/abertura do Nether foram ajustadas de
+(3.5, 130px) para (3.3, 140px) apos playtest automatizado mostrar um salto de
+dificuldade desproporcional na transicao Cave→Nether (bot competente sobrevivia
+~12.7 pontos extras apos entrar no Cave, mas so ~2.4 apos entrar no Nether). Com os
+novos valores o Nether permanece o bioma mais dificil, porem navegavel (~11 pontos
+extras em media), preservando a curva de dificuldade progressiva.
 
 - `BiomeManager.update(score)`: detecta cruzamento de threshold → inicia fade de 60 frames entre gradientes de céu (R5.4), mostra banner com nome do bioma por 90 frames, toca som de portal (R8.1).
 - Colunas já existentes mantêm textura antiga; novas usam o bioma novo (transição natural).

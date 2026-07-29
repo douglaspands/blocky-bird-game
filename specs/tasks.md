@@ -38,7 +38,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **11b. Suporte a controle de Xbox**
   Implementar `input.py` (`InputManager`): mapear teclado/mouse/joystick para ações abstratas (A → voar/reiniciar, Start → pausar, Y → mudo), inicialização via `pygame.joystick` e hotplug com `JOYDEVICEADDED`/`JOYDEVICEREMOVED`. Refatorar os estados para consumir ações. _(R10)_
 
-- [ ] **12. Calibração de gameplay**
+- [x] **12. Calibração de gameplay**
   Playtest e ajuste fino de `GRAVITY`, `FLAP_IMPULSE`, `PIPE_SPACING`, aberturas e velocidades por bioma até a curva de dificuldade ficar justa. _(R5.3, R9.1)_
 
 - [ ] **13. Testes e verificação final**

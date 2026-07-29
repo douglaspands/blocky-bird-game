@@ -35,7 +35,7 @@ BIOMES: list[Biome] = [
         (25, 25, 35), (60, 58, 70), "stone", "cobblestone", "cave",
     ),
     Biome(
-        "nether", "Nether", 25, 3.5, 130,
+        "nether", "Nether", 25, 3.3, 140,
         (80, 15, 10), (150, 60, 20), "netherrack", "obsidian", "nether",
     ),
 ]
