@@ -10,6 +10,7 @@ from src.bird import Bird
 from src.config import BLOCK, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
+from src.particles import ParticleSystem
 from src.pipes import PipeManager
 
 
@@ -39,6 +40,7 @@ class Game:
         self.pipes = PipeManager(b.gap_size, b.block_main, b.block_edge)
         self.ground = Ground()
         self.decor = DecorManager()
+        self.particles = ParticleSystem()
         self.score = 0
         self.state = GameState.PRONTO
 
@@ -69,13 +71,14 @@ class Game:
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 self._flap_action()
 
-    def _collided(self) -> bool:
+    def _collision_texture(self) -> str | None:
+        """Retorna a chave da textura do bloco atingido, ou None se nao houve colisao (R3.2)."""
         if self.bird.rect.colliderect(self.ground.rect):
-            return True
-        return any(
-            self.bird.rect.colliderect(pipe.top_rect) or self.bird.rect.colliderect(pipe.bottom_rect)
-            for pipe in self.pipes.pipes
-        )
+            return self.biome.current.block_main
+        for pipe in self.pipes.pipes:
+            if self.bird.rect.colliderect(pipe.top_rect) or self.bird.rect.colliderect(pipe.bottom_rect):
+                return pipe.block_main
+        return None
 
     def _update_score(self) -> None:
         """+1 por coluna ultrapassada, uma unica vez por coluna (R4.1)."""
@@ -95,12 +98,16 @@ class Game:
             self.decor.update(b.speed)
             self._update_score()
             self.biome.update(self.score)
-            if self._collided():
+            hit_texture = self._collision_texture()
+            if hit_texture is not None:
                 self.state = GameState.GAME_OVER
+                self.particles.burst(self.bird.rect.center, self.textures[hit_texture])
                 if self.score > self.highscore:
                     self.highscore = self.score
                     score.save_highscore(self.highscore)
-        # PAUSADO e GAME_OVER: fisica, obstaculos e biomas ficam congelados (R3.3, R6.3).
+        # PAUSADO: fisica, obstaculos, biomas e particulas ficam congelados (R3.3, R6.3).
+        if self.state != GameState.PAUSADO:
+            self.particles.update()
 
     def draw(self) -> None:
         b = self.biome.current
@@ -109,6 +116,7 @@ class Game:
         self.pipes.draw(self.screen, self.textures)
         self.ground.draw(self.screen, self.textures, b.block_main, b.block_edge)
         self.bird.draw(self.screen, self.textures)
+        self.particles.draw(self.screen)
         self.biome.draw_banner(self.screen)
 
         if self.state == GameState.PRONTO:

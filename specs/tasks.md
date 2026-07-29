@@ -29,7 +29,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **9. Decoração de fundo com parallax**
   Duas camadas parallax por bioma: nuvens/colinas, estalactites/minérios, lava/pilares. _(R7.4)_
 
-- [ ] **10. Partículas**
+- [x] **10. Partículas**
   Implementar `particles.py` e disparar burst na colisão com cores da textura atingida. _(R3.2)_
 
 - [ ] **11. Áudio sintetizado**
