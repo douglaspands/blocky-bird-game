@@ -35,17 +35,27 @@ SDL_VIDEODRIVER=dummy uv run pytest
 `SDL_VIDEODRIVER=dummy` roda o Pygame sem abrir uma janela real, útil em CI e
 ambientes sem display.
 
-## Gerar executável (Windows)
+## Gerar executável
 
-Para distribuir um `.exe` que roda com duplo clique, sem precisar instalar Python:
+Para distribuir um binário que roda com duplo clique, sem precisar instalar Python:
 
 ```bash
 uv sync
 uv run pyinstaller BlockyBird.spec
 ```
 
-O executável fica em `dist/BlockyBird.exe`. `BlockyBird.spec` já está configurado
-(onefile, sem console) — não é necessário passar flags extras.
+O executável fica em `dist/BlockyBird.exe` (Windows) ou `dist/BlockyBird` (Linux/macOS).
+`BlockyBird.spec` já está configurado (onefile, sem console) — não é necessário passar
+flags extras.
+
+### Releases automatizadas (GitHub Actions)
+
+Ao publicar uma Release no GitHub (com uma tag de versão, ex. `v1.0.0`), o workflow
+[`.github/workflows/release.yml`](.github/workflows/release.yml) builda o executável
+para Windows e Linux automaticamente e anexa aos assets da release:
+
+- `BlockyBird-windows-<tag>.zip`
+- `BlockyBird-linux-<tag>.tar.bz2`
 
 ## Estrutura
 

@@ -1,0 +1,52 @@
+name: Release build
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv (Windows)
+        if: runner.os == 'Windows'
+        run: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+      - name: Install uv (Linux)
+        if: runner.os == 'Linux'
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build executable
+        run: uv run pyinstaller BlockyBird.spec
+
+      - name: Package Windows build
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/BlockyBird.exe -DestinationPath BlockyBird-windows-${{ github.event.release.tag_name }}.zip
+
+      - name: Package Linux build
+        if: runner.os == 'Linux'
+        run: tar -cjf BlockyBird-linux-${{ github.event.release.tag_name }}.tar.bz2 -C dist BlockyBird
+
+      - name: Upload Windows asset
+        if: runner.os == 'Windows'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BlockyBird-windows-${{ github.event.release.tag_name }}.zip
+
+      - name: Upload Linux asset
+        if: runner.os == 'Linux'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BlockyBird-linux-${{ github.event.release.tag_name }}.tar.bz2
