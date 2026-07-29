@@ -5,7 +5,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **1. Esqueleto do projeto e loop básico**
   Inicializar o projeto com `uv init` (`pyproject.toml` com `pygame>=2.5` e `pytest` como dev; `uv sync`), criar estrutura de `src/`, `config.py` com constantes e `main.py`/`game.py` com janela 480×720, clock 60 FPS e loop de eventos que fecha com o X da janela. Validar `uv run main.py`. _(R9)_
 
-- [ ] **2. Texturas procedurais base**
+- [x] **2. Texturas procedurais base**
   Implementar `textures.py`: gerador de bloco 16×16 com ruído + paletas `dirt`, `grass_side`, `stone`, e sprite da abelha; escala pixel-perfect para 48 px. Tela de teste exibindo os blocos. _(R7.1, R7.2)_
 
 - [ ] **3. Bird com física e animação**
