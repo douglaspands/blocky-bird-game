@@ -17,7 +17,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **5. Colisão e chão**
   Chão rolante de blocos; hitbox 85%; colisão pássaro×coluna e pássaro×chão encerra a rodada (por ora, reinicia direto). _(R3.1, R3.5, R7.3)_
 
-- [ ] **6. Máquina de estados e UI**
+- [x] **6. Máquina de estados e UI**
   Implementar `GameState` (PRONTO/JOGANDO/PAUSADO/GAME_OVER) e `ui.py`: tela inicial com idle bobbing, pausa com ESC/P, tela de game over com reinício, fonte pixelada com sombra. _(R6, R3.3, R3.4, R7.5)_
 
 - [ ] **7. Pontuação e recorde**
