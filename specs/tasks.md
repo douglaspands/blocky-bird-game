@@ -8,7 +8,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **2. Texturas procedurais base**
   Implementar `textures.py`: gerador de bloco 16×16 com ruído + paletas `dirt`, `grass_side`, `stone`, e sprite da abelha; escala pixel-perfect para 48 px. Tela de teste exibindo os blocos. _(R7.1, R7.2)_
 
-- [ ] **3. Bird com física e animação**
+- [x] **3. Bird com física e animação**
   Implementar `bird.py`: gravidade, flap por ESPAÇO/↑/mouse, clamp no topo, rotação subida/queda, animação de asas. _(R1)_
 
 - [ ] **4. Obstáculos**
