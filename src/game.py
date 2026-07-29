@@ -8,6 +8,7 @@ from src import score, textures, ui
 from src.biome import BiomeManager
 from src.bird import Bird
 from src.config import BLOCK, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
+from src.decor import DecorManager
 from src.ground import Ground
 from src.pipes import PipeManager
 
@@ -37,6 +38,7 @@ class Game:
         b = self.biome.current
         self.pipes = PipeManager(b.gap_size, b.block_main, b.block_edge)
         self.ground = Ground()
+        self.decor = DecorManager()
         self.score = 0
         self.state = GameState.PRONTO
 
@@ -90,6 +92,7 @@ class Game:
             self.bird.update()
             self.pipes.update(b.speed, b.gap_size, b.block_main, b.block_edge)
             self.ground.update(b.speed)
+            self.decor.update(b.speed)
             self._update_score()
             self.biome.update(self.score)
             if self._collided():
@@ -102,6 +105,7 @@ class Game:
     def draw(self) -> None:
         b = self.biome.current
         self.biome.draw_background(self.screen)
+        self.decor.draw(self.screen, b.decor)
         self.pipes.draw(self.screen, self.textures)
         self.ground.draw(self.screen, self.textures, b.block_main, b.block_edge)
         self.bird.draw(self.screen, self.textures)

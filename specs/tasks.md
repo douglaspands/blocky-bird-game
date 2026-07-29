@@ -26,7 +26,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **8. Biomas e progressão de dificuldade**
   Implementar `biome.py`: os 3 biomas com thresholds 0/10/25, parâmetros de velocidade/abertura, texturas `cobblestone`/`netherrack`/`obsidian`, fade de céu ≤ 1 s e banner com nome do bioma. _(R5, R2.5)_
 
-- [ ] **9. Decoração de fundo com parallax**
+- [x] **9. Decoração de fundo com parallax**
   Duas camadas parallax por bioma: nuvens/colinas, estalactites/minérios, lava/pilares. _(R7.4)_
 
 - [ ] **10. Partículas**
