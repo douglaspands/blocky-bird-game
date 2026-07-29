@@ -5,6 +5,7 @@ import pygame
 from src import textures
 from src.bird import Bird
 from src.config import BLOCK, FPS, SCREEN_H, SCREEN_W, TITLE
+from src.pipes import PipeManager
 
 
 class Game:
@@ -16,6 +17,7 @@ class Game:
         self.running = True
         self.textures = textures.generate_all(BLOCK)
         self.bird = Bird(SCREEN_W // 4, SCREEN_H // 2)
+        self.pipes = PipeManager()
 
     def handle_events(self) -> None:
         for event in pygame.event.get():
@@ -28,9 +30,11 @@ class Game:
 
     def update(self) -> None:
         self.bird.update()
+        self.pipes.update()
 
     def draw(self) -> None:
         self.screen.fill((135, 206, 235))
+        self.pipes.draw(self.screen, self.textures)
         self.bird.draw(self.screen, self.textures)
         pygame.display.flip()
 

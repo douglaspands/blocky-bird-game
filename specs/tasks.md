@@ -11,7 +11,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **3. Bird com física e animação**
   Implementar `bird.py`: gravidade, flap por ESPAÇO/↑/mouse, clamp no topo, rotação subida/queda, animação de asas. _(R1)_
 
-- [ ] **4. Obstáculos**
+- [x] **4. Obstáculos**
   Implementar `pipes.py`: spawn com abertura aleatória, movimento, remoção fora da tela, renderização como pilha de blocos com bloco de borda na abertura. _(R2)_
 
 - [ ] **5. Colisão e chão**
