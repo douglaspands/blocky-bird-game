@@ -118,6 +118,33 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 4. Teclado, mouse e controle DEVEM funcionar simultaneamente, sem necessidade de seleção de dispositivo.
 5. SE nenhum controle estiver conectado, O sistema DEVE funcionar normalmente com teclado/mouse.
 
+## R11 — Créditos
+
+**User story:** Como criador do jogo, quero que meu nome e do meu parceiro apareçam no jogo, para receber crédito pela autoria.
+
+### Critérios de aceitação
+
+1. QUANDO o jogo exibe o estado PRONTO, O sistema DEVE exibir os nomes dos criadores ("Douglas e Pedro") abaixo do título.
+2. O título da janela (barra de título/taskbar) DEVE incluir os nomes dos criadores.
+
+## R12 — Recorde na tela inicial
+
+**User story:** Como jogador, quero ver meu recorde atual assim que abro o jogo, para me sentir motivado a superá-lo.
+
+### Critérios de aceitação
+
+1. QUANDO o jogo exibe o estado PRONTO, O sistema DEVE exibir o recorde atual em destaque no rodapé da tela, acima do chão.
+2. SE não houver recorde registrado, O sistema DEVE exibir "RECORDE: 0".
+
+## R13 — Distribuição e empacotamento
+
+**User story:** Como jogador sem Python instalado, quero baixar um executável e simplesmente dar duplo clique para jogar, sem precisar instalar nada.
+
+### Critérios de aceitação
+
+1. O projeto DEVE poder ser empacotado em um executável standalone (Windows e Linux) via PyInstaller, sem exigir Python ou `uv` na máquina de destino.
+2. QUANDO uma Release é publicada no GitHub com uma tag de versão, O sistema de CI DEVE gerar automaticamente os executáveis de Windows e Linux e anexá-los como assets da release, comprimidos como `.zip` (Windows) e `.tar.bz2` (Linux).
+
 ---
 
 ## Fora de escopo

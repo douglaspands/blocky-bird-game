@@ -1,6 +1,6 @@
 # Design Técnico — Blocky Bird
 
-Rastreabilidade: cada seção referencia os requisitos (R1–R9) de `requirements.md`.
+Rastreabilidade: cada seção referencia os requisitos (R1–R13) de `requirements.md`.
 
 ## 1. Visão geral
 
@@ -13,30 +13,36 @@ flappy_bird/
 ├── pyproject.toml       # Projeto gerenciado por uv (R9.3)
 ├── uv.lock              # Lockfile gerado por uv
 ├── main.py              # Entry point: cria Game e roda o loop (R9.3)
+├── BlockyBird.spec      # Config do PyInstaller p/ executavel standalone (R13.1)
+├── .github/workflows/
+│   └── release.yml      # CI: builda e publica executaveis na Release (R13.2)
 ├── specs/               # Estes documentos
 └── src/
     ├── __init__.py
-    ├── config.py        # Constantes: tela, física, biomas, cores
+    ├── config.py        # Constantes: tela, física, biomas, cores, créditos
     ├── game.py          # Classe Game: loop, máquina de estados (R6)
     ├── bird.py          # Classe Bird: física e animação (R1)
     ├── pipes.py         # PipePair + PipeManager (R2)
+    ├── ground.py        # Chão rolante de blocos (R7.3)
     ├── biome.py         # Definições e transição de biomas (R5)
+    ├── decor.py         # Parallax de fundo por bioma (R7.4)
     ├── score.py         # Pontuação e persistência do recorde (R4)
     ├── particles.py     # Sistema de partículas de blocos (R3.2)
     ├── textures.py      # Geração procedural de texturas voxel (R7)
     ├── input.py         # InputManager: teclado, mouse e controle Xbox (R10)
     ├── sounds.py        # Síntese de sons 8-bit (R8)
-    └── ui.py            # HUD, telas PRONTO/PAUSADO/GAME_OVER, fonte pixelada (R6, R7.5)
+    └── ui.py            # HUD, telas PRONTO/PAUSADO/GAME_OVER, fonte pixelada (R6, R7.5, R11, R12)
 ```
 
 ### 2.1 Gerenciamento com uv (R9.3)
 
-Projeto inicializado com `uv init`; `pygame>=2.5` e `pytest` (dev) declarados no `pyproject.toml`. Comandos padrão:
+Projeto inicializado com `uv init`; `pygame>=2.5` declarado como dependência de runtime, `pytest` e `pyinstaller` como dependências de **dev** no `pyproject.toml` (R13.1). Comandos padrão:
 
 ```bash
-uv sync              # cria/atualiza o ambiente
-uv run main.py       # executa o jogo
-uv run pytest        # roda os testes
+uv sync                              # cria/atualiza o ambiente
+uv run main.py                       # executa o jogo
+uv run pytest                        # roda os testes
+uv run pyinstaller BlockyBird.spec   # gera o executavel standalone (R13.1)
 ```
 
 Nenhum `pip install` ou venv manual — todo o fluxo passa pelo `uv` instalado localmente.
@@ -58,6 +64,8 @@ PRONTO ──flap──▶ JOGANDO ──colisão──▶ GAME_OVER ──flap�
 ```python
 SCREEN_W, SCREEN_H = 480, 720
 FPS = 60
+TITLE = "Blocky Bird"
+CREDITS = "por Douglas e Pedro"   # R11
 GRAVITY = 0.45          # px/frame²
 FLAP_IMPULSE = -8.5     # px/frame
 MAX_FALL_SPEED = 12
@@ -85,15 +93,16 @@ Valores de física são referência inicial; calibrar em playtest (task 12).
 class PipePair:
     x: float
     gap_y: float          # centro da abertura
-    gap_size: int         # do bioma (R2.2)
+    gap_size: int         # do bioma, congelado na criação (R2.2, R2.5)
+    block_main: str       # chave em textures, congelada na criação (R2.5)
+    block_edge: str       # chave em textures, congelada na criação (R2.5)
     scored: bool          # p/ pontuação única (R4.1)
-    biome_id: str         # textura congelada na criação (R2.5)
 ```
 
-- `PipeManager.update(speed)`: move todos `x -= speed` (R2.3); spawna novo par quando o último está a `PIPE_SPACING` da borda (R2.1); remove pares com `x + PIPE_W < 0` (R2.4).
-- `gap_y` aleatório uniforme entre margens seguras (topo + 80, chão − 80) (R2.2).
-- Renderização: coluna = pilha de blocos `BLOCK×BLOCK` com textura do bioma; bloco da boca da abertura usa variante de borda (ex.: grama no Overworld) (R2.5).
-- Colisão: dois `Rect` por par (superior e inferior); `bird.rect.colliderect()` (R3.1).
+- `PipeManager.update(speed, gap_size, block_main, block_edge)`: recebe os parâmetros do bioma *atual* a cada frame — move todos `x -= speed` (R2.3); spawna novo par (congelando `gap_size`/`block_main`/`block_edge` correntes) quando o último está a `PIPE_SPACING` da borda (R2.1); remove pares com `x + PIPE_W < 0` (R2.4).
+- `gap_y` aleatório uniforme entre margens seguras (topo + `GAP_MARGIN`, chão − `GAP_MARGIN`) (R2.2).
+- Renderização: coluna = pilha de blocos `BLOCK×BLOCK` (largura `PIPE_W = BLOCK`, R3.1/R3.5) com a textura congelada na criação; bloco da boca da abertura usa variante de borda (ex.: grama no Overworld) (R2.5).
+- Colisão: dois `Rect` por par (superior e inferior), largura `PIPE_W` idêntica à largura desenhada; `bird.rect.colliderect()` (R3.1).
 
 ## 7. Biomas (`biome.py`) — R5
 
@@ -124,7 +133,7 @@ extras em media), preservando a curva de dificuldade progressiva.
 
 - `BiomeManager.update(score)`: detecta cruzamento de threshold → inicia fade de 60 frames entre gradientes de céu (R5.4), mostra banner com nome do bioma por 90 frames, toca som de portal (R8.1).
 - Colunas já existentes mantêm textura antiga; novas usam o bioma novo (transição natural).
-- Decoração parallax (R7.4): duas camadas com fatores 0.3 e 0.6 da velocidade de rolagem; elementos desenhados proceduralmente (nuvens/colinas, estalactites/minérios, mar de lava/pilares).
+- Decoração parallax (R7.4): duas camadas com fatores 0.3 e 0.6 da velocidade de rolagem; elementos desenhados proceduralmente como pilhas de retângulos (formas quadriculadas/voxel, nunca elipses ou curvas) — nuvens/colinas no Overworld, estalactites/minérios no Cave, lava/pilares no Nether. Detalhes em `decor.py` (seção 16).
 
 ## 8. Pontuação (`score.py`) — R4
 
@@ -144,17 +153,23 @@ extras em media), preservando a curva de dificuldade progressiva.
 
 ## 11. Áudio (`sounds.py`) — R8
 
-- Síntese com `numpy` + `pygame.sndarray` (numpy é dependência do pygame em muitas instalações; se ausente, gerar via `array` stdlib): ondas quadradas com envelope de decaimento e sweeps de frequência.
-  - `flap`: sweep 300→500 Hz, 80 ms.
-  - `score`: dois pings 800/1200 Hz, 120 ms (estilo XP orb).
-  - `hit`: ruído branco com decay, 200 ms.
-  - `portal`: sweep descendente 900→200 Hz, 400 ms.
-- `pygame.mixer.init()` em `try/except` → flag `audio_ok`; toda chamada de play checa flag e `muted` (R8.3, R8.4).
+- Síntese **apenas com stdlib** (`array` + `math` + `random`), sem `numpy`: R9.2 restringe as dependências do projeto a `pygame` + stdlib, então a síntese gera o buffer PCM (16-bit signed, mono, 44100 Hz) manualmente e entrega via `pygame.mixer.Sound(buffer=...)`.
+  - `flap`: onda quadrada com sweep 300→500 Hz e decaimento linear, 80 ms.
+  - `score`: dois pings de onda quadrada 800/1200 Hz em sequência, 120 ms (estilo XP orb).
+  - `hit`: ruído branco com decaimento, 200 ms.
+  - `portal`: onda quadrada com sweep descendente 900→200 Hz, 400 ms.
+- `pygame.mixer.init(frequency=44100, size=-16, channels=1)` em `try/except` → flag `audio_ok`; toda chamada de `play()` checa `audio_ok` e `muted` (R8.3, R8.4).
 
-## 12. UI (`ui.py`) — R6, R7.5
+## 12. UI (`ui.py`) — R6, R7.5, R11, R12
 
-- Fonte: `pygame.font.SysFont("couriernew", ...)` como fallback, mas preferencial é renderizar texto com fonte bitmap própria simples OU usar `pygame.font.Font(None)` escalado com `scale` inteiro para efeito pixelado; sempre com sombra dura (offset 2–3 px, cinza-escuro) (R7.5).
-- HUD: pontuação centralizada no topo (R4.2). Telas: PRONTO (título + instruções, R6.1), PAUSADO (overlay escurecido, R6.3), GAME_OVER (painel com pontuação/recorde, R3.3).
+- Fonte: `pygame.font.SysFont("couriernew", ...)` renderizada sem anti-aliasing e escalada 3× (`pygame.transform.scale`) para efeito pixelado; sempre com sombra dura (offset 3 px, marrom-escuro) (R7.5).
+- HUD: pontuação centralizada no topo (R4.2). Telas: PRONTO, PAUSADO (overlay escurecido, R6.3), GAME_OVER (painel com pontuação/recorde, R3.3).
+- Tela PRONTO (R6.1, R11, R12), de cima para baixo:
+  1. Título "BLOCKY BIRD" (dourado).
+  2. Créditos (`config.CREDITS`, "POR DOUGLAS E PEDRO") logo abaixo do título (R11.1).
+  3. Instrução de comando ("ESPAÇO / CLIQUE PARA VOAR").
+  4. Recorde atual ("RECORDE: N", texto dourado simples, sem caixa/contorno) no rodapé da tela, logo acima do chão (R12.1, R12.2).
+- Título da janela (`pygame.display.set_caption`) inclui os créditos: `"Blocky Bird - por Douglas e Pedro"` (R11.2).
 
 ## 13. Loop principal (`game.py`, `main.py`)
 
@@ -185,10 +200,33 @@ Input unificado (R1.1, R10): eventos de teclado, mouse e joystick mapeiam para a
 | Falha | Comportamento |
 |---|---|
 | Mixer indisponível | jogo sem som (R8.4) |
-| highscore.json corrompido | recorde 0, sobrescreve ao salvar (R4.4) |
-| numpy ausente | fallback de síntese via stdlib ou sem som |
+| highscore.json corrompido, ausente ou com chave/tipo inválido | recorde 0, sobrescreve ao salvar (R4.4) |
+| Nenhum controle Xbox conectado | jogo funciona normalmente com teclado/mouse (R10.5) |
 
 ## 15. Estratégia de testes
 
-- Unitários (`pytest`, sem abrir janela — usar `SDL_VIDEODRIVER=dummy`): física do Bird (gravidade, clamp, impulso), spawn/remoção/colisão de pipes, thresholds de bioma, pontuação única por pipe, persistência do recorde (arquivo ausente/corrompido).
+- Unitários (`pytest`, 35 testes em `tests/`, sem abrir janela — `conftest.py` força `SDL_VIDEODRIVER=dummy` e isola cada teste em um `tmp_path` para nunca ler/gravar o `highscore.json` real): física do Bird (gravidade, clamp, impulso, ângulo, hitbox, idle bob), spawn/remoção/movimento/congelamento de textura de pipes, thresholds e timers de bioma, persistência do recorde (arquivo ausente/corrompido/tipo inválido), e o `Game` (máquina de estados, pontuação única por pipe, colisão, congelamento em pausa).
 - Manual: checklist de playtest por requisito (task 13 do plano).
+
+## 16. Chão (`ground.py`) — R7.3
+
+- `Ground.update(speed)`: acumula `offset = (offset - speed) % BLOCK`, sincronizado com a velocidade do bioma atual (mesma fonte que `PipeManager.update`).
+- `Ground.draw(surface, textures, block_main, block_edge)`: ladrilha blocos de `BLOCK×BLOCK` cobrindo a largura da tela a partir de `offset - BLOCK`; primeira fileira usa `block_edge` (grama/borda), demais usam `block_main`. Ao contrário dos pipes, **não congela** textura — usa sempre o bioma atual, já que é uma faixa contínua, não elementos discretos (R2.5 só se aplica a pipes).
+- `Ground.rect`: `Rect(0, SCREEN_H - GROUND_H, SCREEN_W, GROUND_H)`, usado para colisão pássaro×chão (R3.1).
+
+## 17. Decoração de fundo (`decor.py`) — R7.4
+
+- `DecorManager` mantém dois acumuladores de scroll (`far_scrolled`, `near_scrolled`), incrementados por `speed * 0.3` e `speed * 0.6` a cada frame — nunca resetados com `%`, só usados módulo o período de cada camada no momento de desenhar.
+- Tiling: `_tile(surface, scrolled, period, drawer)` calcula o índice do primeiro elemento visível (`scrolled // period`) e a posição inicial (`-(scrolled % period)`), chamando `drawer(surface, x, idx)` para cada slot visível.
+- Cada elemento é uma forma quadriculada (pilha de retângulos, **nunca elipses**): `_draw_block_shape` desenha uma lista de `(deslocamento_em_unidades, largura_em_unidades)` por linha, de cima para baixo. `idx` semeia `random.Random(idx * salt + n)` para escolher a variante do elemento — determinístico por slot, então o visual não "pisca" ao rolar.
+- Por bioma: Overworld → nuvens (`CLOUD_UNIT=14`) + colinas (`HILL_UNIT=18`, apoiadas no chão); Cave → estalactites (triângulos do teto) + veios de minério (clusters de pontos coloridos); Nether → poças de lava (retângulo raso no chão) + pilares (retângulo alto do chão até certa altura).
+
+## 18. Distribuição e empacotamento — R13
+
+- **Executável local**: `BlockyBird.spec` (gerado por `pyinstaller --onefile --windowed`, depois versionado e usado diretamente) builda com `uv run pyinstaller BlockyBird.spec`, produzindo `dist/BlockyBird.exe` (Windows) ou `dist/BlockyBird` (Linux/macOS). `pyinstaller` é dependência de **dev** apenas (`pyproject.toml`), não afeta a dependência de runtime do jogo (R9.2 continua valendo: só `pygame` + stdlib em tempo de execução) (R13.1).
+- **CI/CD** (`.github/workflows/release.yml`): gatilho `release: types: [published]`. Job com matriz `[windows-latest, ubuntu-latest]`:
+  1. `actions/checkout@v4`.
+  2. Instala `uv` via script oficial (`install.ps1` / `install.sh`) — evita fixar versão de action de terceiros.
+  3. `uv sync` + `uv run pyinstaller BlockyBird.spec`.
+  4. Empacota: Windows → `Compress-Archive` gera `BlockyBird-windows-<tag>.zip`; Linux → `tar -cjf` gera `BlockyBird-linux-<tag>.tar.bz2` (nome inclui `github.event.release.tag_name`).
+  5. Publica os assets na própria Release via `softprops/action-gh-release@v2` (`permissions: contents: write` no workflow) (R13.2).
