@@ -1,0 +1,15 @@
+"""Constantes globais do jogo."""
+
+SCREEN_W, SCREEN_H = 480, 720
+FPS = 60
+TITLE = "Blocky Bird"
+
+GRAVITY = 0.45
+FLAP_IMPULSE = -8.5
+MAX_FALL_SPEED = 12
+
+GROUND_H = 96
+PIPE_SPACING = 260
+PIPE_W = 78
+BLOCK = 48
+HITBOX_SCALE = 0.85
