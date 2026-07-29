@@ -25,23 +25,50 @@ def _tile(surface: pygame.Surface, scrolled: float, period: int, drawer: Drawer)
         idx += 1
 
 
+CLOUD_UNIT = 14
+CLOUD_SHAPES = [
+    # cada linha: (deslocamento em unidades, largura em unidades), de cima para baixo
+    [(2, 4), (1, 6), (0, 8), (1, 6)],
+    [(3, 3), (1, 6), (0, 9), (2, 5)],
+    [(2, 3), (0, 7), (1, 6)],
+]
+
+HILL_UNIT = 18
+HILL_SHAPES = [
+    # cada linha: (deslocamento em unidades, largura em unidades), de cima para baixo (topo -> chao)
+    [(3, 2), (2, 4), (1, 6), (0, 8)],
+    [(4, 1), (2, 5), (1, 7), (0, 9)],
+    [(2, 3), (1, 5), (0, 7)],
+]
+
+
+def _draw_block_shape(
+    surface: pygame.Surface,
+    shape: list[tuple[int, int]],
+    x: int,
+    top_y: int,
+    unit: int,
+    color: tuple[int, int, int],
+) -> None:
+    """Desenha uma forma quadriculada (pilha de retangulos), estilo voxel Minecraft."""
+    for row_i, (col_offset, width_units) in enumerate(shape):
+        y = top_y + row_i * unit
+        rect = pygame.Rect(x + col_offset * unit, y, width_units * unit, unit)
+        pygame.draw.rect(surface, color, rect)
+
+
 def _draw_clouds(surface: pygame.Surface, x: int, idx: int) -> None:
     rng = random.Random(idx * 13 + 1)
-    y = 40 + rng.randint(0, 120)
-    w = rng.randint(50, 90)
-    h = rng.randint(18, 30)
-    rect = pygame.Rect(0, 0, w, h)
-    rect.center = (x + w // 2, y)
-    pygame.draw.ellipse(surface, (255, 255, 255), rect)
+    shape = rng.choice(CLOUD_SHAPES)
+    top_y = 40 + rng.randint(0, 100)
+    _draw_block_shape(surface, shape, x, top_y, CLOUD_UNIT, (255, 255, 255))
 
 
 def _draw_hills(surface: pygame.Surface, x: int, idx: int) -> None:
     rng = random.Random(idx * 17 + 2)
-    w = rng.randint(120, 200)
-    h = rng.randint(40, 90)
-    rect = pygame.Rect(0, 0, w, h * 2)
-    rect.midbottom = (x + w // 2, GROUND_Y + h)
-    pygame.draw.ellipse(surface, (90, 160, 70), rect)
+    shape = rng.choice(HILL_SHAPES)
+    top_y = GROUND_Y - len(shape) * HILL_UNIT
+    _draw_block_shape(surface, shape, x, top_y, HILL_UNIT, (90, 160, 70))
 
 
 def _draw_stalactites(surface: pygame.Surface, x: int, idx: int) -> None:
