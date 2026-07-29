@@ -1,0 +1,58 @@
+from src.biome import BANNER_FRAMES, FADE_FRAMES, BiomeManager
+
+
+def test_starts_on_overworld():
+    bm = BiomeManager()
+    assert bm.current.id == "overworld"
+    assert bm.fade_timer == 0
+    assert bm.banner_timer == 0
+
+
+def test_no_transition_below_threshold():
+    bm = BiomeManager()
+    for score in (0, 5, 9):
+        transitioned = bm.update(score)
+        assert transitioned is False
+        assert bm.current.id == "overworld"
+
+
+def test_threshold_10_activates_cave():
+    bm = BiomeManager()
+    transitioned = bm.update(10)
+    assert transitioned is True
+    assert bm.current.id == "cave"
+    assert bm.fade_timer == FADE_FRAMES
+    assert bm.banner_timer == BANNER_FRAMES
+
+
+def test_threshold_25_activates_nether():
+    bm = BiomeManager()
+    bm.update(10)
+    transitioned = bm.update(25)
+    assert transitioned is True
+    assert bm.current.id == "nether"
+
+
+def test_staying_in_same_biome_decrements_timers():
+    bm = BiomeManager()
+    bm.update(10)
+    assert bm.fade_timer == FADE_FRAMES
+    bm.update(10)
+    assert bm.fade_timer == FADE_FRAMES - 1
+    assert bm.banner_timer == BANNER_FRAMES - 1
+
+
+def test_timers_do_not_go_below_zero():
+    bm = BiomeManager()
+    bm.update(10)
+    for _ in range(FADE_FRAMES + BANNER_FRAMES + 10):
+        bm.update(10)
+    assert bm.fade_timer == 0
+    assert bm.banner_timer == 0
+
+
+def test_score_jumping_straight_to_nether_activates_nether_directly():
+    bm = BiomeManager()
+    transitioned = bm.update(30)
+    assert transitioned is True
+    assert bm.current.id == "nether"

@@ -41,18 +41,24 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **12. Calibração de gameplay**
   Playtest e ajuste fino de `GRAVITY`, `FLAP_IMPULSE`, `PIPE_SPACING`, aberturas e velocidades por bioma até a curva de dificuldade ficar justa. _(R5.3, R9.1)_
 
-- [ ] **13. Testes e verificação final**
+- [x] **13. Testes e verificação final**
   Testes unitários (física, pipes, score, biomas, persistência) via `uv run pytest` com `SDL_VIDEODRIVER=dummy`; checklist manual cobrindo cada critério R1–R9; README curto com instruções de execução via `uv`. _(R9.3, todos)_
 
 ## Checklist de verificação manual (task 13)
 
-- [ ] Flap responde a ESPAÇO, ↑, clique e botão A do controle (R1.1, R10.3)
-- [ ] Start pausa, Y muta; conectar/desconectar controle durante o jogo não trava (R10.2, R10.3)
-- [ ] Jogo funciona normalmente sem controle conectado (R10.5)
-- [ ] Pássaro não morre no teto, morre no chão e nas colunas (R1.4, R3.1)
-- [ ] Ponto único por coluna, com som (R4.1)
-- [ ] Recorde sobrevive a reinício do jogo (R4.3, R4.4)
-- [ ] Biomas trocam em 10 e 25 pontos com fade e banner (R5)
-- [ ] Pausa/despausa com ESC/P; reinício após game over (R6)
-- [ ] Partículas na colisão (R3.2); mudo com M (R8.3)
-- [ ] 60 FPS estáveis; inicia com `uv run main.py` após `uv sync` (R9)
+Itens marcados `[x]` foram validados automaticamente (suíte `pytest` ou scripts de
+verificação usados durante o desenvolvimento das tasks 1–12), não por um humano
+jogando de fato. Recomenda-se uma passada manual real antes de publicar, em especial
+para os itens de áudio e controle físico (marcados abaixo), que dependem de
+percepção humana e de hardware que não está disponível neste ambiente.
+
+- [x] Flap responde a ESPAÇO, ↑, clique e botão A do controle (R1.1, R10.3) — testado com eventos simulados; botão A do controle não testado com hardware real
+- [x] Start pausa, Y muta; conectar/desconectar controle durante o jogo não trava (R10.2, R10.3) — hotplug testado com joystick simulado, não com controle físico
+- [x] Jogo funciona normalmente sem controle conectado (R10.5)
+- [x] Pássaro não morre no teto, morre no chão e nas colunas (R1.4, R3.1)
+- [x] Ponto único por coluna, com som (R4.1) — som verificado via chamada de `play()`, qualidade sonora não avaliada por ouvido humano
+- [x] Recorde sobrevive a reinício do jogo (R4.3, R4.4)
+- [x] Biomas trocam em 10 e 25 pontos com fade e banner (R5)
+- [x] Pausa/despausa com ESC/P; reinício após game over (R6)
+- [x] Partículas na colisão (R3.2); mudo com M (R8.3)
+- [x] 60 FPS estáveis (~4.6 ms/frame médio, calibração da task 12); inicia com `uv run main.py` após `uv sync` (R9)
