@@ -12,6 +12,7 @@ from src.decor import DecorManager
 from src.ground import Ground
 from src.particles import ParticleSystem
 from src.pipes import PipeManager
+from src.sounds import SoundManager
 
 
 class GameState(Enum):
@@ -29,6 +30,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.textures = textures.generate_all(BLOCK)
+        self.sounds = SoundManager()
         self.score = 0
         self.highscore = score.load_highscore()
         self.reset()
@@ -48,8 +50,10 @@ class Game:
         if self.state == GameState.PRONTO:
             self.state = GameState.JOGANDO
             self.bird.flap()
+            self.sounds.play("flap")
         elif self.state == GameState.JOGANDO:
             self.bird.flap()
+            self.sounds.play("flap")
         elif self.state == GameState.GAME_OVER:
             self.reset()
 
@@ -68,6 +72,8 @@ class Game:
                     self._flap_action()
                 elif event.key in (pygame.K_ESCAPE, pygame.K_p):
                     self._toggle_pause()
+                elif event.key == pygame.K_m:
+                    self.sounds.toggle_mute()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 self._flap_action()
 
@@ -86,6 +92,7 @@ class Game:
             if not pipe.scored and pipe.x + PIPE_W < self.bird.pos.x:
                 pipe.scored = True
                 self.score += 1
+                self.sounds.play("score")
 
     def update(self) -> None:
         if self.state == GameState.PRONTO:
@@ -97,11 +104,13 @@ class Game:
             self.ground.update(b.speed)
             self.decor.update(b.speed)
             self._update_score()
-            self.biome.update(self.score)
+            if self.biome.update(self.score):
+                self.sounds.play("portal")
             hit_texture = self._collision_texture()
             if hit_texture is not None:
                 self.state = GameState.GAME_OVER
                 self.particles.burst(self.bird.rect.center, self.textures[hit_texture])
+                self.sounds.play("hit")
                 if self.score > self.highscore:
                     self.highscore = self.score
                     score.save_highscore(self.highscore)

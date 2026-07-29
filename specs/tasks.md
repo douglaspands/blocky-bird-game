@@ -32,7 +32,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **10. Partículas**
   Implementar `particles.py` e disparar burst na colisão com cores da textura atingida. _(R3.2)_
 
-- [ ] **11. Áudio sintetizado**
+- [x] **11. Áudio sintetizado**
   Implementar `sounds.py`: flap, score, hit, portal; tecla M para mudo; degradação graciosa sem mixer. Integrar aos eventos. _(R8, R3.2)_
 
 - [ ] **11b. Suporte a controle de Xbox**

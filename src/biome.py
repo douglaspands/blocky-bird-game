@@ -69,17 +69,18 @@ class BiomeManager:
         self.fade_timer = 0
         self.banner_timer = 0
 
-    def update(self, score: int) -> None:
-        """Detecta cruzamento de threshold (R5.1) e ativa fade + banner (R5.4)."""
+    def update(self, score: int) -> bool:
+        """Detecta cruzamento de threshold (R5.1) e ativa fade + banner (R5.4). Retorna True se houve transicao."""
         target = _biome_for_score(score)
         if target.id != self.current.id:
             self.previous = self.current
             self.current = target
             self.fade_timer = FADE_FRAMES
             self.banner_timer = BANNER_FRAMES
-        else:
-            self.fade_timer = max(0, self.fade_timer - 1)
-            self.banner_timer = max(0, self.banner_timer - 1)
+            return True
+        self.fade_timer = max(0, self.fade_timer - 1)
+        self.banner_timer = max(0, self.banner_timer - 1)
+        return False
 
     def draw_background(self, surface: pygame.Surface) -> None:
         current_grad = self._gradients[self.current.id]
