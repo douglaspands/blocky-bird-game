@@ -63,8 +63,8 @@ FLAP_IMPULSE = -8.5     # px/frame
 MAX_FALL_SPEED = 12
 GROUND_H = 96
 PIPE_SPACING = 260      # distância horizontal entre pares
-PIPE_W = 78             # largura da coluna (bloco 16px × escala ~4.8 → arredondar p/ múltiplo)
 BLOCK = 48              # tamanho do bloco renderizado (16×16 escalado 3×)
+PIPE_W = BLOCK          # largura da coluna = largura do bloco desenhado (evita hitbox maior que o sprite)
 HITBOX_SCALE = 0.85     # R3.5
 ```
 

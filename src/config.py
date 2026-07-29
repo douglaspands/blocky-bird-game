@@ -10,7 +10,7 @@ MAX_FALL_SPEED = 12
 
 GROUND_H = 96
 PIPE_SPACING = 260
-PIPE_W = 78
-GAP_MARGIN = 80
 BLOCK = 48
+PIPE_W = BLOCK  # colisao deve casar com a largura da coluna de blocos renderizada
+GAP_MARGIN = 80
 HITBOX_SCALE = 0.85
