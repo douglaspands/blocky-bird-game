@@ -64,19 +64,13 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
         (SCREEN_W // 2, SCREEN_H // 3 + 70),
         base_size=10,
     )
-    _draw_highscore_badge(surface, highscore)
-
-
-def _draw_highscore_badge(surface: pygame.Surface, highscore: int) -> None:
-    """Destaque do recorde no rodape da tela inicial, estilo placa voxel."""
-    badge = pygame.Rect(0, 0, 220, 46)
-    badge.centerx = SCREEN_W // 2
-    badge.bottom = GROUND_Y - 24
-
-    pygame.draw.rect(surface, (25, 20, 8), badge)
-    pygame.draw.rect(surface, GOLD, badge, width=4)
-
-    draw_text(surface, f"RECORDE: {highscore}", badge.center, base_size=12, color=GOLD)
+    draw_text(
+        surface,
+        f"RECORDE: {highscore}",
+        (SCREEN_W // 2, GROUND_Y - 24),
+        base_size=12,
+        color=GOLD,
+    )
 
 
 def draw_hud_score(surface: pygame.Surface, score: int) -> None:
