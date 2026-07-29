@@ -4,9 +4,9 @@ from enum import Enum, auto
 
 import pygame
 
-from src import textures, ui
+from src import score, textures, ui
 from src.bird import Bird
-from src.config import BLOCK, FPS, SCREEN_H, SCREEN_W, TITLE
+from src.config import BLOCK, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
 from src.ground import Ground
 from src.pipes import PipeManager
 
@@ -27,7 +27,7 @@ class Game:
         self.running = True
         self.textures = textures.generate_all(BLOCK)
         self.score = 0
-        self.highscore = 0
+        self.highscore = score.load_highscore()
         self.reset()
 
     def reset(self) -> None:
@@ -72,6 +72,13 @@ class Game:
             for pipe in self.pipes.pipes
         )
 
+    def _update_score(self) -> None:
+        """+1 por coluna ultrapassada, uma unica vez por coluna (R4.1)."""
+        for pipe in self.pipes.pipes:
+            if not pipe.scored and pipe.x + PIPE_W < self.bird.pos.x:
+                pipe.scored = True
+                self.score += 1
+
     def update(self) -> None:
         if self.state == GameState.PRONTO:
             self.bird.update_idle()
@@ -79,9 +86,12 @@ class Game:
             self.bird.update()
             self.pipes.update()
             self.ground.update()
+            self._update_score()
             if self._collided():
                 self.state = GameState.GAME_OVER
-                self.highscore = max(self.highscore, self.score)
+                if self.score > self.highscore:
+                    self.highscore = self.score
+                    score.save_highscore(self.highscore)
         # PAUSADO e GAME_OVER: fisica e obstaculos ficam congelados (R3.3, R6.3).
 
     def draw(self) -> None:
@@ -92,7 +102,10 @@ class Game:
 
         if self.state == GameState.PRONTO:
             ui.draw_ready_screen(self.screen)
+        elif self.state == GameState.JOGANDO:
+            ui.draw_hud_score(self.screen, self.score)
         elif self.state == GameState.PAUSADO:
+            ui.draw_hud_score(self.screen, self.score)
             ui.draw_paused_overlay(self.screen)
         elif self.state == GameState.GAME_OVER:
             ui.draw_game_over_screen(self.screen, self.score, self.highscore)

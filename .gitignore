@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Save local do jogo
+highscore.json

@@ -20,7 +20,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **6. Máquina de estados e UI**
   Implementar `GameState` (PRONTO/JOGANDO/PAUSADO/GAME_OVER) e `ui.py`: tela inicial com idle bobbing, pausa com ESC/P, tela de game over com reinício, fonte pixelada com sombra. _(R6, R3.3, R3.4, R7.5)_
 
-- [ ] **7. Pontuação e recorde**
+- [x] **7. Pontuação e recorde**
   Implementar `score.py`: +1 por coluna ultrapassada, HUD, persistência em `highscore.json` com fallback para arquivo ausente/corrompido, exibição do recorde no game over. _(R4)_
 
 - [ ] **8. Biomas e progressão de dificuldade**

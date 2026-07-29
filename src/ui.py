@@ -57,6 +57,10 @@ def draw_ready_screen(surface: pygame.Surface) -> None:
     )
 
 
+def draw_hud_score(surface: pygame.Surface, score: int) -> None:
+    draw_text(surface, str(score), (SCREEN_W // 2, 60), base_size=20)
+
+
 def draw_paused_overlay(surface: pygame.Surface) -> None:
     _dim_overlay(surface)
     draw_text(surface, "PAUSADO", (SCREEN_W // 2, SCREEN_H // 2), base_size=18)
