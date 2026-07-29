@@ -5,6 +5,7 @@ from enum import Enum, auto
 import pygame
 
 from src import score, textures, ui
+from src.biome import BiomeManager
 from src.bird import Bird
 from src.config import BLOCK, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
 from src.ground import Ground
@@ -32,8 +33,10 @@ class Game:
 
     def reset(self) -> None:
         self.bird = Bird(SCREEN_W // 4, SCREEN_H // 2)
-        self.pipes = PipeManager()
-        self.ground = Ground(self.pipes.speed)
+        self.biome = BiomeManager()
+        b = self.biome.current
+        self.pipes = PipeManager(b.gap_size, b.block_main, b.block_edge)
+        self.ground = Ground()
         self.score = 0
         self.state = GameState.PRONTO
 
@@ -83,22 +86,26 @@ class Game:
         if self.state == GameState.PRONTO:
             self.bird.update_idle()
         elif self.state == GameState.JOGANDO:
+            b = self.biome.current
             self.bird.update()
-            self.pipes.update()
-            self.ground.update()
+            self.pipes.update(b.speed, b.gap_size, b.block_main, b.block_edge)
+            self.ground.update(b.speed)
             self._update_score()
+            self.biome.update(self.score)
             if self._collided():
                 self.state = GameState.GAME_OVER
                 if self.score > self.highscore:
                     self.highscore = self.score
                     score.save_highscore(self.highscore)
-        # PAUSADO e GAME_OVER: fisica e obstaculos ficam congelados (R3.3, R6.3).
+        # PAUSADO e GAME_OVER: fisica, obstaculos e biomas ficam congelados (R3.3, R6.3).
 
     def draw(self) -> None:
-        self.screen.fill((135, 206, 235))
+        b = self.biome.current
+        self.biome.draw_background(self.screen)
         self.pipes.draw(self.screen, self.textures)
-        self.ground.draw(self.screen, self.textures)
+        self.ground.draw(self.screen, self.textures, b.block_main, b.block_edge)
         self.bird.draw(self.screen, self.textures)
+        self.biome.draw_banner(self.screen)
 
         if self.state == GameState.PRONTO:
             ui.draw_ready_screen(self.screen)

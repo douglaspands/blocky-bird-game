@@ -4,25 +4,28 @@ import pygame
 
 from src.config import BLOCK, GROUND_H, SCREEN_H, SCREEN_W
 
-MAIN_TEXTURE = "dirt"
-EDGE_TEXTURE = "grass_side"
-
 
 class Ground:
-    def __init__(self, speed: float) -> None:
-        self.speed = speed
+    def __init__(self) -> None:
         self.offset = 0.0
 
-    def update(self) -> None:
-        self.offset = (self.offset - self.speed) % BLOCK
+    def update(self, speed: float) -> None:
+        self.offset = (self.offset - speed) % BLOCK
 
     @property
     def rect(self) -> pygame.Rect:
         return pygame.Rect(0, SCREEN_H - GROUND_H, SCREEN_W, GROUND_H)
 
-    def draw(self, surface: pygame.Surface, textures: dict[str, pygame.Surface]) -> None:
-        main_tex = textures[MAIN_TEXTURE]
-        edge_tex = textures[EDGE_TEXTURE]
+    def draw(
+        self,
+        surface: pygame.Surface,
+        textures: dict[str, pygame.Surface],
+        block_main: str,
+        block_edge: str,
+    ) -> None:
+        """Usa sempre as texturas do bioma atual, sem congelamento (R7.3)."""
+        main_tex = textures[block_main]
+        edge_tex = textures[block_edge]
         top_y = SCREEN_H - GROUND_H
 
         x = round(self.offset) - BLOCK

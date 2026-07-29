@@ -37,6 +37,25 @@ def make_stone(seed: int = 3) -> pygame.Surface:
     return _shaded((128, 128, 128), seed)
 
 
+def make_cobblestone(seed: int = 4) -> pygame.Surface:
+    return _shaded((122, 122, 122), seed, variation=0.22)
+
+
+def make_netherrack(seed: int = 5) -> pygame.Surface:
+    return _shaded((110, 54, 48), seed, variation=0.18)
+
+
+def make_obsidian(seed: int = 6) -> pygame.Surface:
+    surf = _shaded((20, 16, 34), seed, variation=0.15)
+    rng = random.Random(seed + 1)
+    for _ in range(6):
+        x = rng.randrange(TEX_SIZE)
+        y = rng.randrange(TEX_SIZE)
+        purple = tuple(max(0, min(255, c + rng.randint(20, 60))) for c in (60, 30, 90))
+        surf.set_at((x, y), purple)
+    return surf
+
+
 def make_bee(frame: int = 0) -> pygame.Surface:
     """Abelha voxel: corpo amarelo com listras pretas, asas em 2 frames (R7.2)."""
     surf = pygame.Surface((TEX_SIZE, TEX_SIZE), pygame.SRCALPHA)
@@ -75,6 +94,9 @@ def generate_all(block_size: int) -> dict[str, pygame.Surface]:
         "dirt": make_dirt(),
         "grass_side": make_grass_side(),
         "stone": make_stone(),
+        "cobblestone": make_cobblestone(),
+        "netherrack": make_netherrack(),
+        "obsidian": make_obsidian(),
         "bee_0": make_bee(0),
         "bee_1": make_bee(1),
     }

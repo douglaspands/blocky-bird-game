@@ -4,27 +4,16 @@ import random
 
 import pygame
 
-from src.config import (
-    BLOCK,
-    GAP_MARGIN,
-    GAP_SIZE,
-    GROUND_H,
-    PIPE_SPACING,
-    PIPE_SPEED,
-    PIPE_W,
-    SCREEN_H,
-    SCREEN_W,
-)
-
-MAIN_TEXTURE = "dirt"
-EDGE_TEXTURE = "grass_side"
+from src.config import BLOCK, GAP_MARGIN, GROUND_H, PIPE_SPACING, PIPE_W, SCREEN_H, SCREEN_W
 
 
 class PipePair:
-    def __init__(self, x: float, gap_y: float, gap_size: int) -> None:
+    def __init__(self, x: float, gap_y: float, gap_size: int, block_main: str, block_edge: str) -> None:
         self.x = x
         self.gap_y = gap_y
         self.gap_size = gap_size
+        self.block_main = block_main
+        self.block_edge = block_edge
         self.scored = False
 
     @property
@@ -42,9 +31,9 @@ class PipePair:
         return self.x + PIPE_W < 0
 
     def draw(self, surface: pygame.Surface, textures: dict[str, pygame.Surface]) -> None:
-        """Desenha a coluna como pilha de blocos, com bloco de borda na boca da abertura (R2.5)."""
-        main_tex = textures[MAIN_TEXTURE]
-        edge_tex = textures[EDGE_TEXTURE]
+        """Desenha a coluna como pilha de blocos do bioma congelado na criacao (R2.5)."""
+        main_tex = textures[self.block_main]
+        edge_tex = textures[self.block_edge]
         x = round(self.x)
 
         top = self.top_rect
@@ -65,23 +54,21 @@ class PipePair:
 
 
 class PipeManager:
-    def __init__(self, speed: float = PIPE_SPEED, gap_size: int = GAP_SIZE) -> None:
-        self.speed = speed
-        self.gap_size = gap_size
+    def __init__(self, gap_size: int, block_main: str, block_edge: str) -> None:
         self.pipes: list[PipePair] = []
-        self._spawn(SCREEN_W)
+        self._spawn(SCREEN_W, gap_size, block_main, block_edge)
 
-    def _spawn(self, x: float) -> None:
+    def _spawn(self, x: float, gap_size: int, block_main: str, block_edge: str) -> None:
         gap_y = random.uniform(GAP_MARGIN, SCREEN_H - GROUND_H - GAP_MARGIN)
-        self.pipes.append(PipePair(x, gap_y, self.gap_size))
+        self.pipes.append(PipePair(x, gap_y, gap_size, block_main, block_edge))
 
-    def update(self) -> None:
-        """Move as colunas (R2.3), spawna novas (R2.1/R2.2) e remove as que saem da tela (R2.4)."""
+    def update(self, speed: float, gap_size: int, block_main: str, block_edge: str) -> None:
+        """Move as colunas (R2.3), spawna novas com o bioma atual (R2.1/R2.2/R2.5) e remove as que saem da tela (R2.4)."""
         for pipe in self.pipes:
-            pipe.x -= self.speed
+            pipe.x -= speed
 
         if self.pipes[-1].x <= SCREEN_W - PIPE_SPACING:
-            self._spawn(self.pipes[-1].x + PIPE_SPACING)
+            self._spawn(self.pipes[-1].x + PIPE_SPACING, gap_size, block_main, block_edge)
 
         self.pipes = [p for p in self.pipes if not p.off_screen()]
 

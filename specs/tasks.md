@@ -23,7 +23,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **7. Pontuação e recorde**
   Implementar `score.py`: +1 por coluna ultrapassada, HUD, persistência em `highscore.json` com fallback para arquivo ausente/corrompido, exibição do recorde no game over. _(R4)_
 
-- [ ] **8. Biomas e progressão de dificuldade**
+- [x] **8. Biomas e progressão de dificuldade**
   Implementar `biome.py`: os 3 biomas com thresholds 0/10/25, parâmetros de velocidade/abertura, texturas `cobblestone`/`netherrack`/`obsidian`, fade de céu ≤ 1 s e banner com nome do bioma. _(R5, R2.5)_
 
 - [ ] **9. Decoração de fundo com parallax**
