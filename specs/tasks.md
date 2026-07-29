@@ -14,7 +14,7 @@ Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em 
 - [x] **4. Obstáculos**
   Implementar `pipes.py`: spawn com abertura aleatória, movimento, remoção fora da tela, renderização como pilha de blocos com bloco de borda na abertura. _(R2)_
 
-- [ ] **5. Colisão e chão**
+- [x] **5. Colisão e chão**
   Chão rolante de blocos; hitbox 85%; colisão pássaro×coluna e pássaro×chão encerra a rodada (por ora, reinicia direto). _(R3.1, R3.5, R7.3)_
 
 - [ ] **6. Máquina de estados e UI**
