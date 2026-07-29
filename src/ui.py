@@ -2,13 +2,15 @@
 
 import pygame
 
-from src.config import CREDITS, SCREEN_H, SCREEN_W
+from src.config import CREDITS, GROUND_H, SCREEN_H, SCREEN_W
 
 FONT_NAME = "couriernew"
 SHADOW_COLOR = (40, 30, 20)
 SHADOW_OFFSET = 3
 TEXT_SCALE = 3
 OVERLAY_COLOR = (0, 0, 0, 140)
+GROUND_Y = SCREEN_H - GROUND_H
+GOLD = (255, 215, 60)
 
 _font_cache: dict[int, pygame.font.Font] = {}
 
@@ -51,24 +53,30 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
     draw_text(surface, "BLOCKY BIRD", (SCREEN_W // 2, SCREEN_H // 3), base_size=18, color=(255, 220, 60))
     draw_text(
         surface,
-        f"RECORDE: {highscore}",
-        (SCREEN_W // 2, SCREEN_H // 3 + 26),
-        base_size=10,
-        color=(255, 215, 60),
-    )
-    draw_text(
-        surface,
         CREDITS.upper(),
-        (SCREEN_W // 2, SCREEN_H // 3 + 50),
+        (SCREEN_W // 2, SCREEN_H // 3 + 28),
         base_size=8,
         color=(230, 230, 230),
     )
     draw_text(
         surface,
         "ESPACO / CLIQUE PARA VOAR",
-        (SCREEN_W // 2, SCREEN_H // 3 + 92),
+        (SCREEN_W // 2, SCREEN_H // 3 + 70),
         base_size=10,
     )
+    _draw_highscore_badge(surface, highscore)
+
+
+def _draw_highscore_badge(surface: pygame.Surface, highscore: int) -> None:
+    """Destaque do recorde no rodape da tela inicial, estilo placa voxel."""
+    badge = pygame.Rect(0, 0, 220, 46)
+    badge.centerx = SCREEN_W // 2
+    badge.bottom = GROUND_Y - 24
+
+    pygame.draw.rect(surface, (25, 20, 8), badge)
+    pygame.draw.rect(surface, GOLD, badge, width=4)
+
+    draw_text(surface, f"RECORDE: {highscore}", badge.center, base_size=12, color=GOLD)
 
 
 def draw_hud_score(surface: pygame.Surface, score: int) -> None:
