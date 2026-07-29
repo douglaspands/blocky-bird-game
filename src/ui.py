@@ -47,19 +47,26 @@ def _dim_overlay(surface: pygame.Surface) -> None:
     surface.blit(overlay, (0, 0))
 
 
-def draw_ready_screen(surface: pygame.Surface) -> None:
+def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
     draw_text(surface, "BLOCKY BIRD", (SCREEN_W // 2, SCREEN_H // 3), base_size=18, color=(255, 220, 60))
     draw_text(
         surface,
+        f"RECORDE: {highscore}",
+        (SCREEN_W // 2, SCREEN_H // 3 + 26),
+        base_size=10,
+        color=(255, 215, 60),
+    )
+    draw_text(
+        surface,
         CREDITS.upper(),
-        (SCREEN_W // 2, SCREEN_H // 3 + 28),
+        (SCREEN_W // 2, SCREEN_H // 3 + 50),
         base_size=8,
         color=(230, 230, 230),
     )
     draw_text(
         surface,
         "ESPACO / CLIQUE PARA VOAR",
-        (SCREEN_W // 2, SCREEN_H // 3 + 70),
+        (SCREEN_W // 2, SCREEN_H // 3 + 92),
         base_size=10,
     )
 

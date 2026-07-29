@@ -128,7 +128,7 @@ class Game:
         self.biome.draw_banner(self.screen)
 
         if self.state == GameState.PRONTO:
-            ui.draw_ready_screen(self.screen)
+            ui.draw_ready_screen(self.screen, self.highscore)
         elif self.state == GameState.JOGANDO:
             ui.draw_hud_score(self.screen, self.score)
         elif self.state == GameState.PAUSADO:
