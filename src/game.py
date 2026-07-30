@@ -1,10 +1,11 @@
 """Classe Game: loop principal e maquina de estados (R6)."""
 
+import contextlib
 from enum import Enum, auto
 
 import pygame
 
-from src import score, storage, textures, ui
+from src import assets, score, storage, textures, ui
 from src.biome import BiomeManager
 from src.bird import Bird
 from src.config import BLOCK, CREDITS, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
@@ -36,6 +37,12 @@ class GameState(Enum):
 class Game:
     def __init__(self) -> None:
         pygame.init()
+        # icone da abelha na janela/taskbar do desktop (R21.2); sem efeito
+        # visivel no Android (sem barra de titulo), mas nao ha custo em
+        # tentar. Degradacao graciosa: um asset ausente/corrompido nunca
+        # deve impedir o jogo de abrir (mesma disciplina do audio, R8.4).
+        with contextlib.suppress(OSError, pygame.error):
+            pygame.display.set_icon(pygame.image.load(str(assets.asset_path("app_icon_512.png"))))
         canvas_w, canvas_h = SCREEN_W, SCREEN_H
         if storage.is_android():
             # No Android o aparelho real quase sempre tem proporcao diferente da

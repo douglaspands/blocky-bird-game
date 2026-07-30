@@ -40,6 +40,19 @@ android.manifest.intent_filters = ./android/tv_intent_filter.xml
 android.extra_manifest_application_arguments = ./android/tv_banner_attribute.txt
 android.add_resources = assets/android_banner.png:drawable/banner.png
 
+# Icone do launcher com a abelha do jogo (R21), gerado por
+# scripts/generate_app_icon.py — ver specs/v3/design.md secao 29.
+# icon.filename cobre API < 26 (sem suporte a icone adaptativo); as duas
+# chaves icon.adaptive_* cobrem API 26+, deixando o SISTEMA compor a mascara
+# final (circulo/squircle/quadrado arredondado) a partir de uma camada de
+# primeiro plano ja desenhada para caber na zona segura de 66/108dp — sem
+# essas duas chaves, API 26+ trataria o icone.filename quadrado como se fosse
+# ja a camada inteira, cortando as pontas da abelha (antenas/asas) na mascara
+# circular default.
+icon.filename = assets/android_icon_legacy.png
+icon.adaptive_foreground.filename = assets/android_icon_foreground.png
+icon.adaptive_background.filename = assets/android_icon_background.png
+
 android.api = 34
 android.minapi = 21
 android.ndk_api = 21
