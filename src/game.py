@@ -39,6 +39,10 @@ class Game:
         # mantendo a proporcao (letterbox/pillarbox automatico, R9.1, R14.3). Todo o
         # jogo continua desenhando em coordenadas logicas 480x720.
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.SCALED | pygame.RESIZABLE)
+        # descarta eventos de janela gerados pela criacao do display (ex.: WindowShown,
+        # WindowFocusGained/Lost) para nao serem lidos como acoes do jogador antes do
+        # loop comecar — visto sob SDL_VIDEODRIVER=dummy com SDL 2.32 (pygame-ce).
+        pygame.event.clear()
         pygame.display.set_caption(f"{TITLE} - {CREDITS}")
         self.clock = pygame.time.Clock()
         self.running = True

@@ -4,8 +4,11 @@ from src import ui
 from src.input import ACTION_BACK, ACTION_FLAP, ACTION_LEFT, ACTION_MUTE, ACTION_RIGHT, InputManager
 
 
-def _make_input():
-    pygame.display.set_mode((480, 720), pygame.SCALED | pygame.RESIZABLE)
+def _make_input(size=(480, 720)):
+    pygame.display.set_mode(size, pygame.SCALED | pygame.RESIZABLE)
+    # descarta eventos de janela da criacao do display (ex.: WindowFocusLost sob
+    # SDL_VIDEODRIVER=dummy com SDL 2.32/pygame-ce), senao contaminam poll()
+    pygame.event.clear()
     return InputManager()
 
 
@@ -69,8 +72,7 @@ def test_left_right_keys_map_to_left_right_actions():
 def test_finger_tap_outside_logical_area_is_ignored():
     """Numa janela mais larga que 480:720 (pillarbox), toque na barra preta nao
     deve gerar nenhuma acao."""
-    pygame.display.set_mode((900, 720), pygame.SCALED | pygame.RESIZABLE)
-    im = InputManager()
+    im = _make_input(size=(900, 720))
 
     # x=0.05 normalizado numa janela de 900px cai bem dentro da barra esquerda
     pygame.event.post(pygame.event.Event(pygame.FINGERDOWN, x=0.05, y=0.5, touch_id=1, finger_id=1))
