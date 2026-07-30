@@ -290,7 +290,21 @@ Input unificado (R1.1, R10, R15): eventos de teclado, mouse, joystick e **toque*
 - Cada glifo é uma lista de 7 strings de 5 caracteres (`"#"` = pixel aceso, `"."` = vazio), definida como constante no módulo. Conjunto necessário, extraído de todos os textos do jogo: `A-Z`, `0-9`, `:`, `/`, `!`, `-`, espaço. Textos já são todos em maiúsculas na v1, então minúsculas não são necessárias (`draw_text` aplica `.upper()` por garantia).
 - `render(text, scale, color) -> Surface`: monta uma `Surface` com `SRCALPHA`, acende os pixels de cada glifo como retângulos `scale × scale`, com 1 coluna de espaçamento entre glifos. Resultado já é pixel-perfeito por construção — **dispensa** o `SysFont` + `transform.scale` da v1.
 - Cache: `dict[(text, scale, color)] -> Surface`, evitando remontar strings estáticas (título, instruções) a cada frame. O HUD de pontuação muda pouco (no máximo 1× por ponto), então o cache também o cobre bem.
-- `ui.draw_text` passa a chamar `pixelfont.render`, mantendo a assinatura atual e o desenho da sombra dura. As chamadas existentes em `ui.py` seguem funcionando; o parâmetro `base_size` da v1 é convertido em `scale` (fator inteiro de pixel), preservando a hierarquia visual de tamanhos.
+- `ui.draw_text` passa a chamar `pixelfont.render`, mantendo a assinatura atual e o desenho da sombra dura. As chamadas existentes em `ui.py` seguem funcionando; o parâmetro `base_size` da v1 é convertido em `scale` (fator inteiro de pixel, `max(1, base_size // 2)`), preservando a hierarquia visual de tamanhos.
+
+**Descoberto na implementação (task 20): a fonte bitmap é proporcionalmente mais larga que a `SysFont` antiga.** Cada glifo ocupa `5 + 1` unidades (glifo + espaçamento); numa fonte de sistema como Courier New os caracteres são mais estreitos e há hinting de kerning. Mapear `base_size` direto para uma escala fixa estourava a tela em 3 dos 9 textos reais do jogo: `"BLOCKY BIRD"` (585 px), `"ESPACO / CLIQUE PARA VOAR"` (745 px) e `"ESPACO / CLIQUE PARA REINICIAR"` (716 px) — todos acima dos 480 px disponíveis. Corrigido com um ajuste automático em `ui.py`:
+
+```python
+MAX_TEXT_W = SCREEN_W - 40   # margem de 20px de cada lado
+
+def _fit_scale(text: str, scale: int) -> int:
+    n = len(text)
+    while scale > 1 and _text_width(n, scale) > MAX_TEXT_W:
+        scale -= 1
+    return scale
+```
+
+`draw_text` chama `_fit_scale` antes de renderizar, reduzindo a escala apenas o necessário para caber. Como é calculado por string (não hardcoded por tela), continua correto mesmo que os textos mudem no futuro — não é uma correção pontual para os 3 casos encontrados, é uma garantia geral.
 
 **Fallback documentado.** Se o custo de desenhar os glifos se mostrar alto, a alternativa é `pygame.font.Font(None, size)`, que usa a fonte **embutida no próprio pygame** (disponível também no Android, sem depender do sistema). É a rota de menor esforço, porém sem controle pixel-a-pixel do traço — a fonte bitmap é a preferida por consistência visual e por eliminar a dependência do módulo `pygame.font`.
 

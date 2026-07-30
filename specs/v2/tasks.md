@@ -78,8 +78,9 @@ visual) e commit.
 
 Fase 1 — mudanças no jogo, testáveis no desktop (tasks 20–25). Fase 2 — cadeia de build e distribuição Android (tasks 26–30).
 
-- [ ] **20. Fonte bitmap própria, sem dependência do sistema**
+- [x] **20. Fonte bitmap própria, sem dependência do sistema**
   Implementar `pixelfont.py`: glifos 5×7 desenhados por código para `A-Z`, `0-9`, `:`, `/`, `!`, `-` e espaço, com `render(text, scale, color)` e cache. Trocar o `SysFont("couriernew")` de `ui.py` por essa fonte, preservando a sombra dura e a hierarquia de tamanhos das telas atuais. Validar visualmente que PRONTO, HUD, PAUSADO e GAME_OVER continuam legíveis e centralizados. _(R7.6, R7.5, R14.5)_
+  **Ajuste feito na implementação:** a fonte bitmap é proporcionalmente mais larga que a `SysFont` antiga — mapear `base_size` direto para escala fixa estourava a largura da tela em 3 textos reais (`BLOCKY BIRD` 585px, `ESPACO / CLIQUE PARA VOAR` 745px, `ESPACO / CLIQUE PARA REINICIAR` 716px, todos > 480px). Adicionado `ui._fit_scale()`: reduz a escala automaticamente até o texto caber em `SCREEN_W - 40`, verificado para todas as strings reais do jogo.
 
 - [ ] **21. Resolução lógica escalável com letterbox**
   Passar `pygame.SCALED | pygame.RESIZABLE` no `set_mode` e verificar que o jogo mantém proporção ao redimensionar a janela (barras nas laterais/topo, sem distorção nem deslocamento do gameplay). Confirmar que o clique do mouse continua batendo com o que se vê.

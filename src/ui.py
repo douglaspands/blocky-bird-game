@@ -1,33 +1,35 @@
-"""HUD e telas de estado, com fonte pixelada e sombra dura (R7.5)."""
+"""HUD e telas de estado, com fonte pixelada e sombra dura (R7.5, R7.6)."""
 
 import pygame
 
+from src import pixelfont
 from src.config import CREDITS, GROUND_H, SCREEN_H, SCREEN_W
 
-FONT_NAME = "couriernew"
 SHADOW_COLOR = (40, 30, 20)
 SHADOW_OFFSET = 3
-TEXT_SCALE = 3
 OVERLAY_COLOR = (0, 0, 0, 140)
 GROUND_Y = SCREEN_H - GROUND_H
 GOLD = (255, 215, 60)
-
-_font_cache: dict[int, pygame.font.Font] = {}
-
-
-def _get_font(base_size: int) -> pygame.font.Font:
-    font = _font_cache.get(base_size)
-    if font is None:
-        font = pygame.font.SysFont(FONT_NAME, base_size, bold=True)
-        _font_cache[base_size] = font
-    return font
+MAX_TEXT_W = SCREEN_W - 40  # margem de 20px de cada lado
 
 
-def _render_pixel_text(text: str, base_size: int, color: tuple[int, int, int]) -> pygame.Surface:
-    font = _get_font(base_size)
-    small = font.render(text, False, color)
-    w, h = small.get_size()
-    return pygame.transform.scale(small, (max(w, 1) * TEXT_SCALE, max(h, 1) * TEXT_SCALE))
+def _scale_for(base_size: int) -> int:
+    """Converte o base_size (tamanho de fonte da v1) num fator inteiro de pixel."""
+    return max(1, base_size // 2)
+
+
+def _text_width(n_chars: int, scale: int) -> int:
+    return scale * (pixelfont.GLYPH_W * n_chars + pixelfont.SPACING * max(n_chars - 1, 0))
+
+
+def _fit_scale(text: str, scale: int) -> int:
+    """Reduz a escala ate o texto caber em MAX_TEXT_W (a fonte bitmap e proporcionalmente
+    mais larga que a SysFont usada na v1, entao alguns textos longos estourariam a tela
+    sem este ajuste)."""
+    n = len(text)
+    while scale > 1 and _text_width(n, scale) > MAX_TEXT_W:
+        scale -= 1
+    return scale
 
 
 def draw_text(
@@ -37,8 +39,9 @@ def draw_text(
     base_size: int = 12,
     color: tuple[int, int, int] = (255, 255, 255),
 ) -> None:
-    shadow = _render_pixel_text(text, base_size, SHADOW_COLOR)
-    main = _render_pixel_text(text, base_size, color)
+    scale = _fit_scale(text, _scale_for(base_size))
+    shadow = pixelfont.render(text, scale, SHADOW_COLOR)
+    main = pixelfont.render(text, scale, color)
     surface.blit(shadow, shadow.get_rect(center=(center[0] + SHADOW_OFFSET, center[1] + SHADOW_OFFSET)))
     surface.blit(main, main.get_rect(center=center))
 
