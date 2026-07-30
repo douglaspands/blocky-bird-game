@@ -52,6 +52,27 @@ def draw_text(
     surface.blit(main, main.get_rect(center=center))
 
 
+def _stack(
+    surface: pygame.Surface,
+    center_x: int,
+    top_y: int,
+    lines: list[tuple[str, int, tuple[int, int, int]]],
+    margin: int = 8,
+) -> None:
+    """Empilha linhas de texto verticalmente pela altura real renderizada (R19.3).
+
+    Ao contrario de deltas fixos em pixels, a posicao de cada linha depende da
+    altura de fato ocupada pela linha anterior (GLYPH_H * escala + sombra), entao
+    duas linhas nunca colidem mesmo se a escala de uma delas mudar.
+    """
+    y = top_y
+    for text, base_size, color in lines:
+        scale = _fit_scale(text, _scale_for(base_size))
+        height = pixelfont.GLYPH_H * scale
+        draw_text(surface, text, (center_x, y + height // 2), base_size=base_size, color=color)
+        y += height + SHADOW_OFFSET + margin
+
+
 def _dim_overlay(surface: pygame.Surface) -> None:
     overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
     overlay.fill(OVERLAY_COLOR)
@@ -59,25 +80,21 @@ def _dim_overlay(surface: pygame.Surface) -> None:
 
 
 def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
-    draw_text(surface, "BLOCKY BIRD", (SCREEN_W // 2, SCREEN_H // 3), base_size=18, color=(255, 220, 60))
-    draw_text(
+    _stack(
         surface,
-        CREDITS.upper(),
-        (SCREEN_W // 2, SCREEN_H // 3 + 28),
-        base_size=8,
-        color=(230, 230, 230),
-    )
-    draw_text(
-        surface,
-        "ESPACO / CLIQUE PARA VOAR",
-        (SCREEN_W // 2, SCREEN_H // 3 + 70),
-        base_size=10,
+        SCREEN_W // 2,
+        SCREEN_H // 4,
+        [
+            ("BLOCKY BIRD", 12, (255, 220, 60)),
+            (CREDITS.upper(), 5, (230, 230, 230)),
+            ("ESPACO / CLIQUE PARA VOAR", 6, (255, 255, 255)),
+        ],
     )
     draw_text(
         surface,
         f"RECORDE: {highscore}",
         (SCREEN_W // 2, GROUND_Y - 24),
-        base_size=12,
+        base_size=8,
         color=GOLD,
     )
 
@@ -104,30 +121,32 @@ def draw_mute_icon(surface: pygame.Surface, muted: bool) -> None:
 
 
 def draw_hud_score(surface: pygame.Surface, score: int) -> None:
-    draw_text(surface, str(score), (SCREEN_W // 2, 60), base_size=20)
+    draw_text(surface, str(score), (SCREEN_W // 2, 40), base_size=12)
 
 
 def draw_paused_overlay(surface: pygame.Surface) -> None:
     _dim_overlay(surface)
-    draw_text(surface, "PAUSADO", (SCREEN_W // 2, SCREEN_H // 2), base_size=18)
-    draw_text(
+    _stack(
         surface,
-        "SETAS: MUDO",
-        (SCREEN_W // 2, SCREEN_H // 2 + 36),
-        base_size=9,
-        color=(210, 210, 210),
+        SCREEN_W // 2,
+        SCREEN_H // 2 - 24,
+        [
+            ("PAUSADO", 12, (255, 255, 255)),
+            ("SETAS: MUDO", 5, (210, 210, 210)),
+        ],
     )
 
 
 def draw_game_over_screen(surface: pygame.Surface, score: int, highscore: int) -> None:
     _dim_overlay(surface)
-    draw_text(surface, "GAME OVER", (SCREEN_W // 2, SCREEN_H // 2 - 60), base_size=18, color=(220, 60, 50))
-    draw_text(surface, f"PONTOS: {score}", (SCREEN_W // 2, SCREEN_H // 2), base_size=12)
-    draw_text(surface, f"RECORDE: {highscore}", (SCREEN_W // 2, SCREEN_H // 2 + 30), base_size=12)
-    draw_text(
+    _stack(
         surface,
-        "ESPACO / CLIQUE PARA REINICIAR",
-        (SCREEN_W // 2, SCREEN_H // 2 + 70),
-        base_size=9,
-        color=(220, 220, 220),
+        SCREEN_W // 2,
+        SCREEN_H // 2 - 90,
+        [
+            ("GAME OVER", 12, (220, 60, 50)),
+            (f"PONTOS: {score}", 8, (255, 255, 255)),
+            (f"RECORDE: {highscore}", 8, (255, 255, 255)),
+            ("ESPACO / CLIQUE PARA REINICIAR", 5, (220, 220, 220)),
+        ],
     )
