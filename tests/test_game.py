@@ -1,3 +1,4 @@
+from src import score as score_module
 from src.config import PIPE_W
 from src.game import Game, GameState
 
@@ -54,6 +55,45 @@ def test_pause_toggle_freezes_physics():
     game.update()
     assert game.bird.pos.y == bird_y_before
     assert game.pipes.pipes[0].x == pipe_x_before
+
+
+def test_highscore_saved_incrementally_mid_round():
+    """O recorde deve ser gravado no instante em que e superado, nao so no
+    GAME_OVER — um encerramento abrupto do app (Android) nao pode perder o
+    recorde ja alcancado em uma partida ainda em curso (R4.3, R16.4)."""
+    game = _make_game()
+    game._flap_action()
+    assert game.highscore == 0
+
+    pipe = game.pipes.pipes[0]
+    game.bird.pos.x = pipe.x + PIPE_W + 1
+    game.bird.pos.y = pipe.gap_y
+    game.bird.vel_y = 0
+
+    game.update()
+    assert game.score == 1
+    assert game.highscore == 1
+    assert game.state == GameState.JOGANDO  # a rodada ainda nao terminou
+
+    # ja deve estar em disco, nao so na memoria do objeto Game
+    assert score_module.load_highscore() == 1
+
+
+def test_highscore_not_saved_again_below_record():
+    game = _make_game()
+    game._flap_action()
+    game.highscore = 50
+    game.score = 3
+
+    pipe = game.pipes.pipes[0]
+    game.bird.pos.x = pipe.x + PIPE_W + 1
+    game.bird.pos.y = pipe.gap_y
+    game.bird.vel_y = 0
+
+    game.update()  # score vira 4, ainda abaixo do recorde de 50
+    assert game.score == 4
+    assert game.highscore == 50
+    assert score_module.load_highscore() == 0  # nada foi gravado
 
 
 def test_flap_in_game_over_resets_to_pronto():

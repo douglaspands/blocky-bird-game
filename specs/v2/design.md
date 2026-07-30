@@ -438,6 +438,19 @@ def save_dir() -> Path:
 - Caminho desktop: raiz do projeto, resolvida a partir do arquivo do módulo — mais robusto que o diretório de trabalho e continua compatível com a suíte de testes, que injeta um `tmp_path` explícito.
 - `score.load_highscore()` / `save_highscore()` passam a usar `storage.save_dir() / "highscore.json"` como default, mantendo o parâmetro `path` opcional que os testes já usam.
 
+**Descoberto na implementação (task 22): o default não pode ser um valor de parâmetro fixo.** `def load_highscore(path: Path = storage.save_dir() / "highscore.json")` calcularia o caminho **uma única vez, na importação do módulo** — clássica armadilha de default mutável/calculado em Python. Isso congelaria o resultado de `storage.save_dir()` para sempre no valor visto no import (impossibilitando reagir a mudança de plataforma em runtime, e tornando o comportamento impossível de isolar via `monkeypatch` nos testes). Corrigido resolvendo dentro do corpo da função, com `None` como sentinela:
+
+```python
+def _default_path() -> Path:
+    return storage.save_dir() / "highscore.json"
+
+def load_highscore(path: Path | None = None) -> int:
+    path = path if path is not None else _default_path()
+    ...
+```
+
+**Consequência para o isolamento dos testes.** A fixture `_isolate_cwd` do `conftest.py` (task 13) já isolava `highscore.json` via `monkeypatch.chdir(tmp_path)`, porque a v1 resolvia o caminho padrão relativo ao cwd. Como `storage.save_dir()` no desktop agora resolve a partir de `__file__` (não do cwd), o `chdir` sozinho deixou de bastar — a fixture precisou ganhar `monkeypatch.setattr("src.storage.save_dir", lambda: tmp_path)`. Isso, por sua vez, tornou `storage.save_dir()` impossível de testar de verdade em `tests/test_storage.py` (a fixture autouse mascarava a implementação real para todo teste); resolvido com `monkeypatch.undo()` no início dos testes que precisam da implementação real, revertendo a proteção só ali.
+
 ## 24. Empacotamento Android e CI do APK (R17)
 
 ### 24.1 Cadeia de build

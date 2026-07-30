@@ -89,12 +89,18 @@ class Game:
         return None
 
     def _update_score(self) -> None:
-        """+1 por coluna ultrapassada, uma unica vez por coluna (R4.1)."""
+        """+1 por coluna ultrapassada, uma unica vez por coluna (R4.1). Grava o
+        recorde no instante em que e superado, nao so no GAME_OVER — um
+        encerramento abrupto do app pelo Android nao perde o recorde ja
+        alcancado (R4.3, R16.4)."""
         for pipe in self.pipes.pipes:
             if not pipe.scored and pipe.x + PIPE_W < self.bird.pos.x:
                 pipe.scored = True
                 self.score += 1
                 self.sounds.play("score")
+                if self.score > self.highscore:
+                    self.highscore = self.score
+                    score.save_highscore(self.highscore)
 
     def update(self) -> None:
         if self.state == GameState.PRONTO:
@@ -113,9 +119,7 @@ class Game:
                 self.state = GameState.GAME_OVER
                 self.particles.burst(self.bird.rect.center, self.textures[hit_texture])
                 self.sounds.play("hit")
-                if self.score > self.highscore:
-                    self.highscore = self.score
-                    score.save_highscore(self.highscore)
+                # recorde ja foi gravado incrementalmente em _update_score() se superado
         # PAUSADO: fisica, obstaculos, biomas e particulas ficam congelados (R3.3, R6.3).
         if self.state != GameState.PAUSADO:
             self.particles.update()

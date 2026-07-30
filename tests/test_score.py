@@ -1,3 +1,4 @@
+from src import storage
 from src.score import load_highscore, save_highscore
 
 
@@ -35,3 +36,13 @@ def test_save_overwrites_previous_value(tmp_path):
     save_highscore(5, path)
     save_highscore(10, path)
     assert load_highscore(path) == 10
+
+
+def test_default_path_uses_storage_save_dir(tmp_path, monkeypatch):
+    """Sem path explicito, deve gravar/ler dentro do diretorio de storage.save_dir()
+    (R4.5) — resolvido a cada chamada, nao congelado como default de parametro."""
+    monkeypatch.setattr(storage, "save_dir", lambda: tmp_path)
+
+    save_highscore(99)
+    assert (tmp_path / "highscore.json").exists()
+    assert load_highscore() == 99

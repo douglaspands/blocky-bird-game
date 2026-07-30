@@ -1,12 +1,20 @@
-"""Persistencia do recorde em highscore.json (R4.3, R4.4)."""
+"""Persistencia do recorde em highscore.json (R4.3, R4.4, R4.5)."""
 
 import json
 from pathlib import Path
 
-HIGHSCORE_PATH = Path("highscore.json")
+from src import storage
 
 
-def load_highscore(path: Path = HIGHSCORE_PATH) -> int:
+def _default_path() -> Path:
+    """Resolvido a cada chamada (nao como default de parametro) para que
+    storage.save_dir() possa ser monkeypatched em testes e reagir a mudanca
+    de plataforma em runtime, em vez de ficar congelado no import (R4.5)."""
+    return storage.save_dir() / "highscore.json"
+
+
+def load_highscore(path: Path | None = None) -> int:
+    path = path if path is not None else _default_path()
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
@@ -15,7 +23,8 @@ def load_highscore(path: Path = HIGHSCORE_PATH) -> int:
         return 0
 
 
-def save_highscore(highscore: int, path: Path = HIGHSCORE_PATH) -> None:
+def save_highscore(highscore: int, path: Path | None = None) -> None:
+    path = path if path is not None else _default_path()
     try:
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"highscore": highscore}, f)
