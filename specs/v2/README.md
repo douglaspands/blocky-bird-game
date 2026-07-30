@@ -1,6 +1,6 @@
 # Blocky Bird — Specs v2
 
-**Status:** concluída. **Especificada em:** 2026-07-29. **Aumento de escopo (qualidade) especificado e concluído em:** 2026-07-30.
+**Status:** concluída. **Especificada em:** 2026-07-29. **Aumento de escopo (qualidade) especificado e concluído em:** 2026-07-30. **Correção pós-lançamento (preenchimento de tela, task 35) em:** 2026-07-30.
 
 ## Descrição
 
@@ -25,6 +25,12 @@ pixels entre linhas foram trocados por empilhamento (`ui._stack()`) baseado na a
 da linha, e o tamanho de cada papel de texto foi recalibrado até nenhuma tela sobrepor
 texto, com teste automatizado por tela.
 
+Depois disso, um bug real reportado no Galaxy S20 FE (faixa preta nas laterais em vez da
+tela preenchida) motivou a task 35: o canvas real agora se adapta em runtime à proporção
+do aparelho (`src/screen_adapt.py`), preenchendo com céu/parallax estendidos o que antes
+era barra preta — a área jogável 480×720 e sua calibração de dificuldade continuam
+intocadas (design seção 20.1.1).
+
 ## Conteúdo desta pasta
 
 - [`requirements.md`](requirements.md) — requisitos R1–R19 em formato EARS (R14–R17 são da entrega Android; R18–R19 são do aumento de escopo de qualidade).
@@ -39,7 +45,7 @@ Três coisas da v1 **quebram** no Android e são corrigidas aqui:
 |---|---|
 | `SysFont("couriernew")` — fonte inexistente no Android | Fonte bitmap gerada por código (`pixelfont.py`) |
 | `highscore.json` gravado a partir do diretório de trabalho, não gravável no Android | `storage.py` resolve o diretório privado do app por plataforma |
-| Resolução fixa 480×720, letterbox explicitamente fora de escopo | `pygame.SCALED`, escala proporcional com letterbox/pillarbox |
+| Resolução fixa 480×720, letterbox explicitamente fora de escopo | `pygame.SCALED` com canvas adaptado à proporção do aparelho (task 35) — preenche a tela sem barra preta, área jogável 480×720 intocada |
 
 Além disso: entrada por toque e por controle remoto de TV, pausa automática ao ir para
 segundo plano, gravação incremental do recorde (sobrevive a encerramento pelo sistema),

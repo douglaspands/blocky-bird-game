@@ -159,7 +159,7 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 
 1. O jogo DEVE rodar em Android 5.0 (API 21) ou superior, em celulares, tablets e Android TV.
 2. O APK DEVE conter as ABIs `armeabi-v7a`, `arm64-v8a` e `x86_64`, para cobrir aparelhos antigos, atuais e ambientes x86 (emuladores, Chromebooks, TV boxes Intel).
-3. QUANDO o jogo inicia em qualquer tela, O sistema DEVE preencher a tela escalando a resolução lógica 480×720 proporcionalmente, sem distorcer a imagem, adicionando barras (letterbox no topo/base, pillarbox nas laterais) conforme a proporção do aparelho — inclusive em Android TV 16:9 paisagem.
+3. QUANDO o jogo inicia em qualquer tela, O sistema DEVE preencher a tela inteira sem distorcer a imagem e sem cortar UI, mantendo a área jogável em 480×720 (calibração de dificuldade intocada) e estendendo apenas o fundo (céu/parallax) até a proporção do aparelho — sem sobrar barra preta —, tanto para aparelhos mais estreitos que a base (celulares) quanto mais largos (Android TV 16:9 paisagem). _(v2 original: preenchia com barras pretas; corrigido após relato real no Galaxy S20 FE, ver design.md seção 20 e task 35)._
 4. O jogo DEVE ser inteiramente jogável sem tela de toque (Android TV, operado por controle remoto/D-pad ou gamepad), e DEVE declarar a tela de toque como recurso não obrigatório.
 5. O jogo NÃO DEVE depender de fontes, arquivos ou recursos do sistema operacional que não existam no Android (ver R7.6).
 6. SE o aparelho não tiver saída de áudio disponível, O sistema DEVE continuar funcionando sem som (já coberto por R8.4, reafirmado para Android).

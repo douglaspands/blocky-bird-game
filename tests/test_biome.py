@@ -1,3 +1,5 @@
+import pygame
+
 from src.biome import BANNER_FRAMES, FADE_FRAMES, BiomeManager
 
 
@@ -56,3 +58,24 @@ def test_score_jumping_straight_to_nether_activates_nether_directly():
     transitioned = bm.update(30)
     assert transitioned is True
     assert bm.current.id == "nether"
+
+
+def test_draw_background_fills_canvas_larger_than_base_area():
+    """No Android o canvas real pode ser maior que a area jogavel 480x720 (R14.3) —
+    o gradiente de ceu precisa cobrir a surface inteira recebida, nao so a base."""
+    bm = BiomeManager()
+    surface = pygame.Surface((480, 1067))
+    bm.draw_background(surface)  # nao deve lancar excecao nem deixar area sem desenhar
+    assert surface.get_at((0, 0))[:3] != (0, 0, 0)
+    assert surface.get_at((0, 1066))[:3] != (0, 0, 0)
+
+
+def test_draw_background_regenerates_gradient_on_canvas_size_change():
+    """Trocar o tamanho da surface entre chamadas (ex.: Game reconstruido com
+    outro canvas) nao deve deixar gradiente cacheado do tamanho antigo."""
+    bm = BiomeManager()
+    small = pygame.Surface((480, 720))
+    bm.draw_background(small)
+    big = pygame.Surface((480, 1067))
+    bm.draw_background(big)  # nao deve lancar (ex.: blit de surface menor numa maior)
+    assert big.get_at((0, 1066))[:3] != (0, 0, 0)
