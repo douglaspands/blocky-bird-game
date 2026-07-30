@@ -1,6 +1,9 @@
-"""InputManager: unifica teclado, mouse e controle Xbox em acoes abstratas (R10)."""
+"""InputManager: unifica teclado, mouse, toque e controle Xbox em acoes abstratas (R10, R15)."""
 
 import pygame
+
+from src import ui
+from src.config import SCREEN_H, SCREEN_W
 
 BUTTON_A = 0
 BUTTON_Y = 3
@@ -9,10 +12,24 @@ BUTTON_START = 7
 FLAP_KEYS = (pygame.K_SPACE, pygame.K_UP)
 PAUSE_KEYS = (pygame.K_ESCAPE, pygame.K_p)
 MUTE_KEYS = (pygame.K_m,)
+BACK_KEYS = (pygame.K_AC_BACK,)
 
 ACTION_FLAP = "flap"
 ACTION_PAUSE = "pause"
 ACTION_MUTE = "mute"
+ACTION_BACK = "back"
+
+
+def _touch_to_logical(norm_x: float, norm_y: float) -> tuple[float, float]:
+    """Converte coordenada de toque normalizada (0.0-1.0, relativa a janela inteira)
+    para o espaco logico 480x720, desfazendo o letterbox/pillarbox do SCALED (R14.3)."""
+    win_w, win_h = pygame.display.get_window_size()
+    scale = min(win_w / SCREEN_W, win_h / SCREEN_H)
+    draw_w, draw_h = SCREEN_W * scale, SCREEN_H * scale
+    off_x, off_y = (win_w - draw_w) / 2, (win_h - draw_h) / 2
+    lx = (norm_x * win_w - off_x) / scale
+    ly = (norm_y * win_h - off_y) / scale
+    return lx, ly
 
 
 class InputManager:
@@ -30,6 +47,16 @@ class InputManager:
     def _remove_joystick(self, instance_id: int) -> None:
         self.joysticks.pop(instance_id, None)
 
+    def _handle_tap(self, actions: set[str], lx: float, ly: float) -> None:
+        """Toque/clique fora da area logica (nas barras) e ignorado; no icone de
+        mudo alterna mudo; em qualquer outro ponto da area de jogo, voa (R15.1, R15.4)."""
+        if not (0 <= lx <= SCREEN_W and 0 <= ly <= SCREEN_H):
+            return
+        if ui.MUTE_ICON_RECT.collidepoint(lx, ly):
+            actions.add(ACTION_MUTE)
+        else:
+            actions.add(ACTION_FLAP)
+
     def poll(self) -> tuple[set[str], bool]:
         """Consome a fila de eventos e retorna (acoes abstratas, pedido de fechar janela)."""
         actions: set[str] = set()
@@ -45,8 +72,13 @@ class InputManager:
                     actions.add(ACTION_PAUSE)
                 elif event.key in MUTE_KEYS:
                     actions.add(ACTION_MUTE)
+                elif event.key in BACK_KEYS:
+                    actions.add(ACTION_BACK)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                actions.add(ACTION_FLAP)
+                # com pygame.SCALED, event.pos ja vem em coordenadas logicas (R9.1)
+                self._handle_tap(actions, *event.pos)
+            elif event.type == pygame.FINGERDOWN:
+                self._handle_tap(actions, *_touch_to_logical(event.x, event.y))
             elif event.type == pygame.JOYBUTTONDOWN:
                 if event.button == BUTTON_A:
                     actions.add(ACTION_FLAP)

@@ -383,6 +383,8 @@ ly = (event.y * win_h - off_y) / scale                # -> espaço lógico 480x7
 
 - Toque fora da área lógica (nas barras) é ignorado; toque no ícone de mudo alterna mudo; qualquer outro toque na área de jogo emite `flap` (R15.1, R15.4).
 
+**Descoberto na implementação (task 23): o `MOUSEBUTTONDOWN` sintetizado pelo toque real precisa do MESMO hit-test do ícone.** Se `MOUSEBUTTONDOWN` continuasse mapeando para `flap` incondicionalmente (como na v1), tocar no ícone de mudo no Android dispararia **os dois** eventos — `FINGERDOWN` (mudo, correto) e o `MOUSEBUTTONDOWN` sintético (flap, incorreto) — no mesmo frame. Resolvido com um `_handle_tap(actions, lx, ly)` único, chamado por ambos os handlers: `MOUSEBUTTONDOWN` passa `event.pos` direto (já em espaço lógico graças ao `SCALED`, confirmado na task 21); `FINGERDOWN` passa o resultado da conversão acima. `ui.MUTE_ICON_RECT` fica em `ui.py`, junto do `draw_mute_icon()` que o desenha, e `input.py` importa essa geometria para o hit-test — mantendo desenho e posição do botão como uma única fonte de verdade.
+
 ### 21.2 Botão BACK (R15.2, R15.3)
 
 O SDL mapeia o BACK do Android para a tecla `pygame.K_AC_BACK`. O `InputManager` a traduz em uma ação `back`, e o `Game` decide pelo estado:

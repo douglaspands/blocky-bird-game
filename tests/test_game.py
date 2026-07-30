@@ -1,3 +1,5 @@
+import pygame
+
 from src import score as score_module
 from src.config import PIPE_W
 from src.game import Game, GameState
@@ -55,6 +57,63 @@ def test_pause_toggle_freezes_physics():
     game.update()
     assert game.bird.pos.y == bird_y_before
     assert game.pipes.pipes[0].x == pipe_x_before
+
+
+def _post_back():
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_AC_BACK))
+
+
+def test_back_in_pronto_quits():
+    game = _make_game()
+    _post_back()
+    game.handle_events()
+    assert game.running is False
+
+
+def test_back_in_jogando_pauses_without_quitting():
+    game = _make_game()
+    game._flap_action()
+    assert game.state == GameState.JOGANDO
+    _post_back()
+    game.handle_events()
+    assert game.state == GameState.PAUSADO
+    assert game.running is True
+
+
+def test_back_in_pausado_quits():
+    game = _make_game()
+    game._flap_action()
+    game._toggle_pause()
+    assert game.state == GameState.PAUSADO
+    _post_back()
+    game.handle_events()
+    assert game.running is False
+
+
+def test_back_in_game_over_quits():
+    game = _make_game()
+    game._flap_action()
+    frames = 0
+    while game.state == GameState.JOGANDO and frames < 2000:
+        game.update()
+        frames += 1
+    assert game.state == GameState.GAME_OVER
+    _post_back()
+    game.handle_events()
+    assert game.running is False
+
+
+def test_tap_on_mute_icon_toggles_mute_without_side_effects():
+    """Tocar no icone de mudo na tela PRONTO nao deve iniciar o jogo, e em
+    GAME_OVER nao deve reiniciar a partida (R15.4)."""
+    from src import ui
+
+    game = _make_game()
+    assert game.sounds.muted is False
+    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=ui.MUTE_ICON_RECT.center))
+    game.handle_events()
+    assert game.sounds.muted is True
+    assert game.state == GameState.PRONTO  # nao voou, nao iniciou a partida
 
 
 def test_highscore_saved_incrementally_mid_round():

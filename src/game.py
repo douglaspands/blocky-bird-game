@@ -10,7 +10,7 @@ from src.bird import Bird
 from src.config import BLOCK, CREDITS, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
-from src.input import ACTION_FLAP, ACTION_MUTE, ACTION_PAUSE, InputManager
+from src.input import ACTION_BACK, ACTION_FLAP, ACTION_MUTE, ACTION_PAUSE, InputManager
 from src.particles import ParticleSystem
 from src.pipes import PipeManager
 from src.sounds import SoundManager
@@ -68,10 +68,21 @@ class Game:
         elif self.state == GameState.PAUSADO:
             self.state = GameState.JOGANDO
 
+    def _back_action(self) -> None:
+        """BACK do Android pausa em JOGANDO; nos demais estados, encerra o
+        jogo (R15.2, R15.3). Fica no Game (que conhece o estado), nao no
+        InputManager, mantendo a separacao acao/estado da v1."""
+        if self.state == GameState.JOGANDO:
+            self._toggle_pause()
+        else:
+            self.running = False
+
     def handle_events(self) -> None:
         actions, quit_requested = self.input.poll()
         if quit_requested:
             self.running = False
+        if ACTION_BACK in actions:
+            self._back_action()
         if ACTION_FLAP in actions:
             self._flap_action()
         if ACTION_PAUSE in actions:
@@ -133,6 +144,7 @@ class Game:
         self.bird.draw(self.screen, self.textures)
         self.particles.draw(self.screen)
         self.biome.draw_banner(self.screen)
+        ui.draw_mute_icon(self.screen, self.sounds.muted)
 
         if self.state == GameState.PRONTO:
             ui.draw_ready_screen(self.screen, self.highscore)

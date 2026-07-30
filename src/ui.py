@@ -12,6 +12,12 @@ GROUND_Y = SCREEN_H - GROUND_H
 GOLD = (255, 215, 60)
 MAX_TEXT_W = SCREEN_W - 40  # margem de 20px de cada lado
 
+MUTE_ICON_SIZE = 40
+MUTE_ICON_MARGIN = 14
+MUTE_ICON_RECT = pygame.Rect(
+    SCREEN_W - MUTE_ICON_MARGIN - MUTE_ICON_SIZE, MUTE_ICON_MARGIN, MUTE_ICON_SIZE, MUTE_ICON_SIZE
+)
+
 
 def _scale_for(base_size: int) -> int:
     """Converte o base_size (tamanho de fonte da v1) num fator inteiro de pixel."""
@@ -74,6 +80,27 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
         base_size=12,
         color=GOLD,
     )
+
+
+def draw_mute_icon(surface: pygame.Surface, muted: bool) -> None:
+    """Botao de mudo tocavel no canto da tela, estilo voxel (R15.4)."""
+    rect = MUTE_ICON_RECT
+    pygame.draw.rect(surface, (20, 16, 10), rect)
+    pygame.draw.rect(surface, GOLD, rect, width=2)
+
+    color = (220, 70, 60) if muted else (255, 255, 255)
+    cx, cy = rect.center
+    unit = rect.width // 8
+    # corpo do alto-falante: bloco quadrado + haste, em retangulos (estetica blocky)
+    pygame.draw.rect(surface, color, (cx - 3 * unit, cy - unit, 2 * unit, 2 * unit))
+    pygame.draw.rect(surface, color, (cx - unit, cy - 3 * unit, unit, 6 * unit))
+
+    if muted:
+        pygame.draw.line(surface, color, (rect.left + 8, rect.top + 8), (rect.right - 8, rect.bottom - 8), 3)
+        pygame.draw.line(surface, color, (rect.left + 8, rect.bottom - 8), (rect.right - 8, rect.top + 8), 3)
+    else:
+        pygame.draw.rect(surface, color, (cx + unit, cy - 2 * unit, unit, 4 * unit))
+        pygame.draw.rect(surface, color, (cx + 2 * unit, cy - 3 * unit, unit, 6 * unit))
 
 
 def draw_hud_score(surface: pygame.Surface, score: int) -> None:

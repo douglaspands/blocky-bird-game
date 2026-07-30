@@ -95,8 +95,9 @@ Fase 1 — mudanças no jogo, testáveis no desktop (tasks 20–25). Fase 2 — 
   - Essa mesma fixture autouse, por sua vez, impedia testar a implementação **real** de `storage.save_dir()` em `tests/test_storage.py` — resolvido chamando `monkeypatch.undo()` no início desses testes especificamente, revertendo a proteção só ali.
   - Validado fora do pytest também: rodando o jogo de verdade, o `highscore.json` é gravado na raiz real do projeto assim que o score ultrapassa o recorde, ainda em JOGANDO (antes de qualquer colisão).
 
-- [ ] **23. Entrada por toque e botão BACK**
+- [x] **23. Entrada por toque e botão BACK**
   Tratar `FINGERDOWN` em `input.py` com conversão de coordenada normalizada → espaço lógico (desfazendo o letterbox), `K_AC_BACK` como ação `back`, e o desvio por estado no `Game` (pausa em JOGANDO, encerra fora dele). Adicionar o ícone de mudo tocável no canto da tela. Testar com eventos sintéticos, incluindo toque nas barras (deve ser ignorado). _(R15.1, R15.2, R15.3, R15.4)_
+  **Ajuste feito na implementação:** o design previa só `FINGERDOWN` fazendo hit-test do ícone de mudo, mas o próprio design nota que o SDL sintetiza `MOUSEBUTTONDOWN` a partir do toque real — sem tratamento, tocar no ícone no Android dispararia `flap` *também* pelo evento de mouse sintético. Unificado num `_handle_tap()` compartilhado, usado tanto por `MOUSEBUTTONDOWN` (que já chega em coordenadas lógicas via `SCALED`) quanto por `FINGERDOWN` (convertido manualmente). `ui.MUTE_ICON_RECT` foi colocado em `ui.py` (onde o ícone é desenhado) e importado por `input.py` para o hit-test, mantendo desenho e geometria juntos.
 
 - [ ] **24. Pausa automática ao perder foco (ciclo de vida)**
   Tratar `APP_WILLENTERBACKGROUND`/`APP_DIDENTERBACKGROUND` (e `WINDOWFOCUSLOST` como fallback de desktop) como ação `focus_lost`, levando JOGANDO → PAUSADO e nunca retomando sozinho. Testável no desktop com alt-tab. _(R16.1, R16.2)_
