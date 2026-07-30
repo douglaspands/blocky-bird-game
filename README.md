@@ -56,6 +56,36 @@ para Windows e Linux automaticamente e anexa aos assets da release:
 
 - `BlockyBird-windows-<tag>.zip`
 - `BlockyBird-linux-<tag>.tar.bz2`
+- `BlockyBird-<tag>.apk` (Android — celular e Android TV, ver abaixo)
+
+## Instalar no Android (celular ou TV)
+
+1. Baixe `BlockyBird-<tag>.apk` dos assets da Release desejada.
+2. No aparelho, abra o arquivo baixado e permita a instalação de "fontes
+   desconhecidas" quando solicitado (o app não vem de uma loja, então o Android
+   pede essa confirmação uma vez por origem).
+3. Toque no ícone "Blocky Bird" para abrir. Em Android TV, o app aparece na home
+   com o próprio banner do jogo.
+
+Controles no celular: toque em qualquer ponto da tela para voar/reiniciar; o
+ícone de mudo no canto silencia o áudio; o botão BACK do sistema pausa durante o
+jogo e fecha o app nas outras telas. Em Android TV, o jogo é 100% operável pelo
+controle remoto: OK/Enter para voar, D-pad ←/→ para mudo na tela de pausa, e
+BACK com o mesmo comportamento do celular — não é necessário toque nem teclado.
+
+Requisitos: Android 5.0 (API 21) ou superior.
+
+### Build local do APK (Docker + Buildozer)
+
+Reproduz o mesmo processo do CI, útil para testar mudanças na cadeia Android
+sem depender de uma Release:
+
+```bash
+docker run --rm -v "$(pwd)":/home/user/hostcwd -v "$HOME/.buildozer":/home/user/.buildozer kivy/buildozer android debug
+```
+
+O APK gerado fica em `bin/*.apk`. Ver `buildozer.spec` e `specs/v2/design.md`
+(seção 24) para detalhes da configuração e das receitas locais necessárias.
 
 ## Estrutura
 

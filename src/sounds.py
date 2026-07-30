@@ -6,7 +6,10 @@ import random
 
 import pygame
 
+from src.storage import is_android
+
 SAMPLE_RATE = 44100
+ANDROID_MIXER_BUFFER = 1024
 
 
 def _new_buffer(n: int) -> array.array:
@@ -59,7 +62,10 @@ class SoundManager:
         self.muted = False
         self.audio_ok = False
         try:
-            pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=1)
+            if is_android():
+                pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=1, buffer=ANDROID_MIXER_BUFFER)
+            else:
+                pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=1)
             self.audio_ok = True
         except pygame.error:
             self.audio_ok = False

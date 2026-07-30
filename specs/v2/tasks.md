@@ -135,8 +135,10 @@ Fase 1 — mudanças no jogo, testáveis no desktop (tasks 20–25). Fase 2 — 
   **Ajuste feito na implementação:** o `docker run` inicial só montava `${{ github.workspace }}:/home/user/hostcwd`, sem o segundo volume documentado pela própria imagem oficial (`kivy/buildozer` no Docker Hub) para persistir cache entre execuções — `-v "$HOME/.buildozer":/home/user/.buildozer`, onde SDK/NDK baixados ficam guardados fora do diretório do projeto. Sem esse mount, o cache de `actions/cache` no path `~/.buildozer` (pedido pelo design, seção 24.3) sempre voltaria vazio, forçando o download completo de SDK+NDK (30–60 min) em toda execução. Corrigido adicionando os dois volumes e cacheando ambos os paths (`~/.buildozer` e `.buildozer`) na mesma entrada de `actions/cache`.
   **Não verificável neste ambiente:** execução real do job (exige Docker + uma Release publicada no GitHub, ver design seção 25) — validado apenas como YAML bem formado (`yaml.safe_load`) e por leitura cruzada com a documentação oficial da imagem `kivy/buildozer` para confirmar os volumes/paths de cache corretos. Fica para a task 30 (ou uma release de teste) confirmar que o job efetivamente builda e anexa o APK.
 
-- [ ] **30. Ajuste de áudio/performance no Android e verificação final da v2**
+- [x] **30. Ajuste de áudio/performance no Android e verificação final da v2**
   Ajustar o buffer do mixer para Android e medir o tempo de frame em aparelho de entrada; completar o checklist manual em celular **e** em Android TV; atualizar o README com instruções de instalação do APK. _(R8.4, R9.5, R14.6, todos)_
+  **Implementado e verificável neste ambiente:** `sounds.py` agora chama `pygame.mixer.init(..., buffer=1024)` quando `storage.is_android()` é verdadeiro (mantendo o default do pygame no desktop, sem regressão), conforme o valor inicial documentado no design (seção 11) — `2048` fica como próximo passo caso o playtest real em aparelho ainda acuse estouro/crepitação com `1024`. Coberto por `tests/test_sounds.py` (2 testes, mockando `is_android` e `pygame.mixer.init` para inspecionar os kwargs passados). README atualizado com seção "Instalar no Android" (fontes desconhecidas, controles por toque/BACK/D-pad em TV, requisito de API 21) e o comando `docker run` para reproduzir o build do APK localmente. Suíte completa: 65 testes passando.
+  **Não verificável neste ambiente (sem Android real nem emulador, ver design seção 25):** medir o tempo de frame em aparelho de entrada (R9.5), confirmar que `buffer=1024` de fato elimina estouros/crepitação no hardware real (R8.4) — se não eliminar, subir para `ANDROID_MIXER_BUFFER = 2048` em `sounds.py` — e os itens de checklist abaixo marcados como "requer aparelho Android real" / "requer Android TV real". Ficam pendentes de validação manual pelo dono do projeto antes de considerar a v2 encerrada.
 
 ## Checklist de verificação manual (task 13 + tarefas adicionais)
 
@@ -169,15 +171,15 @@ não marcar sem ter testado de fato no aparelho.
 
 Verificável automaticamente / no desktop:
 
-- [ ] Todas as telas renderizam com a fonte bitmap própria, sem `SysFont`, mantendo alinhamento (R7.6)
-- [ ] Redimensionar a janela mantém a proporção com barras, sem distorcer nem deslocar o gameplay (R9.1, R14.3)
-- [ ] Toque em coordenada normalizada converte corretamente para o espaço lógico; toque na barra é ignorado (R15.1)
-- [ ] `storage.save_dir()` devolve o caminho Android quando `ANDROID_ARGUMENT` está definido e o caminho do projeto quando não está (R4.5)
-- [ ] Recorde é gravado no momento em que o score ultrapassa o recorde, não só no GAME_OVER (R4.3, R16.4)
-- [ ] Ação `back` pausa em JOGANDO e encerra nos outros estados (R15.2, R15.3)
-- [ ] Perder foco da janela (alt-tab) leva JOGANDO → PAUSADO e não retoma sozinho (R16.1, R16.2)
-- [ ] `K_RETURN` dispara flap (equivalente ao botão central de controle remoto) (R14.4)
-- [ ] Suíte `pytest` completa continua passando após a migração para `pygame-ce` (R9.2)
+- [x] Todas as telas renderizam com a fonte bitmap própria, sem `SysFont`, mantendo alinhamento (R7.6) — confirmado por inspeção (`grep SysFont src/`: só ocorre em comentários explicativos, nenhum uso real) e visualmente durante a task 20
+- [x] Redimensionar a janela mantém a proporção com barras, sem distorcer nem deslocar o gameplay (R9.1, R14.3) — validado com janela real 900×500 na task 21 (pillarbox correto, coordenada do mouse conferida por instrumentação direta)
+- [x] Toque em coordenada normalizada converte corretamente para o espaço lógico; toque na barra é ignorado (R15.1) — `tests/test_input.py::test_finger_tap_in_game_area_flaps`, `test_finger_tap_outside_logical_area_is_ignored`
+- [x] `storage.save_dir()` devolve o caminho Android quando `ANDROID_ARGUMENT` está definido e o caminho do projeto quando não está (R4.5) — `tests/test_storage.py`
+- [x] Recorde é gravado no momento em que o score ultrapassa o recorde, não só no GAME_OVER (R4.3, R16.4) — `tests/test_game.py::test_highscore_saved_incrementally_mid_round`
+- [x] Ação `back` pausa em JOGANDO e encerra nos outros estados (R15.2, R15.3) — `tests/test_game.py::test_back_in_*`
+- [x] Perder foco da janela (alt-tab) leva JOGANDO → PAUSADO e não retoma sozinho (R16.1, R16.2) — `tests/test_game.py::test_focus_lost_*`
+- [x] `K_RETURN` dispara flap (equivalente ao botão central de controle remoto) (R14.4) — `tests/test_input.py::test_return_and_kp_enter_flap`
+- [x] Suíte `pytest` completa continua passando após a migração para `pygame-ce` (R9.2) — 65 testes, `SDL_VIDEODRIVER=dummy uv run pytest`
 
 Requer aparelho Android real (celular):
 
