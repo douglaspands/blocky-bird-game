@@ -5,6 +5,17 @@
 # Este arquivo e uma copia do __init__.py daquele PR, mantida aqui ate o
 # merge acontecer (ou ate precisar de ajuste para uma versao mais nova do
 # pygame-ce). Ver specs/v2/design.md secao 24.1 para o racional completo.
+#
+# Ajuste sobre a copia do PR: 'cython' foi adicionado a `depends` abaixo (nao
+# estava na versao do PR upstream). Sem isso, `setup.py build_ext` falha com
+# "You need cython" — outras receitas do p4a que compilam .pyx (numpy, av)
+# declaram esse mesmo depends.
+#
+# Segundo ajuste: `sdl_image_includes` apontava para a raiz de
+# `jni/SDL2_image`, mas a versao do sdl2_image recipe do p4a (2.8.0) move o
+# header publico para `jni/SDL2_image/include/SDL_image.h` — layout diferente
+# do `SDL2_ttf` (que mantem `SDL_ttf.h` na raiz). Sem o `/include`,
+# `src_c/imageext.c` falhava com "'SDL_image.h' file not found".
 
 from os.path import join
 
@@ -32,7 +43,7 @@ class Pygame2Recipe(CompiledComponentsPythonRecipe):
     site_packages_name = 'pygame-ce'
     name = 'pygame-ce'
 
-    depends = ['sdl2', 'sdl2_image', 'sdl2_mixer', 'sdl2_ttf', 'setuptools', 'jpeg', 'png']
+    depends = ['sdl2', 'sdl2_image', 'sdl2_mixer', 'sdl2_ttf', 'setuptools', 'jpeg', 'png', 'cython']
     call_hostpython_via_targetpython = False  # Due to setuptools
     install_in_hostpython = False
 
@@ -61,7 +72,7 @@ class Pygame2Recipe(CompiledComponentsPythonRecipe):
                     " -L" + join(self.ctx.bootstrap.build_dir, "libs", str(arch)) +
                     " -L" + png_lib_dir + " -L" + jpeg_lib_dir + " -L" + arch.ndk_lib_dir_versioned),
                 sdl_ttf_includes="-I" + join(self.ctx.bootstrap.build_dir, 'jni', 'SDL2_ttf'),
-                sdl_image_includes="-I" + join(self.ctx.bootstrap.build_dir, 'jni', 'SDL2_image'),
+                sdl_image_includes="-I" + join(self.ctx.bootstrap.build_dir, 'jni', 'SDL2_image', 'include'),
                 sdl_mixer_includes=sdl_mixer_includes,
                 jpeg_includes="-I" + jpeg_inc_dir,
                 png_includes="-I" + png_inc_dir,

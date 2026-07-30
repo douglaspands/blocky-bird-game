@@ -32,7 +32,12 @@ p4a.branch = v2024.01.21
 # Android TV: sem tela de toque obrigatoria + categoria leanback launcher (R17.3)
 android.extra_manifest_xml = ./android/tv_extra_manifest.xml
 android.manifest.intent_filters = ./android/tv_intent_filter.xml
-android.extra_manifest_application_arguments = android:banner="@drawable/banner"
+# android.extra_manifest_application_arguments espera um CAMINHO DE ARQUIVO
+# (mesma convencao de android.extra_manifest_xml acima), nao o texto inline —
+# achado real: buildozer/targets/android.py faz open(valor, 'rt').read(),
+# entao o valor antigo (a string do atributo em si) falhava com
+# FileNotFoundError na etapa de empacotamento (--> gradle).
+android.extra_manifest_application_arguments = ./android/tv_banner_attribute.txt
 android.add_resources = assets/android_banner.png:drawable/banner.png
 
 android.api = 34
