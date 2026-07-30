@@ -16,7 +16,7 @@ flappy_bird/
 ├── BlockyBird.spec      # Config do PyInstaller p/ executavel standalone (R13.1)
 ├── .github/workflows/
 │   └── release.yml      # CI: builda e publica executaveis na Release (R13.2)
-├── specs/               # Estes documentos
+├── specs/               # Specs versionadas (esta pasta é specs/v1/, ver specs/README.md)
 └── src/
     ├── __init__.py
     ├── config.py        # Constantes: tela, física, biomas, cores, créditos

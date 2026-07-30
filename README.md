@@ -75,6 +75,6 @@ src/
 ├── sounds.py      # Audio sintetizado 8-bit
 ├── input.py       # Teclado, mouse e controle Xbox
 └── ui.py          # HUD e telas (pronto/pausa/game over)
-specs/             # Documentos de requisitos, design e plano
+specs/             # Documentos de requisitos, design e plano (versionados em specs/vN/)
 tests/             # Testes unitarios (pytest)
 ```
