@@ -63,7 +63,10 @@ class PipeManager:
         self.pipes.append(PipePair(x, gap_y, gap_size, block_main, block_edge))
 
     def update(self, speed: float, gap_size: int, block_main: str, block_edge: str) -> None:
-        """Move as colunas (R2.3), spawna novas com o bioma atual (R2.1/R2.2/R2.5) e remove as que saem da tela (R2.4)."""
+        """Move as colunas (R2.3), spawna novas com o bioma atual (R2.1/R2.2/R2.5).
+
+        Remove as que saem da tela (R2.4).
+        """
         for pipe in self.pipes:
             pipe.x -= speed
 

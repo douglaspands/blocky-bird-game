@@ -27,22 +27,46 @@ class Biome:
 
 BIOMES: list[Biome] = [
     Biome(
-        "overworld", "Overworld", 0, 2.5, 160,
-        (135, 206, 235), (200, 230, 245), "dirt", "grass_side", "overworld",
+        "overworld",
+        "Overworld",
+        0,
+        2.5,
+        160,
+        (135, 206, 235),
+        (200, 230, 245),
+        "dirt",
+        "grass_side",
+        "overworld",
     ),
     Biome(
-        "cave", "Cave", 10, 3.0, 145,
-        (25, 25, 35), (60, 58, 70), "stone", "cobblestone", "cave",
+        "cave",
+        "Cave",
+        10,
+        3.0,
+        145,
+        (25, 25, 35),
+        (60, 58, 70),
+        "stone",
+        "cobblestone",
+        "cave",
     ),
     Biome(
-        "nether", "Nether", 25, 3.3, 140,
-        (80, 15, 10), (150, 60, 20), "netherrack", "obsidian", "nether",
+        "nether",
+        "Nether",
+        25,
+        3.3,
+        140,
+        (80, 15, 10),
+        (150, 60, 20),
+        "netherrack",
+        "obsidian",
+        "nether",
     ),
 ]
 
 
 def _lerp_color(c1: tuple[int, int, int], c2: tuple[int, int, int], t: float) -> tuple[int, int, int]:
-    return tuple(round(a + (b - a) * t) for a, b in zip(c1, c2))
+    return tuple(round(a + (b - a) * t) for a, b in zip(c1, c2, strict=True))
 
 
 def _make_gradient(top: tuple[int, int, int], bottom: tuple[int, int, int]) -> pygame.Surface:
@@ -70,7 +94,10 @@ class BiomeManager:
         self.banner_timer = 0
 
     def update(self, score: int) -> bool:
-        """Detecta cruzamento de threshold (R5.1) e ativa fade + banner (R5.4). Retorna True se houve transicao."""
+        """Detecta cruzamento de threshold (R5.1) e ativa fade + banner (R5.4).
+
+        Retorna True se houve transicao.
+        """
         target = _biome_for_score(score)
         if target.id != self.current.id:
             self.previous = self.current

@@ -18,49 +18,51 @@
 # "cannot remove 'CMakeFiles/': Is a directory".
 # Ver specs/v2/design.md secao 24.1.
 
-from pythonforandroid.recipe import Recipe
-from pythonforandroid.logger import shprint
-from pythonforandroid.util import current_directory
 from os.path import join
+from typing import ClassVar
+
 import sh
+from pythonforandroid.logger import shprint
+from pythonforandroid.recipe import Recipe
+from pythonforandroid.util import current_directory
 
 
 class JpegRecipe(Recipe):
-    name = 'jpeg'
-    version = '2.0.1'
-    url = 'https://github.com/libjpeg-turbo/libjpeg-turbo/archive/{version}.tar.gz'  # noqa
-    built_libraries = {'libjpeg.a': '.', 'libturbojpeg.a': '.'}
+    name = "jpeg"
+    version = "2.0.1"
+    url = "https://github.com/libjpeg-turbo/libjpeg-turbo/archive/{version}.tar.gz"
+    built_libraries: ClassVar[dict[str, str]] = {"libjpeg.a": ".", "libturbojpeg.a": "."}
 
     def build_arch(self, arch):
         build_dir = self.get_build_dir(arch.arch)
 
         with current_directory(build_dir):
             env = self.get_recipe_env(arch)
-            toolchain_file = join(self.ctx.ndk_dir,
-                                  'build/cmake/android.toolchain.cmake')
+            toolchain_file = join(self.ctx.ndk_dir, "build/cmake/android.toolchain.cmake")
 
-            shprint(sh.rm, '-rf', 'CMakeCache.txt', 'CMakeFiles/')
-            shprint(sh.cmake, '-G', 'Unix Makefiles',
-                    '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
-                    '-DCMAKE_SYSTEM_NAME=Android',
-                    '-DCMAKE_POSITION_INDEPENDENT_CODE=1',
-                    '-DCMAKE_ANDROID_ARCH_ABI={arch}'.format(arch=arch.arch),
-                    '-DCMAKE_ANDROID_NDK=' + self.ctx.ndk_dir,
-                    '-DCMAKE_C_COMPILER={cc}'.format(cc=arch.get_clang_exe()),
-                    '-DCMAKE_CXX_COMPILER={cc_plus}'.format(
-                        cc_plus=arch.get_clang_exe(plus_plus=True)),
-                    '-DCMAKE_BUILD_TYPE=Release',
-                    '-DCMAKE_INSTALL_PREFIX=./install',
-                    '-DCMAKE_TOOLCHAIN_FILE=' + toolchain_file,
-
-                    '-DANDROID_ABI={arch}'.format(arch=arch.arch),
-                    '-DANDROID_ARM_NEON=ON',
-                    '-DENABLE_NEON=ON',
-
-                    # Force disable shared, with the static ones is enough
-                    '-DENABLE_SHARED=0',
-                    '-DENABLE_STATIC=1',
-                    _env=env)
+            shprint(sh.rm, "-rf", "CMakeCache.txt", "CMakeFiles/")
+            shprint(
+                sh.cmake,
+                "-G",
+                "Unix Makefiles",
+                "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
+                "-DCMAKE_SYSTEM_NAME=Android",
+                "-DCMAKE_POSITION_INDEPENDENT_CODE=1",
+                f"-DCMAKE_ANDROID_ARCH_ABI={arch.arch}",
+                "-DCMAKE_ANDROID_NDK=" + self.ctx.ndk_dir,
+                f"-DCMAKE_C_COMPILER={arch.get_clang_exe()}",
+                f"-DCMAKE_CXX_COMPILER={arch.get_clang_exe(plus_plus=True)}",
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DCMAKE_INSTALL_PREFIX=./install",
+                "-DCMAKE_TOOLCHAIN_FILE=" + toolchain_file,
+                f"-DANDROID_ABI={arch.arch}",
+                "-DANDROID_ARM_NEON=ON",
+                "-DENABLE_NEON=ON",
+                # Force disable shared, with the static ones is enough
+                "-DENABLE_SHARED=0",
+                "-DENABLE_STATIC=1",
+                _env=env,
+            )
             shprint(sh.make, _env=env)
 
 

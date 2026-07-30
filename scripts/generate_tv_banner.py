@@ -23,7 +23,7 @@ def _vertical_gradient(surface: pygame.Surface, top, bottom) -> None:
     h = surface.get_height()
     for y in range(h):
         t = y / max(h - 1, 1)
-        color = tuple(round(a + (b - a) * t) for a, b in zip(top, bottom))
+        color = tuple(round(a + (b - a) * t) for a, b in zip(top, bottom, strict=True))
         pygame.draw.line(surface, color, (0, y), (surface.get_width(), y))
 
 

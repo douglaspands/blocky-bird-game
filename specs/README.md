@@ -13,7 +13,8 @@ editadas depois de concluídas — ficam como histórico.
 | Versão | Status | Descrição |
 |---|---|---|
 | [v1](v1/) | concluída | Implementação completa do Blocky Bird (jogo base + biomas, áudio, controle Xbox, executável e CI/CD). Ver [v1/README.md](v1/README.md). |
-| [v2](v2/) | **atual** — especificada, implementação pendente | Compatibilidade com Android (celular por toque e Android TV por controle remoto), distribuído como APK instalável direto, sem abandonar o desktop. Ver [v2/README.md](v2/README.md). |
+| [v2](v2/) | concluída | Compatibilidade com Android (celular por toque e Android TV por controle remoto), distribuído como APK instalável direto, sem abandonar o desktop. Ver [v2/README.md](v2/README.md). |
+| [v3](v3/) | **atual** — concluída | Conformidade de todo o código Python com `ruff` e calibração do tamanho de fonte para eliminar sobreposição de texto nas telas. Ver [v3/README.md](v3/README.md). |
 
 ## Criando uma nova versão
 

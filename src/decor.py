@@ -1,7 +1,7 @@
 """Decoracao de fundo com parallax, duas camadas por bioma (R7.4)."""
 
 import random
-from typing import Callable
+from collections.abc import Callable
 
 import pygame
 
