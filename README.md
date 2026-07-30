@@ -81,14 +81,22 @@ Reproduz o mesmo processo do CI, útil para testar mudanças na cadeia Android
 sem depender de uma Release:
 
 ```bash
-docker run --rm -v "$(pwd)":/home/user/hostcwd -v "$HOME/.buildozer":/home/user/.buildozer kivy/buildozer android debug
+yes y | docker run --rm -i -v "$(pwd)":/home/user/hostcwd -v "$HOME/.buildozer":/home/user/.buildozer kivy/buildozer android debug
 ```
 
 No Windows, usando o PowerShell (sem Git Bash/WSL):
 
 ```powershell
-docker run --rm -v "${PWD}:/home/user/hostcwd" -v "${HOME}/.buildozer:/home/user/.buildozer" kivy/buildozer android debug
+docker run --rm -it -v "${PWD}:/home/user/hostcwd" -v "${HOME}/.buildozer:/home/user/.buildozer" kivy/buildozer android debug
 ```
+
+A imagem `kivy/buildozer` roda como root e o buildozer pede confirmação
+interativa (`input()`) para isso, além da aceitação das licenças do Android
+SDK no primeiro build — sem stdin conectado, o processo recebe EOF
+imediatamente e falha (`EOFError: EOF when reading a line`). O `-it` conecta
+o terminal para responder `y` manualmente quando solicitado; no bash, o CI
+(ver `.github/workflows/release.yml`) usa `yes y | docker run -i ...` para
+automatizar isso, já que o PowerShell não tem `yes` embutido.
 
 O APK gerado fica em `bin/*.apk`. Ver `buildozer.spec` e `specs/v2/design.md`
 (seção 24) para detalhes da configuração e das receitas locais necessárias.
