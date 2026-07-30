@@ -465,6 +465,12 @@ Buildozer → python-for-android (p4a) → bootstrap SDL2 → APK. É a rota pad
 
 > **Risco conhecido, decidido conscientemente.** A receita de `pygame-ce` para o python-for-android **não está mergeada** no p4a — vive num pull request aberto ([kivy/python-for-android#2971](https://github.com/kivy/python-for-android/pull/2971), sem merge desde 2024). Portanto o projeto carrega sua **própria receita local** em `p4a-recipes/pygame-ce/__init__.py`, apontada por `p4a.local_recipes` no `buildozer.spec`. Consequências: (a) a receita é código nosso a manter; (b) atualizações de `pygame-ce` podem exigir ajuste na receita; (c) a task de build (28) deve tratar "a receita não compila" como resultado possível, e nesse caso a alternativa é fixar a versão de `pygame-ce` conhecida como funcional. Esse é o ponto de maior incerteza da v2 e deve ser atacado cedo.
 
+> **Atualização (task 28): o risco se confirmou parcialmente, e foi resolvido.** O Docker ficou acessível neste ambiente de desenvolvimento (algo que a seção 25 originalmente dava como indisponível) e o build real foi executado até `BUILD SUCCESSFUL`, gerando um APK de fato. A receita copiada do PR upstream tinha dois bugs reais, só visíveis ao tentar compilar de verdade:
+> 1. Faltava `'cython'` em `depends` — `setup.py build_ext` falha com "You need cython" sem isso (outras receitas do p4a que compilam `.pyx`, como `numpy`/`av`, declaram essa dependência; a cópia do PR não).
+> 2. `sdl_image_includes` apontava para a raiz de `jni/SDL2_image`, mas a versão do `sdl2_image` recipe do p4a (2.8.0) move o header público para `jni/SDL2_image/include/SDL_image.h` — diferente do `SDL2_ttf`, que mantém `SDL_ttf.h` na raiz (mesmo padrão, layout diferente).
+>
+> Nenhum dos dois exigiu trocar a versão do `pygame-ce` (2.5.7 seguiu funcionando) — só corrigir a receita em si. Também apareceu um bug não relacionado ao pygame-ce, no próprio `jpeg` recipe **built-in do p4a**: seu `CMakeLists.txt` (libjpeg-turbo 2.0.1) exige `cmake_minimum_required` < 3.5, incompatível com o CMake 4.2.3 do container `kivy/buildozer` atual — resolvido com uma receita local própria (`p4a-recipes/jpeg/__init__.py`) que passa `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`. Isso ilustra um risco mais amplo que a seção 24.1 original não cobria: **o ambiente de build (versão do CMake, do compilador, do próprio p4a) pode driftar independentemente do código do projeto**, já que a imagem `kivy/buildozer` não é pinada por hash — um rebuild futuro pode reintroduzir problemas parecidos mesmo sem nenhuma mudança no repositório.
+
 ### 24.2 `buildozer.spec` — pontos que importam
 
 ```ini
@@ -490,6 +496,8 @@ android.allow_backup = True
   - Banner de 320×180 (`android.banner`), gerado por código a partir das texturas do jogo (mantendo R7.1) e salvo como PNG no build.
 - Assinatura: build `debug` (`buildozer android debug`), assinado com a chave de debug do Android SDK. Instala direto com "fontes desconhecidas" habilitado; não serve para Play Store (fora de escopo, R17.1).
 
+> **Pegadinha real (task 28):** `android.extra_manifest_application_arguments` (usado para `android:banner="@drawable/banner"`) espera um **caminho de arquivo**, exatamente como `android.extra_manifest_xml` — o buildozer faz `open(valor, 'rt').read()` sobre o valor da chave. Colocar o texto do atributo diretamente (como se fosse inline) só falha com `FileNotFoundError` bem no fim, na etapa de empacotamento/gradle — nunca antes alcançada em builds anteriores que falhavam mais cedo. Corrigido criando `android/tv_banner_attribute.txt` com o conteúdo do atributo e apontando a chave para esse arquivo.
+
 ### 24.3 Job de CI do APK (R17.2)
 
 Acrescentado ao `release.yml` existente, como job independente dos de desktop (matriz Windows/Linux da seção 18):
@@ -502,10 +510,13 @@ Acrescentado ao `release.yml` existente, como job independente dos de desktop (m
 
 O job é independente para que uma falha no build Android (o passo mais frágil, ver risco em 24.1) não impeça a publicação dos binários de desktop.
 
+> **Correção necessária ao item 3, descoberta na task 28 (build local, não no CI ainda).** O cache real do Android SDK/NDK do buildozer vive em `$HOME/.buildozer` **dentro do container** (`/home/user/.buildozer` na imagem `kivy/buildozer`), não em `.buildozer` do workspace — esse último só guarda os artefatos de build por recipe/arch. Rodar `docker run --rm -v "$WORKSPACE:/home/user/hostcwd" kivy/buildozer ...` sem também montar `/home/user/.buildozer` faz o SDK/NDK (~1-2 GB) serem baixados de novo em **todo** `docker run`, mesmo com `actions/cache` no caminho errado. Pior: o marcador "SDK já instalado" (`android:sdk_installation` em `state.db`, dentro de `.buildozer` do workspace, que É cacheado) fica dessincronizado do container efêmero — em builds subsequentes o buildozer acredita que os pacotes SDK (`platforms;android-34` etc.) já estão instalados e pula a etapa, resultando em `Available Android APIs are ()` e falha. Para o job de CI (task 29), isso significa: cachear/montar também um diretório persistente para `/home/user/.buildozer` do container (não só `.buildozer` do workspace), do mesmo jeito que a task 28 resolveu localmente com um segundo bind mount.
+
 ## 25. Limites de verificação nesta versão
 
 Registrado explicitamente porque afeta como as tasks devem ser aceitas:
 
-- **Não há aparelho Android nem emulador neste ambiente de desenvolvimento**, e o Docker local não está acessível (verificado na v1, ao tentar validar o workflow com `act`). Logo, os itens que dependem de Android real — instalar o APK, jogar por toque, operar por controle remoto de TV, medir FPS em aparelho de entrada, confirmar persistência do recorde no storage do app — **precisam de validação manual pelo dono do projeto**.
+- **Não há aparelho Android nem emulador neste ambiente de desenvolvimento.** Logo, os itens que dependem de Android real — instalar o APK, jogar por toque, operar por controle remoto de TV, medir FPS em aparelho de entrada, confirmar persistência do recorde no storage do app — **precisam de validação manual pelo dono do projeto**.
+- **Atualização (task 28): o Docker local, dado como inacessível na v1** (ao tentar validar o workflow com `act`), **ficou disponível neste ambiente** numa sessão posterior. Isso permitiu rodar o build real (`docker run kivy/buildozer android debug`) ponta a ponta até `BUILD SUCCESSFUL`, algo que a v1 não conseguia verificar — ver seção 24.1/24.2/24.3 para os bugs reais encontrados e corrigidos nesse processo. A disponibilidade do Docker pode variar entre sessões/ambientes; não assumir que builds futuros terão o mesmo acesso sem verificar (`docker ps`) primeiro.
 - O que **pode** ser verificado automaticamente aqui: fonte bitmap (comparação de superfícies renderizadas), conversão de coordenadas de toque para espaço lógico (função pura, testável), resolução do diretório de save por plataforma (com `ANDROID_ARGUMENT` monkeypatched), transições de estado por ações `back`/`focus_lost` (eventos sintéticos), e o jogo inteiro no desktop com `SCALED` (incluindo redimensionamento de janela).
 - O checklist manual em `tasks.md` marca claramente qual item é de qual categoria. Nenhum item dependente de hardware deve ser marcado como concluído sem teste real.
