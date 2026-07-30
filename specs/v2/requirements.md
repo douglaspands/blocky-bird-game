@@ -55,7 +55,7 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 2. ENQUANTO o jogo está em estado JOGANDO, O sistema DEVE exibir a pontuação atual no topo da tela em fonte pixelada.
 3. QUANDO a pontuação da partida em curso supera o recorde, O sistema DEVE atualizar o recorde e persisti-lo em arquivo local (`highscore.json`) — sem esperar o fim da partida, para que o recorde sobreviva ao encerramento abrupto do app pelo sistema operacional (comum em Android).
 4. QUANDO o jogo inicia, O sistema DEVE carregar o recorde do arquivo local; SE o arquivo não existir ou estiver corrompido, O sistema DEVE assumir recorde 0.
-5. O arquivo de recorde DEVE ser gravado em diretório com permissão de escrita garantida na plataforma (em Android, o armazenamento privado do app; no desktop, a raiz do projeto), nunca dependendo do diretório de trabalho corrente.
+5. O arquivo de recorde DEVE ser gravado em diretório com permissão de escrita garantida na plataforma (em Android, o armazenamento privado do app; no desktop rodando a partir do código-fonte, a raiz do projeto; no executável empacotado — Windows/Linux via PyInstaller, R13 —, a pasta onde o executável está, nunca o diretório temporário de extração), nunca dependendo do diretório de trabalho corrente.
 
 ## R5 — Progressão de biomas
 
@@ -222,6 +222,20 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 3. O espaçamento vertical entre linhas de texto de uma mesma tela DEVE ser calculado a partir da altura real do texto renderizado no tamanho escolhido (não um deslocamento fixo em pixels independente do tamanho da fonte), para que o layout continue correto se o tamanho for ajustado no futuro.
 4. Cada papel de texto (título, subtítulo/créditos, instrução, HUD de pontuação, overlay de pausa, textos de game over, recorde) DEVE ter um tamanho definido que priorize legibilidade sem violar os critérios 1–2 — o levantamento do tamanho ideal por papel é parte da implementação desta versão.
 5. A verificação de não sobreposição DEVE ser automatizada (teste que renderiza cada tela e compara os retângulos dos textos), para não depender de inspeção visual manual a cada mudança futura de texto ou fonte.
+
+## R20 — Conformidade com ty (checagem de tipos)
+
+**User story:** Como mantenedor, quero que o código do jogo seja verificado por um checador de tipos estático, para detectar incompatibilidades de tipo (ex.: o bug de `tuple[int, ...]` vs. `tuple[int, int, int]` encontrado na auditoria inicial) antes que virem bug em produção.
+
+### Critérios de aceitação
+
+1. O projeto DEVE declarar `ty` (Astral) como dependência de desenvolvimento em `pyproject.toml` (grupo `dev`), com versão mínima fixada.
+2. O projeto DEVE ter configuração explícita de `ty` (`[tool.ty.environment]`/`[tool.ty.src]` em `pyproject.toml`) definindo a versão-alvo do Python e os caminhos excluídos da checagem.
+3. QUANDO `uv run ty check .` é executado a partir da raiz do projeto, O sistema DEVE reportar zero diagnósticos sobre o código do jogo (`src/`, `tests/`, `main.py`, `scripts/`).
+4. Módulos que só existem em tempo de execução em uma plataforma específica (ex.: `android.storage`, disponível apenas dentro do runtime python-for-android) e código de teste que monkeypatcha atributos dinâmicos em objetos NÃO DEVEM ser tratados como violação — DEVEM ser suprimidos pontualmente com `# ty: ignore[regra]` e um comentário curto explicando o motivo, nunca com uma supressão genérica.
+5. Receitas locais de build Android (`p4a-recipes/`) DEVEM ficar fora do escopo da checagem de tipos — elas importam módulos (`sh`, `pythonforandroid.*`) que só existem dentro da imagem Docker do buildozer (R17), nunca no ambiente de desenvolvimento local.
+6. O pipeline de CI (GitHub Actions) DEVE rodar `ty check` em cada push/pull request, falhando o job SE houver qualquer diagnóstico de erro — para que uma regressão de tipo não seja mesclada sem ser notada.
+7. Violações reais encontradas na auditoria inicial DEVEM ser corrigidas no código (não suprimidas) sempre que a causa for um tipo genuinamente incompatível, não uma limitação do ambiente de checagem.
 
 ---
 

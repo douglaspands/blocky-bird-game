@@ -26,6 +26,18 @@ def test_save_dir_desktop_is_project_root(monkeypatch):
     assert (root / "pyproject.toml").is_file()
 
 
+def test_save_dir_frozen_desktop_uses_executable_dir(monkeypatch, tmp_path):
+    """Executavel empacotado pelo PyInstaller (BlockyBird.spec): __file__ aponta
+    para o _MEIPASS temporario, entao o diretorio correto vem de sys.executable."""
+    monkeypatch.undo()
+    monkeypatch.delenv("ANDROID_ARGUMENT", raising=False)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    fake_exe = tmp_path / "BlockyBird.exe"
+    monkeypatch.setattr(sys, "executable", str(fake_exe))
+
+    assert storage.save_dir() == tmp_path
+
+
 def test_save_dir_android_uses_app_storage_path(monkeypatch):
     """Simula o modulo `android.storage` que o p4a injeta em tempo de execucao."""
     monkeypatch.undo()
@@ -33,8 +45,8 @@ def test_save_dir_android_uses_app_storage_path(monkeypatch):
 
     fake_android = types.ModuleType("android")
     fake_storage = types.ModuleType("android.storage")
-    fake_storage.app_storage_path = lambda: "/data/data/org.blockybird/files"
-    fake_android.storage = fake_storage
+    fake_storage.app_storage_path = lambda: "/data/data/org.blockybird/files"  # ty: ignore[unresolved-attribute]
+    fake_android.storage = fake_storage  # ty: ignore[unresolved-attribute] ModuleType aceita atributo dinamico em runtime
     monkeypatch.setitem(sys.modules, "android", fake_android)
     monkeypatch.setitem(sys.modules, "android.storage", fake_storage)
 

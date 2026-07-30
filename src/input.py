@@ -44,13 +44,12 @@ def _touch_to_logical(norm_x: float, norm_y: float) -> tuple[float, float]:
 class InputManager:
     def __init__(self) -> None:
         pygame.joystick.init()
-        self.joysticks: dict[int, pygame.joystick.Joystick] = {}
+        self.joysticks: dict[int, pygame.joystick.JoystickType] = {}
         for device_index in range(pygame.joystick.get_count()):
             self._add_joystick(device_index)
 
     def _add_joystick(self, device_index: int) -> None:
         joystick = pygame.joystick.Joystick(device_index)
-        joystick.init()
         self.joysticks[joystick.get_instance_id()] = joystick
 
     def _remove_joystick(self, instance_id: int) -> None:

@@ -429,6 +429,9 @@ A v1 grava `highscore.json` via caminho relativo, resolvido a partir do diretór
 def is_android() -> bool:
     return "ANDROID_ARGUMENT" in os.environ     # definido pelo python-for-android
 
+def is_frozen() -> bool:
+    return getattr(sys, "frozen", False)        # definido pelo PyInstaller no executavel empacotado
+
 def save_dir() -> Path:
     if is_android():
         try:
@@ -436,13 +439,18 @@ def save_dir() -> Path:
             return Path(app_storage_path())
         except ImportError:
             return Path(os.environ.get("ANDROID_PRIVATE", "."))
-    return Path(__file__).resolve().parent.parent          # raiz do projeto, no desktop
+    if is_frozen():
+        return Path(sys.executable).resolve().parent       # pasta do .exe/binario empacotado
+    return Path(__file__).resolve().parent.parent          # raiz do projeto, rodando de fonte
 ```
 
 - Detecção por variável de ambiente (`ANDROID_ARGUMENT`), definida pelo p4a — não exige importar nada no desktop.
 - Caminho Android: `app_storage_path()` do módulo `android` (embutido pelo p4a) devolve o diretório privado do app, gravável e preservado entre execuções. `ANDROID_PRIVATE` é o fallback.
-- Caminho desktop: raiz do projeto, resolvida a partir do arquivo do módulo — mais robusto que o diretório de trabalho e continua compatível com a suíte de testes, que injeta um `tmp_path` explícito.
+- Caminho desktop rodando de fonte: raiz do projeto, resolvida a partir do arquivo do módulo — mais robusto que o diretório de trabalho e continua compatível com a suíte de testes, que injeta um `tmp_path` explícito.
+- Caminho desktop empacotado (`BlockyBird.spec`/PyInstaller, R13): a pasta do executável, resolvida a partir de `sys.executable`.
 - `score.load_highscore()` / `save_highscore()` passam a usar `storage.save_dir() / "highscore.json"` como default, mantendo o parâmetro `path` opcional que os testes já usam.
+
+**Bug pós-lançamento (v1.0.0): recorde não persistia no executável empacotado do Windows.** `BlockyBird.spec` gera um executável **onefile** (`EXE(pyz, a.scripts, a.binaries, a.datas, ...)` em uma única chamada). Nesse modo, o PyInstaller extrai o conteúdo empacotado para um diretório temporário (`sys._MEIPASS`) a cada execução e é **esse** diretório que `__file__` resolve dentro do `.exe` — não a pasta onde o executável está. Como o diretório é apagado quando o processo termina, `highscore.json` nunca aparecia ao lado do `.exe` e o recorde se perdia a cada fechamento. O mesmo problema afeta o build Linux (mesmo `.spec`), só não havia sido reportado ainda. Corrigido detectando o modo empacotado via `sys.frozen` (atributo que o PyInstaller injeta em tempo de execução) e usando `Path(sys.executable).resolve().parent` nesse caso — a pasta real do executável, preservada entre execuções e coerente com a distribuição em zip/tar portátil (R13.2), que não instala em local somente-leitura como `Program Files`. `tests/test_storage.py::test_save_dir_frozen_desktop_uses_executable_dir` cobre o caso simulando `sys.frozen`/`sys.executable` via `monkeypatch`. Validado também manualmente: build real via `uv run pyinstaller BlockyBird.spec`, simulação do modo `frozen` apontando para `dist/BlockyBird.exe` e confirmação de que `highscore.json` é criado e lido corretamente ao lado do executável.
 
 **Descoberto na implementação (task 22): o default não pode ser um valor de parâmetro fixo.** `def load_highscore(path: Path = storage.save_dir() / "highscore.json")` calcularia o caminho **uma única vez, na importação do módulo** — clássica armadilha de default mutável/calculado em Python. Isso congelaria o resultado de `storage.save_dir()` para sempre no valor visto no import (impossibilitando reagir a mudança de plataforma em runtime, e tornando o comportamento impossível de isolar via `monkeypatch` nos testes). Corrigido resolvendo dentro do corpo da função, com `None` como sentinela:
 
@@ -581,3 +589,36 @@ def test_ready_screen_texts_do_not_overlap():
 Repetido para as quatro telas (PRONTO, HUD+nada mais por enquanto — só um texto, mas fica como regressão —, PAUSADO, GAME_OVER), incluindo o caso de recorde com muitos dígitos (`RECORDE: 999999`) para não regredir se o score crescer além do testado até aqui. O ícone de mudo (`ui.MUTE_ICON_RECT`, constante) entra na mesma checagem de colisão nas telas onde é desenhado (celular, R15.4) — é um retângulo fixo, não precisa de instrumentação extra.
 
 **Por que não mexer em `pixelfont.py`.** O glifo 5×7 em si não é o problema — é proporcional e legível; o que precisa de ajuste é *onde* e *em que escala* cada texto é colocado. Manter a mudança inteira em `ui.py` preserva o cache de `pixelfont.render` (v2, seção 19) e não arrisca reabrir a receita de build Android (a fonte já roda em produção real desde a task 28 da v2).
+
+## 28. Conformidade com ty (R20)
+
+**Por que ty, além de ruff.** `ruff` (seção 26) cobre estilo e armadilhas sintáticas, mas não checa se os tipos batem — e a v2 já teve um bug real dessa categoria escapar para produção (persistência do recorde, seção 23). `ty` é o checador de tipos estático do mesmo time do `ruff`/`uv` (Astral), então entra com a mesma filosofia de configuração centralizada em `pyproject.toml` e sem dependência extra de toolchain.
+
+**Config.** `[tool.ty.environment]`/`[tool.ty.src]` em `pyproject.toml`, mesmo padrão de configuração centralizada usado para `ruff`:
+
+```toml
+[tool.ty.environment]
+python-version = "3.10"          # alinhado a requires-python (R9.2), mesmo raciocinio do target-version do ruff
+
+[tool.ty.src]
+exclude = ["p4a-recipes", "specs", ".buildozer", "build", "dist"]
+```
+
+- `python-version = "3.10"`: alinhado ao `requires-python` do projeto, mesmo raciocínio do `target-version` do ruff (seção 26).
+- `exclude`: `p4a-recipes/` sai do escopo porque essas receitas importam `sh` e `pythonforandroid.*` — pacotes que só existem dentro da imagem Docker do buildozer (R17, seção 24.1), nunca no `.venv` de desenvolvimento local; checá-las localmente só produziria `unresolved-import` permanente e não-acionável, diferente de `ruff` (que enxerga só sintaxe/estilo e não precisa resolver imports de verdade). `specs/`, `.buildozer/`, `build/`, `dist/` saem pelo mesmo motivo de `specs/` no ruff (não é código do jogo) mais artefatos de build que não são versionados.
+
+**Escopo da varredura.** `main.py`, `src/**/*.py`, `tests/**/*.py`, `scripts/generate_tv_banner.py`, `conftest.py` — o mesmo escopo do ruff (seção 26) menos `p4a-recipes/`.
+
+**CI.** Novo step em `.github/workflows/ci.yml`, `uv run ty check .`, entre `ruff format --check` e `pytest` (mesma lógica de falha rápida: tipos antes de rodar a suíte).
+
+**Supressões pontuais (R20.4).** Dois padrões legítimos não são erro de tipo de verdade, só uma limitação do que é estaticamente verificável, e usam `# ty: ignore[regra]` com comentário curto (mesma disciplina do `# noqa: CODE` do ruff, R18.6):
+
+- `src/storage.py`: `from android.storage import app_storage_path` dentro do `try/except ImportError` (seção 23) — módulo só existe em runtime python-for-android, nunca no venv de dev. `# ty: ignore[unresolved-import]`.
+- `tests/test_storage.py`: o fake do módulo `android.storage` (`test_save_dir_android_uses_app_storage_path`) atribui atributos dinamicamente a uma instância de `types.ModuleType` para simular o módulo injetado pelo p4a — válido em runtime (módulos aceitam atributo arbitrário), mas não declarado no stub de `ModuleType`. `# ty: ignore[unresolved-attribute]`.
+
+**Violações reais encontradas na auditoria inicial (3, todas corrigidas no código — nenhuma suprimida):**
+
+- `src/biome.py` (`_lerp_color`) e `src/particles.py` (`ParticleSystem.burst`): ambas construíam uma cor RGB a partir de uma expressão de tamanho variável (genexpr num caso, slice de `pygame.Color` no outro) e atribuíam a um `tuple[int, int, int]` — `ty` infere `tuple[int, ...]` para as duas formas, então o tamanho fixo nunca é garantido estaticamente (só por convenção do chamador). Corrigido desempacotando os três componentes em variáveis nomeadas e retornando/atribuindo um literal de tupla de 3 elementos, que `ty` já infere com o tamanho certo — sem mudar o comportamento em runtime.
+- `src/input.py` (`InputManager`): `dict[int, pygame.joystick.Joystick]` usava `Joystick` como anotação de tipo, mas o próprio stub do pygame-ce documenta que `Joystick` é, na implementação atual, uma função-fábrica que devolve `JoystickType` (não uma classe) — "in the future, when the C implementation is fixed to add `__init__`/`__new__` to Joystick and it's exported directly, the typestubs here must be updated too". Corrigido usando `pygame.joystick.JoystickType`, o tipo de verdade da instância. Aproveitado para remover a chamada redundante `joystick.init()` logo após `Joystick(device_index)` (o stub marca `JoystickType.init` como `@deprecated("since 2.0.0. Multiple initializations are not supported anymore")` — a construção já inicializa o joystick).
+
+**Suíte completa (70 testes) e `ruff check`/`ruff format --check` permanecem verdes após todas as correções.**

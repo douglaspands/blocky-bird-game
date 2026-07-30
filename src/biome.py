@@ -66,7 +66,8 @@ BIOMES: list[Biome] = [
 
 
 def _lerp_color(c1: tuple[int, int, int], c2: tuple[int, int, int], t: float) -> tuple[int, int, int]:
-    return tuple(round(a + (b - a) * t) for a, b in zip(c1, c2, strict=True))
+    r, g, b = (round(x + (y - x) * t) for x, y in zip(c1, c2, strict=True))
+    return (r, g, b)
 
 
 def _make_gradient(top: tuple[int, int, int], bottom: tuple[int, int, int]) -> pygame.Surface:

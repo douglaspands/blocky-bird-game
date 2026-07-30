@@ -52,7 +52,8 @@ class ParticleSystem:
         """Amostra cores da textura do bloco atingido e dispara explosao radial (R3.2)."""
         w, h = texture.get_size()
         for _ in range(n):
-            color = texture.get_at((random.randrange(w), random.randrange(h)))[:3]
+            r, g, b = texture.get_at((random.randrange(w), random.randrange(h)))[:3]
+            color = (r, g, b)
 
             angle = random.uniform(0, math.tau)
             speed = random.uniform(MIN_SPEED, MAX_SPEED)
