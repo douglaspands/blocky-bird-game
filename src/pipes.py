@@ -4,11 +4,12 @@ import random
 
 import pygame
 
-from src.config import BLOCK, GAP_MARGIN, GROUND_H, PIPE_SPACING, PIPE_W, SCREEN_H, SCREEN_W
+from src import config
+from src.config import BLOCK, GAP_MARGIN, PIPE_SPACING, PIPE_W, SCREEN_W
 
 
 class PipePair:
-    def __init__(self, x: float, gap_y: float, gap_size: int, block_main: str, block_edge: str) -> None:
+    def __init__(self, x: float, gap_y: float, gap_size: float, block_main: str, block_edge: str) -> None:
         self.x = x
         self.gap_y = gap_y
         self.gap_size = gap_size
@@ -24,8 +25,7 @@ class PipePair:
     @property
     def bottom_rect(self) -> pygame.Rect:
         top = round(self.gap_y + self.gap_size / 2)
-        ground_y = SCREEN_H - GROUND_H
-        return pygame.Rect(round(self.x), top, PIPE_W, ground_y - top)
+        return pygame.Rect(round(self.x), top, PIPE_W, config.ground_y() - top)
 
     def off_screen(self) -> bool:
         return self.x + PIPE_W < 0
@@ -59,8 +59,14 @@ class PipeManager:
         self._spawn(SCREEN_W, gap_size, block_main, block_edge)
 
     def _spawn(self, x: float, gap_size: int, block_main: str, block_edge: str) -> None:
-        gap_y = random.uniform(GAP_MARGIN, SCREEN_H - GROUND_H - GAP_MARGIN)
-        self.pipes.append(PipePair(x, gap_y, gap_size, block_main, block_edge))
+        # gap_size/GAP_MARGIN escalam com a altura jogavel real (task 39) — sem isso,
+        # um aparelho em retrato com mais altura logica (config.SCREEN_H dinamico,
+        # ver src/screen_adapt.py) ganharia espaco de reacao extra de graca.
+        scale = config.height_scale()
+        scaled_gap = gap_size * scale
+        margin = GAP_MARGIN * scale
+        gap_y = random.uniform(margin, config.ground_y() - margin)
+        self.pipes.append(PipePair(x, gap_y, scaled_gap, block_main, block_edge))
 
     def update(self, speed: float, gap_size: int, block_main: str, block_edge: str) -> None:
         """Move as colunas (R2.3), spawna novas com o bioma atual (R2.1/R2.2/R2.5).

@@ -1,5 +1,8 @@
+from types import SimpleNamespace
+
 import pygame
 
+from src import config
 from src import score as score_module
 from src.config import PIPE_W
 from src.game import Game, GameState
@@ -286,3 +289,32 @@ def test_flap_in_game_over_resets_to_pronto():
     game._flap_action()
     assert game.state == GameState.PRONTO
     assert game.score == 0
+
+
+def test_android_portrait_device_has_no_pillarbox(monkeypatch):
+    """Celular alongado (1080x2400, mais estreito que a base 2:3): a area
+    jogavel de verdade acompanha a proporcao real do aparelho — canvas e
+    gameplay tem exatamente o mesmo tamanho, sem sobra de letterbox/pillarbox
+    (task 39)."""
+    monkeypatch.setattr("src.storage.is_android", lambda: True)
+    monkeypatch.setattr(pygame.display, "Info", lambda: SimpleNamespace(current_w=1080, current_h=2400))
+
+    game = _make_game()
+
+    assert game.screen.get_size() == game.gameplay.get_size()
+    assert config.SCREEN_H != config.BASE_SCREEN_H
+    assert abs(config.SCREEN_W / config.SCREEN_H - 1080 / 2400) < 1e-3
+
+
+def test_android_tv_landscape_keeps_fixed_play_area(monkeypatch):
+    """Android TV 16:9 em paisagem (mais largo que a base): comportamento das
+    tasks 35/38 inalterado pela task 39 — area jogavel fixa em 480xBASE_SCREEN_H,
+    so o fundo (canvas) se estende pela largura extra."""
+    monkeypatch.setattr("src.storage.is_android", lambda: True)
+    monkeypatch.setattr(pygame.display, "Info", lambda: SimpleNamespace(current_w=1920, current_h=1080))
+
+    game = _make_game()
+
+    assert config.SCREEN_H == config.BASE_SCREEN_H
+    assert game.screen.get_size() != game.gameplay.get_size()
+    assert game.screen.get_width() > game.gameplay.get_width()

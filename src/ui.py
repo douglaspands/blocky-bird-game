@@ -2,13 +2,12 @@
 
 import pygame
 
-from src import pixelfont
-from src.config import CREDITS, GROUND_H, SCREEN_H, SCREEN_W
+from src import config, pixelfont
+from src.config import CREDITS, SCREEN_W
 
 SHADOW_COLOR = (40, 30, 20)
 SHADOW_OFFSET = 3
 OVERLAY_COLOR = (0, 0, 0, 140)
-GROUND_Y = SCREEN_H - GROUND_H
 GOLD = (255, 215, 60)
 MAX_TEXT_W = SCREEN_W - 40  # margem de 20px de cada lado
 
@@ -74,7 +73,7 @@ def _stack(
 
 
 def _dim_overlay(surface: pygame.Surface) -> None:
-    overlay = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+    overlay = pygame.Surface((SCREEN_W, config.SCREEN_H), pygame.SRCALPHA)
     overlay.fill(OVERLAY_COLOR)
     surface.blit(overlay, (0, 0))
 
@@ -83,7 +82,7 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
     _stack(
         surface,
         SCREEN_W // 2,
-        SCREEN_H // 4,
+        config.SCREEN_H // 4,
         [
             ("BLOCKY BIRD", 12, (255, 220, 60)),
             (CREDITS.upper(), 5, (230, 230, 230)),
@@ -93,7 +92,7 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
     draw_text(
         surface,
         f"RECORDE: {highscore}",
-        (SCREEN_W // 2, GROUND_Y - 24),
+        (SCREEN_W // 2, config.ground_y() - 24),
         base_size=8,
         color=GOLD,
     )
@@ -129,7 +128,7 @@ def draw_paused_overlay(surface: pygame.Surface) -> None:
     _stack(
         surface,
         SCREEN_W // 2,
-        SCREEN_H // 2 - 24,
+        config.SCREEN_H // 2 - 24,
         [
             ("PAUSADO", 12, (255, 255, 255)),
             ("SETAS: MUDO", 5, (210, 210, 210)),
@@ -142,7 +141,7 @@ def draw_game_over_screen(surface: pygame.Surface, score: int, highscore: int) -
     _stack(
         surface,
         SCREEN_W // 2,
-        SCREEN_H // 2 - 90,
+        config.SCREEN_H // 2 - 90,
         [
             ("GAME OVER", 12, (220, 60, 50)),
             (f"PONTOS: {score}", 8, (255, 255, 255)),

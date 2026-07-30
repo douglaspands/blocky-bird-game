@@ -13,7 +13,7 @@ editadas depois de concluídas — ficam como histórico.
 | Versão | Status | Descrição |
 |---|---|---|
 | [v1](v1/) | concluída | Implementação completa do Blocky Bird (jogo base + biomas, áudio, controle Xbox, executável e CI/CD). Ver [v1/README.md](v1/README.md). |
-| [v2](v2/) | **atual** — concluída | Compatibilidade com Android (celular por toque e Android TV por controle remoto), distribuído como APK instalável direto, sem abandonar o desktop; aumentos de escopo posteriores com conformidade `ruff`/`ty`, calibração de fonte, preenchimento de tela sem barra preta (task 35) e ícone do aplicativo com a personagem do jogo (tasks 36–37). Ver [v2/README.md](v2/README.md). |
+| [v2](v2/) | **atual** — concluída | Compatibilidade com Android (celular por toque e Android TV por controle remoto), distribuído como APK instalável direto, sem abandonar o desktop; aumentos de escopo posteriores com conformidade `ruff`/`ty`, calibração de fonte, preenchimento de tela sem barra preta em paisagem (task 35), ícone do aplicativo com a personagem do jogo (tasks 36–37), remoção do fundo estendido em retrato (task 38) e área jogável dinâmica em retrato sem nenhum pillarbox, com dificuldade escalada proporcionalmente (task 39). Ver [v2/README.md](v2/README.md). |
 
 ## Criando uma nova versão
 

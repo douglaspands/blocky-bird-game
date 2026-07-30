@@ -84,6 +84,12 @@ sem depender de uma Release:
 docker run --rm -v "$(pwd)":/home/user/hostcwd -v "$HOME/.buildozer":/home/user/.buildozer kivy/buildozer android debug
 ```
 
+No Windows, usando o PowerShell (sem Git Bash/WSL):
+
+```powershell
+docker run --rm -v "${PWD}:/home/user/hostcwd" -v "${HOME}/.buildozer:/home/user/.buildozer" kivy/buildozer android debug
+```
+
 O APK gerado fica em `bin/*.apk`. Ver `buildozer.spec` e `specs/v2/design.md`
 (seção 24) para detalhes da configuração e das receitas locais necessárias.
 

@@ -45,7 +45,7 @@ antigos. Validado com um build real do APK: o `.apk` gerado contém de fato um
 
 - [`requirements.md`](requirements.md) — requisitos R1–R21 em formato EARS (R14–R17 são da entrega Android; R18–R20 são do aumento de escopo de qualidade; R21 é o ícone do aplicativo).
 - [`design.md`](design.md) — arquitetura técnica. Parte I (seções 1–18) é o jogo base herdado da v1 com os ajustes que o Android exigiu; Parte II (seções 19–25) é o trabalho de Android; Parte III (seções 26–28) é o aumento de escopo de qualidade; Parte IV (seção 29) é o ícone do aplicativo.
-- [`tasks.md`](tasks.md) — plano incremental. Tasks 1–19 são o histórico concluído da v1; tasks 20–30 são o trabalho de Android; **tasks 31–37 são aumentos de escopo posteriores** (qualidade, correções pós-lançamento e o ícone do aplicativo).
+- [`tasks.md`](tasks.md) — plano incremental. Tasks 1–19 são o histórico concluído da v1; tasks 20–30 são o trabalho de Android; **tasks 31–39 são aumentos de escopo posteriores** (qualidade, correções pós-lançamento, o ícone do aplicativo e os ajustes de proporção em retrato).
 
 ## O que muda em relação à v1
 
@@ -55,7 +55,7 @@ Três coisas da v1 **quebram** no Android e são corrigidas aqui:
 |---|---|
 | `SysFont("couriernew")` — fonte inexistente no Android | Fonte bitmap gerada por código (`pixelfont.py`) |
 | `highscore.json` gravado a partir do diretório de trabalho, não gravável no Android | `storage.py` resolve o diretório privado do app por plataforma |
-| Resolução fixa 480×720, letterbox explicitamente fora de escopo | `pygame.SCALED` com canvas adaptado à proporção do aparelho (task 35) — preenche a tela sem barra preta, área jogável 480×720 intocada |
+| Resolução fixa 480×720, letterbox explicitamente fora de escopo | Android TV (paisagem) preenche a tela sem barra preta, estendendo o fundo além da área jogável fixa 480×720 (task 35, restrito à paisagem pela task 38); em retrato (celulares, a maioria) a própria área jogável acompanha a proporção real do aparelho dinamicamente, sem pillarbox nem fundo inventado, com a dificuldade escalada proporcionalmente (task 39) |
 
 Além disso: entrada por toque e por controle remoto de TV, pausa automática ao ir para
 segundo plano, gravação incremental do recorde (sobrevive a encerramento pelo sistema),

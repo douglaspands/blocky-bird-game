@@ -6,6 +6,8 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 import pytest
 
+from src import config
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _pygame_session():
@@ -32,3 +34,13 @@ def _reset_display():
     'failed to create renderer' (varios testes criam Game() cada um)."""
     pygame.display.quit()
     pygame.display.init()
+
+
+@pytest.fixture(autouse=True)
+def _reset_screen_h():
+    """config.SCREEN_H e mutavel em runtime desde a task 39 (Game.__init__ escreve
+    nele para simular retrato/paisagem em Android) — sem reset, um teste que simula
+    um aparelho Android vazaria a altura dinamica para os testes seguintes do mesmo
+    processo."""
+    yield
+    config.SCREEN_H = config.BASE_SCREEN_H
