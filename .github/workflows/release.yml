@@ -50,3 +50,43 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: BlockyBird-linux-${{ github.event.release.tag_name }}.tar.bz2
+
+  build-apk:
+    # Job independente: uma falha aqui nao deve impedir a publicacao dos
+    # binarios de desktop do job acima (a cadeia de build Android e a parte
+    # mais fragil do projeto, ver specs/v2/design.md secao 24.1).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache buildozer state (Android SDK/NDK, p4a, build intermedio)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            .buildozer
+          key: buildozer-${{ hashFiles('buildozer.spec', 'p4a-recipes/**') }}
+          restore-keys: |
+            buildozer-
+
+      - name: Build APK (Buildozer via Docker, SDK/NDK reprodutiveis)
+        run: |
+          docker pull kivy/buildozer
+          # -v "$HOME/.buildozer": SDK/NDK baixados pelo buildozer (imagem oficial
+          # os mantem fora do hostcwd, ver docs kivy/buildozer no Docker Hub).
+          # buildozer recusa rodar como root sem confirmacao interativa; "yes y"
+          # tambem cobre a aceitacao das licencas do Android SDK no primeiro build.
+          yes y | docker run --rm -i \
+            -v "$HOME/.buildozer:/home/user/.buildozer" \
+            -v "${{ github.workspace }}:/home/user/hostcwd" \
+            kivy/buildozer android debug
+
+      - name: Rename APK sem comprimir
+        run: |
+          apk=$(find bin -maxdepth 1 -name '*.apk' | head -n1)
+          cp "$apk" "BlockyBird-${{ github.event.release.tag_name }}.apk"
+
+      - name: Upload APK asset (uncompressed)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BlockyBird-${{ github.event.release.tag_name }}.apk
