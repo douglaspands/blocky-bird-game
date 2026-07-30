@@ -159,7 +159,7 @@ percepção humana e de hardware que não está disponível neste ambiente.
 - [x] Créditos ("por Douglas e Pedro") visíveis na tela PRONTO e no título da janela (R11)
 - [x] Recorde exibido no rodapé da tela PRONTO, acima do chão (R12)
 - [x] `uv run pyinstaller BlockyBird.spec` gera um executável que abre com duplo clique, sem Python instalado (R13.1) — testado localmente no Windows; build Linux não testado neste ambiente (sem Linux disponível)
-- [ ] Publicar uma Release de teste no GitHub e confirmar que os assets `BlockyBird-windows-<tag>.zip` e `BlockyBird-linux-<tag>.tar.bz2` aparecem automaticamente (R13.2) — workflow não pôde ser executado ponta a ponta neste ambiente (sem Docker acessível); validado apenas via `act --list` (sintaxe/gatilho) e execução manual do comando de build
+- [x] Publicar uma Release de teste no GitHub e confirmar que os assets `BlockyBird-windows-<tag>.zip` e `BlockyBird-linux-<tag>.tar.bz2` aparecem automaticamente (R13.2) — Release `v1.0.0` publicada em `douglaspands/blocky-bird-game`, com `BlockyBird-linux-v1.0.0.tar.bz2` e `BlockyBird-windows-v1.0.0.zip` anexados automaticamente pelo `github-actions[bot]`, confirmado via API pública do GitHub
 
 ## Checklist de verificação da v2 (Android)
 
