@@ -10,7 +10,16 @@ from src.bird import Bird
 from src.config import BLOCK, CREDITS, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
-from src.input import ACTION_BACK, ACTION_FLAP, ACTION_FOCUS_LOST, ACTION_MUTE, ACTION_PAUSE, InputManager
+from src.input import (
+    ACTION_BACK,
+    ACTION_FLAP,
+    ACTION_FOCUS_LOST,
+    ACTION_LEFT,
+    ACTION_MUTE,
+    ACTION_PAUSE,
+    ACTION_RIGHT,
+    InputManager,
+)
 from src.particles import ParticleSystem
 from src.pipes import PipeManager
 from src.sounds import SoundManager
@@ -59,6 +68,12 @@ class Game:
         elif self.state == GameState.JOGANDO:
             self.bird.flap()
             self.sounds.play("flap")
+        elif self.state == GameState.PAUSADO:
+            # despausa sem flapar: garante que todo estado seja alcancavel so
+            # com o botao central do D-pad/toque, mesmo sem tecla de pause
+            # dedicada (ESC/P) ou botao Start de gamepad (R14.4, R15.5) — sem
+            # isso, quem pausa via BACK (task 23) ficaria sem como voltar.
+            self.state = GameState.JOGANDO
         elif self.state == GameState.GAME_OVER:
             self.reset()
 
@@ -93,6 +108,10 @@ class Game:
         if ACTION_PAUSE in actions:
             self._toggle_pause()
         if ACTION_MUTE in actions:
+            self.sounds.toggle_mute()
+        if self.state == GameState.PAUSADO and (ACTION_LEFT in actions or ACTION_RIGHT in actions):
+            # D-pad esquerda/direita alterna mudo em PAUSADO — unica forma de
+            # mudar sem tecla M nem toque, para Android TV (R14.4, R15.4).
             self.sounds.toggle_mute()
 
     def _collision_texture(self) -> str | None:

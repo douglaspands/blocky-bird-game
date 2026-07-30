@@ -116,6 +116,85 @@ def test_tap_on_mute_icon_toggles_mute_without_side_effects():
     assert game.state == GameState.PRONTO  # nao voou, nao iniciou a partida
 
 
+def test_flap_resumes_from_pausado_without_flapping_bird():
+    """Sem isso, quem pausa via BACK (sem tecla ESC/P nem botao Start de
+    gamepad) fica sem como voltar — essencial p/ controle remoto de TV e p/
+    toque no celular (R14.4, R15.5)."""
+    game = _make_game()
+    game._flap_action()
+    game._toggle_pause()
+    assert game.state == GameState.PAUSADO
+    bird_vel_before = game.bird.vel_y
+
+    game._flap_action()
+    assert game.state == GameState.JOGANDO
+    assert game.bird.vel_y == bird_vel_before  # nao flapou, so despausou
+
+
+def test_dpad_left_right_toggle_mute_only_when_pausado():
+    game = _make_game()
+    game._flap_action()
+    assert game.state == GameState.JOGANDO
+    assert game.sounds.muted is False
+
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_LEFT))
+    game.handle_events()
+    assert game.sounds.muted is False  # fora de PAUSADO, D-pad nao muta nada
+
+    game._toggle_pause()
+    assert game.state == GameState.PAUSADO
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_LEFT))
+    game.handle_events()
+    assert game.sounds.muted is True
+
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT))
+    game.handle_events()
+    assert game.sounds.muted is False
+
+
+def test_bare_tv_remote_reaches_every_state():
+    """Simula um controle remoto de Android TV sem botoes extras: so D-pad
+    (setas), botao central (RETURN) e voltar (K_AC_BACK) — sem toque, sem
+    tecla M/ESC/P, sem gamepad (R14.4, R15.5)."""
+
+    def press(key):
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=key))
+
+    game = _make_game()
+    assert game.state == GameState.PRONTO
+
+    press(pygame.K_RETURN)  # PRONTO -> JOGANDO
+    game.handle_events()
+    assert game.state == GameState.JOGANDO
+
+    press(pygame.K_AC_BACK)  # JOGANDO -> PAUSADO
+    game.handle_events()
+    assert game.state == GameState.PAUSADO
+
+    press(pygame.K_LEFT)  # muta em PAUSADO
+    game.handle_events()
+    assert game.sounds.muted is True
+
+    press(pygame.K_RETURN)  # PAUSADO -> JOGANDO (despausa)
+    game.handle_events()
+    assert game.state == GameState.JOGANDO
+
+    # forca fim de jogo para testar GAME_OVER -> PRONTO
+    game.bird.pos.x = game.pipes.pipes[0].x
+    game.bird.pos.y = 0
+    game.bird.vel_y = 0
+    game.update()
+    assert game.state == GameState.GAME_OVER
+
+    press(pygame.K_RETURN)  # GAME_OVER -> PRONTO
+    game.handle_events()
+    assert game.state == GameState.PRONTO
+
+    press(pygame.K_AC_BACK)  # PRONTO -> encerra
+    game.handle_events()
+    assert game.running is False
+
+
 def test_focus_lost_pauses_during_jogando():
     game = _make_game()
     game._flap_action()

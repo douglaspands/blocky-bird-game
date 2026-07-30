@@ -9,16 +9,20 @@ BUTTON_A = 0
 BUTTON_Y = 3
 BUTTON_START = 7
 
-FLAP_KEYS = (pygame.K_SPACE, pygame.K_UP)
+FLAP_KEYS = (pygame.K_SPACE, pygame.K_UP, pygame.K_RETURN, pygame.K_KP_ENTER)
 PAUSE_KEYS = (pygame.K_ESCAPE, pygame.K_p)
 MUTE_KEYS = (pygame.K_m,)
 BACK_KEYS = (pygame.K_AC_BACK,)
+LEFT_KEYS = (pygame.K_LEFT,)
+RIGHT_KEYS = (pygame.K_RIGHT,)
 
 ACTION_FLAP = "flap"
 ACTION_PAUSE = "pause"
 ACTION_MUTE = "mute"
 ACTION_BACK = "back"
 ACTION_FOCUS_LOST = "focus_lost"
+ACTION_LEFT = "left"
+ACTION_RIGHT = "right"
 
 # eventos de ciclo de vida do app (R16.1): WINDOWFOCUSLOST cobre o desktop (alt-tab)
 # como fallback nas plataformas que nao emitem os eventos de app do SDL.
@@ -81,6 +85,10 @@ class InputManager:
                     actions.add(ACTION_MUTE)
                 elif event.key in BACK_KEYS:
                     actions.add(ACTION_BACK)
+                elif event.key in LEFT_KEYS:
+                    actions.add(ACTION_LEFT)
+                elif event.key in RIGHT_KEYS:
+                    actions.add(ACTION_RIGHT)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # com pygame.SCALED, event.pos ja vem em coordenadas logicas (R9.1)
                 self._handle_tap(actions, *event.pos)

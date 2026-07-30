@@ -110,6 +110,13 @@ def draw_hud_score(surface: pygame.Surface, score: int) -> None:
 def draw_paused_overlay(surface: pygame.Surface) -> None:
     _dim_overlay(surface)
     draw_text(surface, "PAUSADO", (SCREEN_W // 2, SCREEN_H // 2), base_size=18)
+    draw_text(
+        surface,
+        "SETAS: MUDO",
+        (SCREEN_W // 2, SCREEN_H // 2 + 36),
+        base_size=9,
+        color=(210, 210, 210),
+    )
 
 
 def draw_game_over_screen(surface: pygame.Surface, score: int, highscore: int) -> None:

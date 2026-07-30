@@ -403,6 +403,8 @@ Esse desvio fica no `Game` (que conhece o estado), não no `InputManager` — ma
 - Mudo sem tecla M e sem toque: no estado PAUSADO, D-pad ←/→ alterna mudo, com a dica escrita no overlay. Escolhido por não exigir um sistema de foco/navegação de menu — o overlay de pausa é a única tela onde isso é necessário, e a ação é reversível e sem risco.
 - Nada disso exige detectar "é TV": os mapeamentos convivem com os de desktop (R15.5), então o mesmo binário atende celular e TV.
 
+**Bug real encontrado ao revisar a alcançabilidade (task 25).** Um perfil de controle remoto básico de Android TV — só D-pad, botão central e voltar, sem tecla ESC/P e sem botão Start de gamepad — conseguia pausar (BACK durante JOGANDO, task 23) mas **não tinha como despausar**: `_flap_action()` não tratava o estado PAUSADO (era no-op), e BACK em PAUSADO encerra o jogo em vez de alternar. O único caminho restante era sair. O mesmo gap afetava quem só usa toque no celular (tocar a tela tampouco despausava). Corrigido fazendo `_flap_action()` também transicionar PAUSADO → JOGANDO (sem chamar `bird.flap()`, para não dar um pulo indesejado ao retomar) — reaproveitando a mesma ação primária (RETURN/toque) já usada para iniciar e reiniciar, em vez de inventar um mecanismo novo.
+
 ## 22. Ciclo de vida do app (R16.1, R16.2)
 
 O pygame 2 expõe os eventos de ciclo de vida do SDL:

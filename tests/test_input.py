@@ -1,7 +1,7 @@
 import pygame
 
 from src import ui
-from src.input import ACTION_BACK, ACTION_FLAP, ACTION_MUTE, InputManager
+from src.input import ACTION_BACK, ACTION_FLAP, ACTION_LEFT, ACTION_MUTE, ACTION_RIGHT, InputManager
 
 
 def _make_input():
@@ -41,6 +41,29 @@ def test_back_key_maps_to_back_action():
     pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_AC_BACK))
     actions, _ = im.poll()
     assert actions == {ACTION_BACK}
+
+
+def test_return_and_kp_enter_flap():
+    """Botao central do D-pad de controle remoto de Android TV (R14.4)."""
+    im = _make_input()
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+    actions, _ = im.poll()
+    assert actions == {ACTION_FLAP}
+
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_KP_ENTER))
+    actions, _ = im.poll()
+    assert actions == {ACTION_FLAP}
+
+
+def test_left_right_keys_map_to_left_right_actions():
+    im = _make_input()
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_LEFT))
+    actions, _ = im.poll()
+    assert actions == {ACTION_LEFT}
+
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RIGHT))
+    actions, _ = im.poll()
+    assert actions == {ACTION_RIGHT}
 
 
 def test_finger_tap_outside_logical_area_is_ignored():
