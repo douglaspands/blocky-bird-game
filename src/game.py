@@ -26,7 +26,10 @@ class GameState(Enum):
 class Game:
     def __init__(self) -> None:
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+        # SCALED: SDL renderiza numa surface logica 480x720 e escala p/ a janela real
+        # mantendo a proporcao (letterbox/pillarbox automatico, R9.1, R14.3). Todo o
+        # jogo continua desenhando em coordenadas logicas 480x720.
+        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.SCALED | pygame.RESIZABLE)
         pygame.display.set_caption(f"{TITLE} - {CREDITS}")
         self.clock = pygame.time.Clock()
         self.running = True
