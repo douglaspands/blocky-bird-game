@@ -11,3 +11,7 @@ wheels/
 
 # Save local do jogo
 highscore.json
+
+# Cache de build do Buildozer/Android (task 27-29)
+.buildozer/
+bin/
