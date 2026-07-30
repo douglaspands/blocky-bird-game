@@ -271,13 +271,13 @@ Input unificado (R1.1, R10, R15): eventos de teclado, mouse, joystick e **toque*
 ## 18. Distribuição e empacotamento — R13
 
 - **Executável local**: `BlockyBird.spec` (gerado por `pyinstaller --onefile --windowed`, depois versionado e usado diretamente) builda com `uv run pyinstaller BlockyBird.spec`, produzindo `dist/BlockyBird.exe` (Windows) ou `dist/BlockyBird` (Linux/macOS). `pyinstaller` é dependência de **dev** apenas (`pyproject.toml`), não afeta a dependência de runtime do jogo (R9.2 continua valendo: só `pygame` + stdlib em tempo de execução) (R13.1).
-- **CI/CD** (`.github/workflows/release.yml`): gatilho `release: types: [published]`. Job com matriz `[windows-latest, ubuntu-latest]`:
+- **CI/CD** (`.github/workflows/release.yml`): gatilho `release: types: [published]`. Job com matriz `include` (`os`, `platform`, `arch`): `windows-latest`/`windows`/`x64` e `ubuntu-latest`/`linux`/`x64` — `platform`/`arch` explícitos na matriz (não derivados de `runner.arch` em runtime) porque expressões do Actions não têm função de lowercase nativa:
   1. `actions/checkout@v4`.
   2. Instala `uv` via script oficial (`install.ps1` / `install.sh`) — evita fixar versão de action de terceiros.
   3. `uv sync` + `uv run pyinstaller BlockyBird.spec`.
-  4. Empacota: Windows → `Compress-Archive` gera `BlockyBird-windows-<tag>.zip`; Linux → `tar -cjf` gera `BlockyBird-linux-<tag>.tar.bz2` (nome inclui `github.event.release.tag_name`).
+  4. Empacota: Windows → `Compress-Archive` gera `BlockyBird-windows-x64-<tag>.zip`; Linux → `tar -cjf` gera `BlockyBird-linux-x64-<tag>.tar.bz2` (nome inclui plataforma, arquitetura e `github.event.release.tag_name`).
   5. Publica os assets na própria Release via `softprops/action-gh-release@v2` (`permissions: contents: write` no workflow) (R13.2).
-- Na v2 esse mesmo workflow ganha um terceiro job para o APK (seção 24), totalizando três assets por release (R13.3).
+- Na v2 esse mesmo workflow ganha um terceiro job para o APK (seção 24), totalizando três assets por release (R13.3). APK é um build "fat" com múltiplas ABIs (`android.archs` no `buildozer.spec`: `armeabi-v7a, arm64-v8a, x86_64`), então o asset é nomeado `BlockyBird-android-universal-<tag>.apk` em vez de citar uma arquitetura única.
 
 ---
 
@@ -530,7 +530,7 @@ Acrescentado ao `release.yml` existente, como job independente dos de desktop (m
 2. Build dentro de container Docker (`kivy/buildozer` ou imagem própria) para ter Android SDK/NDK reprodutíveis, evitando instalar a toolchain no runner.
 3. Cache de `~/.buildozer` e `.buildozer` via `actions/cache` — sem cache, o primeiro build baixa SDK+NDK e compila CPython+SDL2+pygame-ce, tipicamente 30–60 min.
 4. `buildozer android debug` → APK em `bin/`.
-5. Renomear para `BlockyBird-<tag>.apk` e publicar **sem compressão** via `softprops/action-gh-release@v2` — o `.apk` já é um zip; comprimir de novo só atrapalharia a instalação direta (R17.2).
+5. Renomear para `BlockyBird-android-universal-<tag>.apk` (nome inclui plataforma e "universal" por conter múltiplas ABIs) e publicar **sem compressão** via `softprops/action-gh-release@v2` — o `.apk` já é um zip; comprimir de novo só atrapalharia a instalação direta (R17.2).
 
 O job é independente para que uma falha no build Android (o passo mais frágil, ver risco em 24.1) não impeça a publicação dos binários de desktop.
 

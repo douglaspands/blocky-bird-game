@@ -54,13 +54,13 @@ Ao publicar uma Release no GitHub (com uma tag de versão, ex. `v1.0.0`), o work
 [`.github/workflows/release.yml`](.github/workflows/release.yml) builda o executável
 para Windows e Linux automaticamente e anexa aos assets da release:
 
-- `BlockyBird-windows-<tag>.zip`
-- `BlockyBird-linux-<tag>.tar.bz2`
-- `BlockyBird-<tag>.apk` (Android — celular e Android TV, ver abaixo)
+- `BlockyBird-windows-x64-<tag>.zip`
+- `BlockyBird-linux-x64-<tag>.tar.bz2`
+- `BlockyBird-android-universal-<tag>.apk` (Android — celular e Android TV, ver abaixo)
 
 ## Instalar no Android (celular ou TV)
 
-1. Baixe `BlockyBird-<tag>.apk` dos assets da Release desejada.
+1. Baixe `BlockyBird-android-universal-<tag>.apk` dos assets da Release desejada.
 2. No aparelho, abra o arquivo baixado e permita a instalação de "fontes
    desconhecidas" quando solicitado (o app não vem de uma loja, então o Android
    pede essa confirmação uma vez por origem).

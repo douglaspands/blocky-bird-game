@@ -11,7 +11,13 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            platform: windows
+            arch: x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -33,23 +39,23 @@ jobs:
       - name: Package Windows build
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path dist/BlockyBird.exe -DestinationPath BlockyBird-windows-${{ github.event.release.tag_name }}.zip
+        run: Compress-Archive -Path dist/BlockyBird.exe -DestinationPath BlockyBird-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.zip
 
       - name: Package Linux build
         if: runner.os == 'Linux'
-        run: tar -cjf BlockyBird-linux-${{ github.event.release.tag_name }}.tar.bz2 -C dist BlockyBird
+        run: tar -cjf BlockyBird-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.tar.bz2 -C dist BlockyBird
 
       - name: Upload Windows asset
         if: runner.os == 'Windows'
         uses: softprops/action-gh-release@v2
         with:
-          files: BlockyBird-windows-${{ github.event.release.tag_name }}.zip
+          files: BlockyBird-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.zip
 
       - name: Upload Linux asset
         if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v2
         with:
-          files: BlockyBird-linux-${{ github.event.release.tag_name }}.tar.bz2
+          files: BlockyBird-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.tar.bz2
 
   build-apk:
     # Job independente: uma falha aqui nao deve impedir a publicacao dos
@@ -82,11 +88,13 @@ jobs:
             kivy/buildozer android debug
 
       - name: Rename APK sem comprimir
+        # APK "fat" com multiplas ABIs (android.archs no buildozer.spec),
+        # por isso "universal" em vez de uma arquitetura unica.
         run: |
           apk=$(find bin -maxdepth 1 -name '*.apk' | head -n1)
-          cp "$apk" "BlockyBird-${{ github.event.release.tag_name }}.apk"
+          cp "$apk" "BlockyBird-android-universal-${{ github.event.release.tag_name }}.apk"
 
       - name: Upload APK asset (uncompressed)
         uses: softprops/action-gh-release@v2
         with:
-          files: BlockyBird-${{ github.event.release.tag_name }}.apk
+          files: BlockyBird-android-universal-${{ github.event.release.tag_name }}.apk

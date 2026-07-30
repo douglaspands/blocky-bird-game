@@ -70,7 +70,7 @@ visual) e commit.
   `BlockyBird.spec` (onefile, sem console) permite gerar `dist/BlockyBird.exe` / `dist/BlockyBird` com `uv run pyinstaller BlockyBird.spec`, sem exigir Python nem `uv` na máquina de destino. `pyinstaller` adicionado como dependência de dev. _(R13.1)_
 
 - [x] **19. CI/CD de release (GitHub Actions)**
-  `.github/workflows/release.yml`: ao publicar uma Release com tag no GitHub, builda o executável para Windows e Linux (matriz de jobs) e anexa aos assets da release como `BlockyBird-windows-<tag>.zip` e `BlockyBird-linux-<tag>.tar.bz2` via `softprops/action-gh-release`. _(R13.2)_
+  `.github/workflows/release.yml`: ao publicar uma Release com tag no GitHub, builda o executável para Windows e Linux (matriz de jobs) e anexa aos assets da release como `BlockyBird-windows-x64-<tag>.zip` e `BlockyBird-linux-x64-<tag>.tar.bz2` via `softprops/action-gh-release`; nome do asset inclui plataforma e arquitetura. _(R13.2)_
 
 ---
 
