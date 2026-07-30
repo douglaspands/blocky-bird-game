@@ -4,7 +4,7 @@
 
 Blocky Bird é um clone de Flappy Bird em Python/Pygame com temática Minecraft. O jogador controla uma abelha voxel que voa entre colunas de blocos, com progressão de biomas (Overworld → Cave → Nether), efeitos sonoros e partículas de blocos. Todos os gráficos e sons são gerados por código — sem assets externos ou material protegido da Mojang.
 
-**Escopo da v2:** além de tudo que a v1 entregou (jogo completo para desktop, ver `specs/v1/`), a v2 torna o jogo jogável em Android — celular/tablet e Android TV — no maior número possível de aparelhos, distribuído como APK instalável diretamente. O desktop continua suportado; nenhum requisito da v1 é removido.
+**Escopo da v2:** além de tudo que a v1 entregou (jogo completo para desktop, ver `specs/v1/`), a v2 torna o jogo jogável em Android — celular/tablet e Android TV — no maior número possível de aparelhos, distribuído como APK instalável diretamente. Inclui também dois itens de qualidade que não mudam o gameplay, adicionados como aumento de escopo após a entrega Android: (1) todo o código Python do projeto passa a ser verificado pela ferramenta `ruff` (lint + formatação), com conformidade obrigatória e checada em CI; (2) calibração do tamanho da fonte bitmap própria (R7.6), que estava grande demais em várias telas a ponto de textos se sobreporem entre si ou com outros elementos de UI. O desktop continua suportado; nenhum requisito da v1 é removido.
 
 Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistema DEVE <resposta>`).
 
@@ -197,6 +197,31 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 2. QUANDO uma Release é publicada no GitHub com tag de versão, O sistema de CI DEVE gerar o APK e anexá-lo como asset da release **sem compressão** (arquivo `.apk` puro, `BlockyBird-<tag>.apk`), pronto para download e instalação direta.
 3. O APK DEVE declarar suporte a Android TV (categoria de launcher leanback e banner de 320×180) para ser reconhecido e iniciável na interface de TV.
 4. O manifesto DEVE permitir as orientações necessárias para funcionar tanto em celular (retrato) quanto em Android TV (paisagem fixa por hardware).
+
+## R18 — Conformidade com Ruff
+
+**User story:** Como mantenedor, quero que todo o código Python do projeto siga um padrão de lint e formatação verificado por ferramenta, para reduzir bugs bobos e manter o estilo consistente conforme o projeto cresce.
+
+### Critérios de aceitação
+
+1. O projeto DEVE declarar `ruff` como dependência de desenvolvimento em `pyproject.toml` (grupo `dev`), com versão mínima fixada.
+2. O projeto DEVE ter configuração explícita de `ruff` (seção `[tool.ruff]` em `pyproject.toml`) definindo o conjunto de regras de lint habilitado e o comprimento de linha.
+3. QUANDO `uv run ruff check .` é executado a partir da raiz do projeto, O sistema DEVE reportar zero violações sobre todo o código Python versionado (`src/`, `tests/`, `main.py`, `scripts/`, receitas locais em `p4a-recipes/`).
+4. QUANDO `uv run ruff format --check .` é executado, O sistema DEVE reportar que nenhum arquivo precisa de reformatação.
+5. O pipeline de CI (GitHub Actions) DEVE rodar `ruff check` e `ruff format --check` em cada push/pull request, falhando o job SE houver qualquer violação — para que uma regressão de lint não seja mesclada sem ser notada.
+6. Violações encontradas na auditoria inicial DEVEM ser corrigidas no código (não silenciadas com `# noqa` genérico); supressões pontuais DEVEM ser justificadas com um comentário curto quando a regra não se aplicar ao caso.
+
+## R19 — Tamanho de fonte sem sobreposição
+
+**User story:** Como jogador, quero que todos os textos do jogo sejam legíveis e não se sobreponham entre si nem com outros elementos de UI, em qualquer tela do jogo.
+
+### Critérios de aceitação
+
+1. Em cada tela do jogo (PRONTO, HUD durante JOGANDO, PAUSADO, GAME_OVER), os retângulos ocupados por textos renderizados NÃO DEVEM se sobrepor entre si, nem com o chão, nem com o ícone de mudo (R15.4).
+2. Todo texto renderizado DEVE caber inteiramente dentro dos limites da resolução lógica (480×720), com uma margem mínima de 20 px nas laterais e sem ultrapassar o topo ou a área do chão.
+3. O espaçamento vertical entre linhas de texto de uma mesma tela DEVE ser calculado a partir da altura real do texto renderizado no tamanho escolhido (não um deslocamento fixo em pixels independente do tamanho da fonte), para que o layout continue correto se o tamanho for ajustado no futuro.
+4. Cada papel de texto (título, subtítulo/créditos, instrução, HUD de pontuação, overlay de pausa, textos de game over, recorde) DEVE ter um tamanho definido que priorize legibilidade sem violar os critérios 1–2 — o levantamento do tamanho ideal por papel é parte da implementação desta versão.
+5. A verificação de não sobreposição DEVE ser automatizada (teste que renderiza cada tela e compara os retângulos dos textos), para não depender de inspeção visual manual a cada mudança futura de texto ou fonte.
 
 ---
 

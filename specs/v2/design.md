@@ -1,8 +1,8 @@
 # Design Técnico — Blocky Bird
 
-Rastreabilidade: cada seção referencia os requisitos (R1–R17) de `requirements.md`.
+Rastreabilidade: cada seção referencia os requisitos (R1–R19) de `requirements.md`.
 
-As seções 1–18 (**Parte I**) descrevem o jogo base, herdado da v1 com os ajustes que o Android exigiu, sinalizados como "(v2)" no texto. As seções 19–25 (**Parte II**) são inteiramente novas na v2.
+As seções 1–18 (**Parte I**) descrevem o jogo base, herdado da v1 com os ajustes que o Android exigiu, sinalizados como "(v2)" no texto. As seções 19–25 (**Parte II**) são inteiramente novas na v2, cobrindo Android. As seções 26–27 (**Parte III**) são um aumento de escopo posterior da v2, adicionados após a entrega Android: conformidade com `ruff` e calibração do tamanho de fonte.
 
 ---
 
@@ -520,3 +520,64 @@ Registrado explicitamente porque afeta como as tasks devem ser aceitas:
 - **Atualização (task 28): o Docker local, dado como inacessível na v1** (ao tentar validar o workflow com `act`), **ficou disponível neste ambiente** numa sessão posterior. Isso permitiu rodar o build real (`docker run kivy/buildozer android debug`) ponta a ponta até `BUILD SUCCESSFUL`, algo que a v1 não conseguia verificar — ver seção 24.1/24.2/24.3 para os bugs reais encontrados e corrigidos nesse processo. A disponibilidade do Docker pode variar entre sessões/ambientes; não assumir que builds futuros terão o mesmo acesso sem verificar (`docker ps`) primeiro.
 - O que **pode** ser verificado automaticamente aqui: fonte bitmap (comparação de superfícies renderizadas), conversão de coordenadas de toque para espaço lógico (função pura, testável), resolução do diretório de save por plataforma (com `ANDROID_ARGUMENT` monkeypatched), transições de estado por ações `back`/`focus_lost` (eventos sintéticos), e o jogo inteiro no desktop com `SCALED` (incluindo redimensionamento de janela).
 - O checklist manual em `tasks.md` marca claramente qual item é de qual categoria. Nenhum item dependente de hardware deve ser marcado como concluído sem teste real.
+
+---
+
+# Parte III — Qualidade (aumento de escopo da v2)
+
+## 26. Conformidade com Ruff (R18)
+
+**Config.** `[tool.ruff]` em `pyproject.toml`, sem arquivo `ruff.toml` separado (mantém o padrão de configuração centralizada já usado para `pytest`/dependências):
+
+```toml
+[tool.ruff]
+line-length = 110
+target-version = "py310"   # alinhado a requires-python (R9.2)
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+```
+
+- `line-length = 110`: a base de código atual tem linhas de até 122 caracteres (`pipes.py`); 110 é folgado o bastante para não forçar quebras artificiais em toda expressão de configuração/design (constantes de bioma, tuplas de cor), mas ainda mais apertado que o "sem limite" de fato — a auditoria inicial (task de conformidade) deve rever as poucas linhas acima de 110 caso a caso, não simplesmente subir o limite para acomodá-las.
+- Conjunto de regras: `E`/`W` (pycodestyle), `F` (pyflakes — imports não usados, variáveis não usadas, o núcleo do lint), `I` (isort — ordenação de imports, já relevante porque `src/*.py` importa consistentemente com `from src import x`), `UP` (pyupgrade — sintaxe moderna compatível com o `requires-python = ">=3.10"` do projeto), `B` (bugbear — armadilhas comuns tipo mutable default argument, relevante aqui porque a v2 já documentou um bug real dessa categoria em `score.py`, seção 22), `SIM` (simplificações óbvias), `RUF` (regras específicas do próprio ruff). Não inclui `D` (docstrings) nem `ANN` (obrigatoriedade de type hints) — o projeto não usa docstrings de módulo/função de forma sistemática nem type hints em 100% das assinaturas, e exigir isso agora seria um escopo muito maior que "conformidade com ruff"; pode ser revisitado numa versão futura se o time decidir adotar esse padrão.
+- Formatação: `uv run ruff format .` (equivalente a `black`, embutido no ruff — não precisa de dependência separada) aplicada uma vez no repositório inteiro como parte da task de conformidade; depois disso, `ruff format --check` no CI garante que não regride.
+
+**Escopo da varredura.** Todo `.py` versionado: `main.py`, `src/**/*.py`, `tests/**/*.py`, `scripts/generate_tv_banner.py`, `p4a-recipes/**/__init__.py`, `conftest.py`. As receitas em `p4a-recipes/` são código nosso (não vendored de terceiros — a v2 já as adaptou/corrigiu, seção 24.1), então entram na varredura como qualquer outro módulo do projeto.
+
+**CI.** Não existe hoje um workflow que rode em push/PR (`release.yml` só dispara em publicação de Release) — esta extensão de escopo adiciona `.github/workflows/ci.yml`, `on: [push, pull_request]`, `runs-on: ubuntu-latest`, com `uv sync`, `uv run ruff check .`, `uv run ruff format --check .` e `SDL_VIDEODRIVER=dummy uv run pytest` como steps do mesmo job (falha rápida: lint antes dos testes). Isso é uma lacuna que esta extensão fecha incidentalmente — sem esse workflow, uma regressão de lint (ou de teste) só seria percebida manualmente ou na hora de cortar uma release.
+
+**Correção de violações.** Regra do projeto (R18.6): consertar o código, não silenciar. Supressões (`# noqa: CODE`) só quando a regra genuinamente não se aplica ao caso (ex.: um `import` não usado propositalmente para efeito colateral), sempre com o código específico da regra (nunca `# noqa` nu) e um comentário de uma linha explicando o motivo.
+
+## 27. Calibração de tamanho de fonte (R19)
+
+**Problema real, não cosmético.** `ui._fit_scale()` (v2, seção 19) só protege contra estouro **horizontal** — reduz a escala até a largura do texto caber em `MAX_TEXT_W`. Não existe proteção equivalente na vertical: os deslocamentos entre linhas de uma mesma tela são deltas fixos em pixels, calculados à mão para os `base_size` originais (ex. `draw_ready_screen`: título em `SCREEN_H // 3`, créditos em `+ 28`, instrução em `+ 70`; `draw_game_over_screen`: `- 60`, `+ 0`, `+ 30`, `+ 70`). A altura real de uma linha renderizada é `pixelfont.GLYPH_H * scale` (7 × scale) mais a sombra (offset de 3 px) — se `scale` for maior do que o assumido quando esses deltas foram escolhidos, duas linhas vizinhas colidem. É exatamente o sintoma relatado: textos grandes demais se sobrepondo em várias telas.
+
+**Abordagem.** Duas mudanças complementares em `ui.py`, sem tocar em `pixelfont.py`:
+
+1. **Layout vertical por empilhamento, não por offset fixo.** Uma função `_stack(surface, center_x, top_y, lines)` que recebe uma lista de `(text, base_size, color)` na ordem em que aparecem na tela, calcula a escala de cada linha (via `_fit_scale`, já existente) e posiciona cada uma logo abaixo da anterior, com uma margem fixa pequena (ex. 8 px) entre linhas — a posição de uma linha passa a depender da altura real (`GLYPH_H * scale`) da linha anterior, não de uma constante escolhida a olho. Isso resolve o critério R19.3 de uma vez para as quatro telas, e é a mudança estrutural principal desta extensão de escopo.
+2. **Revisão dos `base_size` por papel.** Com o empilhamento cuidando do espaçamento vertical, o que resta ajustar é o tamanho absoluto de cada papel de texto para a resolução lógica de 480×720. Os valores atuais (`title=18`, `HUD=20`) resultam em `scale = base_size // 2` → 9 e 10, ou seja glifos de 45–50 px de altura num canvas de 720 px — proporcionalmente grandes para uma tela que também precisa caber título + subtítulo + instrução + recorde sem se espremer. A task de implementação deve testar visualmente uma faixa reduzida (ex. título `scale` 5–6 em vez de 9, textos secundários `scale` 2–3) e registrar os valores finais escolhidos — o "tamanho ideal" pedido não é um número que dá para derivar analiticamente, é uma calibração visual como a task 12 (curva de dificuldade) já foi para gameplay.
+
+**Verificação automatizada (R19.5).** Como toda a UI é desenhada em coordenadas lógicas fixas (480×720, independente do aparelho — a escala física fica inteiramente a cargo de `pygame.SCALED`, seção 20), a ausência de sobreposição é uma propriedade determinística do código, testável sem precisar de tela real:
+
+```python
+# tests/test_ui_layout.py (novo)
+def _rects_for_screen(draw_fn, *args) -> list[pygame.Rect]:
+    """Instrumenta draw_text para capturar os Rects em vez de (só) desenhar."""
+    ...
+
+
+def test_ready_screen_texts_do_not_overlap():
+    rects = _rects_for_screen(ui.draw_ready_screen, highscore=999999)
+    for a, b in itertools.combinations(rects, 2):
+        assert not a.colliderect(b)
+    for r in rects:
+        assert 20 <= r.left and r.right <= SCREEN_W - 20
+```
+
+Repetido para as quatro telas (PRONTO, HUD+nada mais por enquanto — só um texto, mas fica como regressão —, PAUSADO, GAME_OVER), incluindo o caso de recorde com muitos dígitos (`RECORDE: 999999`) para não regredir se o score crescer além do testado até aqui. O ícone de mudo (`ui.MUTE_ICON_RECT`, constante) entra na mesma checagem de colisão nas telas onde é desenhado (celular, R15.4) — é um retângulo fixo, não precisa de instrumentação extra.
+
+**Por que não mexer em `pixelfont.py`.** O glifo 5×7 em si não é o problema — é proporcional e legível; o que precisa de ajuste é *onde* e *em que escala* cada texto é colocado. Manter a mudança inteira em `ui.py` preserva o cache de `pixelfont.render` (v2, seção 19) e não arrisca reabrir a receita de build Android (a fonte já roda em produção real desde a task 28 da v2).
