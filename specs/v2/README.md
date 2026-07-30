@@ -1,6 +1,6 @@
 # Blocky Bird — Specs v2
 
-**Status:** concluída. **Especificada em:** 2026-07-29. **Aumento de escopo (qualidade) especificado e concluído em:** 2026-07-30. **Correção pós-lançamento (preenchimento de tela, task 35) em:** 2026-07-30.
+**Status:** concluída. **Especificada em:** 2026-07-29. **Aumento de escopo (qualidade) especificado e concluído em:** 2026-07-30. **Correção pós-lançamento (preenchimento de tela, task 35) em:** 2026-07-30. **Ícone do aplicativo (tasks 36–37) especificado e concluído em:** 2026-07-30.
 
 ## Descrição
 
@@ -31,11 +31,21 @@ do aparelho (`src/screen_adapt.py`), preenchendo com céu/parallax estendidos o 
 era barra preta — a área jogável 480×720 e sua calibração de dificuldade continuam
 intocadas (design seção 20.1.1).
 
+Mais recentemente, o dono do projeto pediu um **ícone do aplicativo** com a personagem do
+jogo (a abelha voxel) em vez do ícone genérico do framework — nem a janela/executável do
+desktop nem o APK Android tinham um. `scripts/generate_app_icon.py` (mesmo padrão do
+banner de TV) gera o ícone por código; no desktop ele aparece na janela/taskbar e no
+`.exe` do PyInstaller; no Android ele usa o formato de **ícone adaptativo** (Android 8.0+,
+camadas de primeiro plano e de fundo separadas), para que a abelha não fique cortada pelas
+diferentes máscaras de ícone dos fabricantes — mais um ícone legado para aparelhos mais
+antigos. Validado com um build real do APK: o `.apk` gerado contém de fato um
+`<adaptive-icon>` com as camadas certas (design seção 29).
+
 ## Conteúdo desta pasta
 
-- [`requirements.md`](requirements.md) — requisitos R1–R19 em formato EARS (R14–R17 são da entrega Android; R18–R19 são do aumento de escopo de qualidade).
-- [`design.md`](design.md) — arquitetura técnica. Parte I (seções 1–18) é o jogo base herdado da v1 com os ajustes que o Android exigiu; Parte II (seções 19–25) é o trabalho de Android; Parte III (seções 26–27) é o aumento de escopo de qualidade.
-- [`tasks.md`](tasks.md) — plano incremental. Tasks 1–19 são o histórico concluído da v1; tasks 20–30 são o trabalho de Android; **tasks 31–32 são o aumento de escopo de qualidade**.
+- [`requirements.md`](requirements.md) — requisitos R1–R21 em formato EARS (R14–R17 são da entrega Android; R18–R20 são do aumento de escopo de qualidade; R21 é o ícone do aplicativo).
+- [`design.md`](design.md) — arquitetura técnica. Parte I (seções 1–18) é o jogo base herdado da v1 com os ajustes que o Android exigiu; Parte II (seções 19–25) é o trabalho de Android; Parte III (seções 26–28) é o aumento de escopo de qualidade; Parte IV (seção 29) é o ícone do aplicativo.
+- [`tasks.md`](tasks.md) — plano incremental. Tasks 1–19 são o histórico concluído da v1; tasks 20–30 são o trabalho de Android; **tasks 31–37 são aumentos de escopo posteriores** (qualidade, correções pós-lançamento e o ícone do aplicativo).
 
 ## O que muda em relação à v1
 

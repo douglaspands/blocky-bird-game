@@ -8,7 +8,7 @@ Gera em assets/:
   android_icon_foreground.png camada de primeiro plano do icone adaptativo (Android 8+)
   android_icon_background.png camada de fundo do icone adaptativo (Android 8+)
 
-Ver specs/v3/design.md secao 29.
+Ver specs/v2/design.md secao 29.
 """
 
 import io

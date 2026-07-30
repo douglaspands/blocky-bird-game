@@ -1,8 +1,8 @@
 # Design Técnico — Blocky Bird
 
-Rastreabilidade: cada seção referencia os requisitos (R1–R19) de `requirements.md`.
+Rastreabilidade: cada seção referencia os requisitos (R1–R21) de `requirements.md`.
 
-As seções 1–18 (**Parte I**) descrevem o jogo base, herdado da v1 com os ajustes que o Android exigiu, sinalizados como "(v2)" no texto. As seções 19–25 (**Parte II**) são inteiramente novas na v2, cobrindo Android. As seções 26–27 (**Parte III**) são um aumento de escopo posterior da v2, adicionados após a entrega Android: conformidade com `ruff` e calibração do tamanho de fonte.
+As seções 1–18 (**Parte I**) descrevem o jogo base, herdado da v1 com os ajustes que o Android exigiu, sinalizados como "(v2)" no texto. As seções 19–25 (**Parte II**) são inteiramente novas na v2, cobrindo Android. As seções 26–29 (**Parte III**) são aumentos de escopo posteriores da v2, adicionados após a entrega Android: conformidade com `ruff`, calibração do tamanho de fonte, conformidade com `ty` e o ícone do aplicativo.
 
 ---
 
@@ -29,10 +29,20 @@ flappy_bird/
 ├── pyproject.toml       # Projeto gerenciado por uv (R9.3)
 ├── uv.lock              # Lockfile gerado por uv
 ├── main.py              # Entry point: cria Game e roda o loop (R9.3)
-├── BlockyBird.spec      # Config do PyInstaller p/ executavel standalone (R13.1)
-├── buildozer.spec       # Config do Buildozer p/ APK Android (R17.1)          [novo na v2]
+├── BlockyBird.spec      # Config do PyInstaller p/ executavel standalone (R13.1, icone R21.3)
+├── buildozer.spec       # Config do Buildozer p/ APK Android (R17.1, icone R21.4-6)
 ├── p4a-recipes/
 │   └── pygame-ce/       # Receita local de build do pygame-ce p/ p4a (sec. 24) [novo na v2]
+├── assets/              # PNGs/ICO gerados por script (banner TV, icones)     [icones: sec. 29]
+│   ├── android_banner.png
+│   ├── app_icon.ico
+│   ├── app_icon_512.png
+│   ├── android_icon_legacy.png
+│   ├── android_icon_foreground.png
+│   └── android_icon_background.png
+├── scripts/
+│   ├── generate_tv_banner.py
+│   └── generate_app_icon.py   # Gera todas as variacoes do icone (sec. 29)
 ├── .github/workflows/
 │   └── release.yml      # CI: builda e publica executaveis + APK na Release (R13.2, R17.2)
 ├── specs/               # Specs versionadas (esta pasta é specs/v2/, ver specs/README.md)
@@ -47,6 +57,7 @@ flappy_bird/
     ├── decor.py         # Parallax de fundo por bioma (R7.4)
     ├── score.py         # Pontuação e persistência do recorde (R4)
     ├── storage.py       # Resolve diretório gravável por plataforma (R4.5)     [novo na v2]
+    ├── assets.py        # Resolve caminho de asset bundlado (fonte/empacotado) (R21.2)
     ├── particles.py     # Sistema de partículas de blocos (R3.2)
     ├── textures.py      # Geração procedural de texturas voxel (R7)
     ├── pixelfont.py     # Fonte bitmap gerada por código (R7.6)               [novo na v2]
@@ -638,3 +649,124 @@ exclude = ["p4a-recipes", "specs", ".buildozer", "build", "dist"]
 - `src/input.py` (`InputManager`): `dict[int, pygame.joystick.Joystick]` usava `Joystick` como anotação de tipo, mas o próprio stub do pygame-ce documenta que `Joystick` é, na implementação atual, uma função-fábrica que devolve `JoystickType` (não uma classe) — "in the future, when the C implementation is fixed to add `__init__`/`__new__` to Joystick and it's exported directly, the typestubs here must be updated too". Corrigido usando `pygame.joystick.JoystickType`, o tipo de verdade da instância. Aproveitado para remover a chamada redundante `joystick.init()` logo após `Joystick(device_index)` (o stub marca `JoystickType.init` como `@deprecated("since 2.0.0. Multiple initializations are not supported anymore")` — a construção já inicializa o joystick).
 
 **Suíte completa (70 testes) e `ruff check`/`ruff format --check` permanecem verdes após todas as correções.**
+
+---
+
+# Parte IV — Ícone do aplicativo (aumento de escopo da v2)
+
+## 29. Ícone do app: geração por código e integração por plataforma (R21)
+
+**Problema.** O jogo nunca definiu um ícone próprio. Na janela do desktop (`pygame.display.set_mode`, R9.1) o pygame usa seu ícone padrão; o executável PyInstaller (`BlockyBird.spec`, R13.1) não passava `icon=`, então o `.exe` herdava o ícone genérico do bootloader; o `buildozer.spec` (R17.1) não declarava `icon.filename` nem as chaves de ícone adaptativo, então o APK usava o ícone padrão do Android (o "robozinho" verde genérico do template do buildozer). Nada disso identificava o jogo visualmente antes de abri-lo.
+
+**Princípio herdado (R7.1).** Como todo o resto da apresentação visual, o ícone é gerado por código, reaproveitando `textures.make_bee()` — nenhum arquivo de imagem externo entra no repositório manualmente. O padrão seguido é o já estabelecido por `scripts/generate_tv_banner.py` (task 27): um script standalone que importa `src/textures.py`/`src/pixelfont.py`, desenha em superfícies `pygame.Surface` e salva PNGs em `assets/`. A diferença desta task é que, além de PNG, o ícone do Windows precisa de um arquivo `.ico` multi-resolução.
+
+### 29.1 `scripts/generate_app_icon.py`
+
+Gera cinco arquivos em `assets/`, todos a partir da mesma abelha-fonte (`textures.make_bee(0)`, redesenhada em alta resolução por reamostragem `pygame.transform.scale` sem suavização — igual a `textures.py`, R7.1 exige pixel-art nítida, não um blur):
+
+| Arquivo | Tamanho | Uso | Camada |
+|---|---|---|---|
+| `app_icon_512.png` | 512×512 | Ícone de janela do desktop (`pygame.display.set_icon`, R21.2) e fonte para o `.ico` | abelha + fundo (céu/grama), composto — igual em espírito ao banner de TV |
+| `app_icon.ico` | 16/32/48/64/128/256 px, um único arquivo | Ícone do `.exe` no PyInstaller (`BlockyBird.spec`, R21.3) | mesma composição de `app_icon_512.png`, reamostrada por tamanho |
+| `android_icon_legacy.png` | 512×512 | `icon.filename` do `buildozer.spec` — Android < 8.0/API 26 sem suporte a ícone adaptativo (R21.6) | abelha + fundo, com margem de ~10% (launchers antigos aplicam sua própria máscara/sombra por cima, sem zona segura formalizada) |
+| `android_icon_foreground.png` | 432×432, fundo transparente | `icon.adaptive_foreground.filename` (R21.4) | só a abelha, escalada para caber nos 66 dp centrais de um canvas de 108 dp (≈61%, ou ≤264 px de lado dentro do canvas de 432 px) — a zona segura de máscara (R21.5) |
+| `android_icon_background.png` | 432×432, opaco | `icon.adaptive_background.filename` (R21.4) | gradiente de céu liso (mesmas cores de `biome.py`, bioma Overworld), sem a abelha — camada de fundo do ícone adaptativo não precisa de zona segura, só não deve ter detalhe importante perto da borda |
+
+```python
+# scripts/generate_app_icon.py (esqueleto)
+FOREGROUND_CANVAS = 432
+SAFE_ZONE_FRACTION = 66 / 108   # zona segura do icone adaptativo Android (R21.5)
+
+def make_foreground() -> pygame.Surface:
+    surf = pygame.Surface((FOREGROUND_CANVAS, FOREGROUND_CANVAS), pygame.SRCALPHA)
+    bee = textures.make_bee(0)
+    max_side = int(FOREGROUND_CANVAS * SAFE_ZONE_FRACTION)
+    bee = _scale_nearest_fit(bee, max_side)   # nearest-neighbor, preserva proporcao, cabe em max_side
+    surf.blit(bee, bee.get_rect(center=(FOREGROUND_CANVAS // 2, FOREGROUND_CANVAS // 2)))
+    return surf
+```
+
+- `_scale_nearest_fit`: mesma técnica de `textures.py` (escala inteira/vizinho-mais-próximo) aplicada ao maior lado da abelha até caber em `max_side`, mantendo a proporção original do sprite — evita esticar a abelha de forma desproporcional (o pedido original do dono do projeto, "proporções ajustadas").
+- Composição do ícone com fundo (`app_icon_512.png`, `android_icon_legacy.png`): céu com o mesmo gradiente do Overworld (`biome.BIOMES[0].sky_top/sky_bottom`) e uma faixa de grama/terra na base (reaproveitando `textures.make_block("grass_side")`/`"dirt"`), com a abelha centralizada e ocupando a maior parte do quadro — visualmente consistente com o banner de TV (task 27) e com a cena real do jogo.
+
+### 29.2 Construção do `.ico` sem depender de Pillow
+
+O projeto não tem `Pillow` como dependência (R9.2 restringe o runtime a `pygame-ce` + stdlib; scripts de geração de assets seguem a mesma disciplina para não introduzir uma dependência de build só para isto). O formato ICO moderno (desde o Windows Vista) aceita cada entrada como um PNG completo em vez de um bitmap `BITMAPINFOHEADER` cru — é o que torna viável montar o `.ico` só com `pygame.image.save` (gera os PNGs) e o módulo `struct` da stdlib (monta o container):
+
+```python
+import struct
+
+ICO_SIZES = [16, 32, 48, 64, 128, 256]
+
+def build_ico(source: pygame.Surface, out_path: Path) -> None:
+    entries = []
+    for size in ICO_SIZES:
+        scaled = pygame.transform.smoothscale(source, (size, size))
+        buf = io.BytesIO()
+        pygame.image.save(scaled, buf, "app_icon.png")   # forca o encoder PNG do pygame via extensao
+        png_bytes = buf.getvalue()
+        entries.append((size, png_bytes))
+
+    header = struct.pack("<HHH", 0, 1, len(entries))   # ICONDIR: reservado, tipo=1 (icone), contagem
+    offset = len(header) + len(entries) * 16            # cada ICONDIRENTRY tem 16 bytes
+    dir_entries = b""
+    image_data = b""
+    for size, png_bytes in entries:
+        wh = 0 if size == 256 else size                 # 0 significa 256 no formato ICO
+        dir_entries += struct.pack(
+            "<BBBBHHII", wh, wh, 0, 0, 1, 32, len(png_bytes), offset
+        )
+        image_data += png_bytes
+        offset += len(png_bytes)
+
+    out_path.write_bytes(header + dir_entries + image_data)
+```
+
+- Diferente da composição do ícone em si (que usa escala nearest-neighbor para preservar o estilo pixel-art), o redimensionamento **para o `.ico`** usa `smoothscale`: em tamanhos pequenos (16/32 px) o nearest-neighbor de um sprite originalmente desenhado a 512 px produziria ruído ilegível — o mesmo trade-off que qualquer ícone de app enfrenta entre "pixel-art fiel" e "legível em 16 px". A composição de origem (`app_icon_512.png`) permanece nearest-neighbor/pixel-perfeita; só a redução de escala para os tamanhos pequenos do `.ico` usa suavização.
+- Validação do `.ico` gerado: reabrir cada entrada com `pygame.image.load` a partir dos bytes extraídos (round-trip) e checar as dimensões — suficiente para garantir que o container está bem formado, sem precisar de uma lib externa de leitura de `.ico`.
+
+### 29.3 Integração no desktop (R21.2, R21.3)
+
+- **Ícone da janela** (`src/game.py`, `Game.__init__`): logo antes do `set_mode`, carrega `app_icon_512.png` via um novo helper `src/assets.py::asset_path()` e chama `pygame.display.set_icon(pygame.image.load(...))`. Envolvido em `contextlib.suppress(OSError, pygame.error)` que apenas segue sem ícone customizado — mesma disciplina de degradação graciosa já usada para áudio (R8.4, design seção 14): um ícone ausente/corrompido nunca deve impedir o jogo de abrir.
+- **`src/assets.py::asset_path(filename)`**: resolve o caminho de um asset lido em runtime (hoje, só o ícone da janela — texturas/sons continuam 100% proceduais, sem arquivo), considerando onde o arquivo foi bundlado:
+
+```python
+def asset_path(filename: str) -> Path:
+    if storage.is_frozen():
+        # PyInstaller onefile extrai os dados empacotados (via `datas=` no .spec)
+        # para sys._MEIPASS a cada execucao — ao contrario de storage.save_dir()
+        # (secao 23), aqui o diretorio temporario e o lugar CERTO para ler um
+        # asset builtin/somente-leitura, nao para gravar algo que precisa
+        # sobreviver ao fechamento do processo.
+        base = Path(getattr(sys, "_MEIPASS", "."))
+    else:
+        base = Path(__file__).resolve().parent.parent   # raiz do projeto (fonte ou apk do p4a)
+    return base / "assets" / filename
+```
+
+  Distinção importante em relação a `storage.save_dir()` (seção 23): lá, `sys._MEIPASS` é explicitamente **evitado** porque é o diretório certo pra ler, mas errado pra persistir (é apagado ao fechar o processo) — o bug da task 33 foi justamente usar `__file__`/implicitamente `_MEIPASS` para decidir onde *gravar*. Aqui o caso é o oposto: o ícone é um recurso somente-leitura empacotado junto do executável, e `_MEIPASS` é exatamente onde o PyInstaller o extrai — usar `sys.executable.parent` aqui exigiria copiar o PNG manualmente para perto do `.exe` distribuído, o que o `datas=` do `.spec` já resolve sem esse passo manual.
+- **`BlockyBird.spec`**: dois ajustes — `datas=[('assets/app_icon_512.png', 'assets')]` no `Analysis(...)` (para o ícone da janela funcionar também no executável empacotado, via `asset_path()` acima) e `icon='assets/app_icon.ico'` no `EXE(...)` (ícone do arquivo `.exe` em si, R21.3 — resolvido pelo PyInstaller em tempo de build, não em runtime, então não passa por `asset_path()`).
+- No Android, `asset_path()` cai no branch `else` (nem frozen do PyInstaller nem nada especial) — `Path(__file__).resolve().parent.parent` resolve para a raiz do projeto tanto rodando de fonte quanto dentro do APK (o p4a preserva a árvore de arquivos Python do projeto, e `source.include_exts = py,png` no `buildozer.spec` já inclui os PNGs de `assets/` no pacote). Na prática, porém, o Android não usa `pygame.display.set_icon()` para nada visível — a Activity não tem barra de título, e o ícone mostrado nos apps recentes/launcher vem do manifesto (seção 29.4), não de uma chamada de runtime; a chamada simplesmente não tem efeito observável lá, sem precisar de nenhum `if is_android()` para pular.
+
+### 29.4 Integração no Android — ícone adaptativo (R21.4, R21.5, R21.6)
+
+```ini
+# buildozer.spec, secao [app] — caminhos relativos, mesmo estilo ja usado no
+# arquivo (android.extra_manifest_xml etc.); equivalentes a %(source.dir)s/...
+# ja que source.dir = . neste projeto
+icon.filename = assets/android_icon_legacy.png
+icon.adaptive_foreground.filename = assets/android_icon_foreground.png
+icon.adaptive_background.filename = assets/android_icon_background.png
+```
+
+- `icon.filename` sozinho já cobriria todos os aparelhos (API < 26 usa direto; API ≥ 26 sem as chaves adaptativas aplicaria sua própria máscara circular default sobre esse PNG quadrado, geralmente cortando as bordas) — as duas chaves `icon.adaptive_*` são o que efetivamente resolve o pedido do dono do projeto ("proporções ajustadas"): o buildozer/p4a gera os recursos `mipmap-anydpi-v26/icon.xml` (`<adaptive-icon>`, referenciando as duas camadas) exigidos pelo Android 8.0+, deixando o **sistema** compor a máscara final a partir de uma abelha que já foi desenhada sabendo que só o círculo central de ~66% será garantidamente visível — em vez de o buildozer aplicar uma máscara genérica sobre uma imagem que não foi pensada para isso.
+- Sem essas chaves (comportamento antes desta task), o Android 8+ usaria o ícone quadrado como se fosse já a camada de primeiro plano inteira — a máscara circular padrão corta as pontas de qualquer conteúdo que não esteja já contido num círculo central, o que na prática cortaria as antenas/asas da abelha se ela ocupasse o quadro inteiro. É esse recorte que o dono do projeto estava descrevendo como o ícone "sem as proporções ajustadas".
+- `icon.filename` (legado) usa a composição com fundo (abelha + céu/grama), já que aparelhos API < 26 não aplicam máscara de sistema — o ícone aparece como o PNG entrega, então precisa parecer "terminado" por si só (mesmo raciocínio do ícone de janela do desktop, seção 29.3).
+
+**Verificado com build real (não apenas estático).** Docker estava acessível neste ambiente (imagem `kivy/buildozer` já em cache local, mesma condição documentada na seção 25) e o build real (`buildozer android debug`) foi executado ponta a ponta, reaproveitando o cache de SDK/NDK persistido de sessões anteriores — `BUILD SUCCESSFUL in 1m 36s`. O comando `p4a` invocado pelo buildozer (visível no log) confirma a tradução das três chaves do spec para as flags reais do python-for-android: `--icon .../android_icon_legacy.png --icon-fg .../android_icon_foreground.png --icon-bg .../android_icon_background.png`. Além disso, o `.apk` gerado foi extraído (é um zip) e inspecionado diretamente: `res/mipmap-anydpi-v26/icon.xml` existe e contém as strings `adaptive-icon`/`background`/`foreground` (XML binário compilado pelo aapt, confirmando um `<adaptive-icon>` de verdade); `res/mipmap/icon_foreground.png` (432×432, RGBA) e `res/mipmap/icon_background.png` (432×432, RGB sem alfa) batem em dimensão **e em tamanho de arquivo em bytes** com os PNGs gerados por `scripts/generate_app_icon.py` — prova de que são exatamente os arquivos gerados, não um fallback ou o ícone padrão do template. O que **não** foi possível verificar neste ambiente (mesma limitação da seção 25): a composição final da máscara pelo launcher (círculo/squircle/quadrado arredondado) só é visível de fato num aparelho ou emulador Android real — o que foi confirmado é que os recursos corretos, nos tamanhos certos, com/sem alfa conforme esperado, chegam ao APK.
+
+### 29.5 Testes
+
+- `tests/test_generate_app_icon.py`: chama as funções puras do script (composição do foreground, cálculo de `max_side` pela zona segura, `build_ico`) sem depender de rodar o script inteiro como processo — mesmo padrão que poderia ter sido aplicado a `generate_tv_banner.py` (que não tem teste dedicado hoje; esta task não expande retroativamente a cobertura daquele script, só não repete a lacuna no novo). Casos: a abelha do foreground cabe em `SAFE_ZONE_FRACTION * FOREGROUND_CANVAS` em ambos os eixos; o `.ico` gerado tem as 6 entradas esperadas e cada uma decodifica de volta para as dimensões corretas via `pygame.image.load`; `android_icon_background.png` não tem pixels com alfa parcial (é uma camada opaca de verdade, já que o Android a trata como fundo sólido).
+- `tests/test_assets.py`: `asset_path()` nos dois ramos (`storage.is_frozen()` verdadeiro/falso via monkeypatch, mesmo padrão já usado para `storage.save_dir()` em `tests/test_storage.py`, seção 23).
+- Smoke test manual (`uv run main.py` e o `.exe` gerado por PyInstaller): ambos abrem sem exceção; `pyinstaller` confirma "Copying icon to EXE" no log de build.

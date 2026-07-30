@@ -4,7 +4,7 @@
 
 Blocky Bird é um clone de Flappy Bird em Python/Pygame com temática Minecraft. O jogador controla uma abelha voxel que voa entre colunas de blocos, com progressão de biomas (Overworld → Cave → Nether), efeitos sonoros e partículas de blocos. Todos os gráficos e sons são gerados por código — sem assets externos ou material protegido da Mojang.
 
-**Escopo da v2:** além de tudo que a v1 entregou (jogo completo para desktop, ver `specs/v1/`), a v2 torna o jogo jogável em Android — celular/tablet e Android TV — no maior número possível de aparelhos, distribuído como APK instalável diretamente. Inclui também dois itens de qualidade que não mudam o gameplay, adicionados como aumento de escopo após a entrega Android: (1) todo o código Python do projeto passa a ser verificado pela ferramenta `ruff` (lint + formatação), com conformidade obrigatória e checada em CI; (2) calibração do tamanho da fonte bitmap própria (R7.6), que estava grande demais em várias telas a ponto de textos se sobreporem entre si ou com outros elementos de UI. O desktop continua suportado; nenhum requisito da v1 é removido.
+**Escopo da v2:** além de tudo que a v1 entregou (jogo completo para desktop, ver `specs/v1/`), a v2 torna o jogo jogável em Android — celular/tablet e Android TV — no maior número possível de aparelhos, distribuído como APK instalável diretamente. Inclui também itens de qualidade e apresentação que não mudam o gameplay, adicionados como aumento de escopo após a entrega Android: (1) todo o código Python do projeto passa a ser verificado pela ferramenta `ruff` (lint + formatação), com conformidade obrigatória e checada em CI; (2) calibração do tamanho da fonte bitmap própria (R7.6), que estava grande demais em várias telas a ponto de textos se sobreporem entre si ou com outros elementos de UI; (3) um ícone do aplicativo com a personagem do jogo (a abelha voxel, R7.2), gerado por código, para a janela/executável do desktop e para o launcher do Android — incluindo o formato de **ícone adaptativo** exigido desde o Android 8.0 (API 26), para que a abelha não fique cortada nem distorcida pelas diferentes máscaras de ícone dos fabricantes (círculo, "squircle", quadrado arredondado). O desktop continua suportado; nenhum requisito da v1 é removido.
 
 Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistema DEVE <resposta>`).
 
@@ -239,6 +239,22 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 
 ---
 
+## R21 — Ícone do aplicativo
+
+**User story:** Como jogador, quero reconhecer o Blocky Bird pelo ícone na área de trabalho, na barra de tarefas e na tela inicial do Android, para identificar e abrir o jogo rapidamente entre os outros aplicativos instalados.
+
+### Critérios de aceitação
+
+1. O ícone do aplicativo DEVE ter a abelha voxel do jogo (R7.2, `textures.make_bee`) como elemento central reconhecível, gerado por código a partir das mesmas texturas/paletas do jogo — sem imagem externa nem material de terceiros (R7.1).
+2. No desktop, a janela do jogo (barra de título/taskbar) DEVE exibir o ícone da abelha em vez do ícone padrão do pygame, tanto rodando via `uv run main.py` quanto no executável empacotado (R13.1).
+3. O executável Windows gerado por PyInstaller (`BlockyBird.spec`, R13.1) DEVE embutir o ícone da abelha como ícone do arquivo `.exe`, visível no Explorer e na barra de tarefas antes mesmo de o jogo abrir.
+4. O APK Android (R17) DEVE declarar o ícone da abelha como ícone do launcher em formato de **ícone adaptativo** (camadas de primeiro plano e de fundo separadas), para que o sistema componha a forma final (círculo, "squircle", quadrado arredondado etc.) sem cortar nem distorcer a personagem, em qualquer aparelho Android 8.0+ (API 26+).
+5. Na camada de primeiro plano do ícone adaptativo, a abelha DEVE ficar inteiramente dentro da zona seguro-de-máscara (os 66 dp centrais de um canvas de 108 dp, ~61% da área), para não ser cortada por nenhuma máscara padrão do sistema — este é o comportamento concreto por trás de "aparecer com as proporções ajustadas".
+6. O APK Android TAMBÉM DEVE declarar um ícone legado (não adaptativo) equivalente, para aparelhos com Android anterior à 8.0 (API < 26), que não suportam ícone adaptativo.
+7. A geração de todas as variações/resoluções do ícone (desktop `.ico`, ícone legado do Android, camadas adaptativas de primeiro plano/fundo) DEVE ser reprodutível por um script versionado no repositório — sem edição manual de imagem fora do controle de versão — seguindo o mesmo padrão já usado para o banner do Android TV (`scripts/generate_tv_banner.py`, task 27).
+
+---
+
 ## Fora de escopo
 
-Multiplayer, skins alternativas, música de fundo contínua, menus de configuração, salvamento em nuvem, publicação na Google Play Store (o APK é para instalação direta; assinatura de release com keystore próprio fica para uma versão futura), suporte a iOS.
+Multiplayer, skins alternativas, música de fundo contínua, menus de configuração, salvamento em nuvem, publicação na Google Play Store (o APK é para instalação direta; assinatura de release com keystore próprio fica para uma versão futura), suporte a iOS. Ícone temático/monocromático do Android 13+ ("Material You" themed icons) e imagem de destaque ("feature graphic") de loja de aplicativos ficam fora de escopo — dependem de publicação na Play Store, já fora de escopo.
