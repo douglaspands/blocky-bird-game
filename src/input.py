@@ -18,6 +18,11 @@ ACTION_FLAP = "flap"
 ACTION_PAUSE = "pause"
 ACTION_MUTE = "mute"
 ACTION_BACK = "back"
+ACTION_FOCUS_LOST = "focus_lost"
+
+# eventos de ciclo de vida do app (R16.1): WINDOWFOCUSLOST cobre o desktop (alt-tab)
+# como fallback nas plataformas que nao emitem os eventos de app do SDL.
+FOCUS_LOST_EVENTS = (pygame.APP_WILLENTERBACKGROUND, pygame.APP_DIDENTERBACKGROUND, pygame.WINDOWFOCUSLOST)
 
 
 def _touch_to_logical(norm_x: float, norm_y: float) -> tuple[float, float]:
@@ -65,6 +70,8 @@ class InputManager:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 quit_requested = True
+            elif event.type in FOCUS_LOST_EVENTS:
+                actions.add(ACTION_FOCUS_LOST)
             elif event.type == pygame.KEYDOWN:
                 if event.key in FLAP_KEYS:
                     actions.add(ACTION_FLAP)

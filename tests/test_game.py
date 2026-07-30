@@ -116,6 +116,46 @@ def test_tap_on_mute_icon_toggles_mute_without_side_effects():
     assert game.state == GameState.PRONTO  # nao voou, nao iniciou a partida
 
 
+def test_focus_lost_pauses_during_jogando():
+    game = _make_game()
+    game._flap_action()
+    assert game.state == GameState.JOGANDO
+    pygame.event.post(pygame.event.Event(pygame.WINDOWFOCUSLOST))
+    game.handle_events()
+    assert game.state == GameState.PAUSADO
+
+
+def test_focus_lost_does_not_auto_resume():
+    """Perder o foco de novo enquanto ja pausado nao deve alternar de volta
+    para JOGANDO — so um flap/pause explicito do jogador despausa (R16.2)."""
+    game = _make_game()
+    game._flap_action()
+    game._toggle_pause()
+    assert game.state == GameState.PAUSADO
+    pygame.event.post(pygame.event.Event(pygame.WINDOWFOCUSLOST))
+    game.handle_events()
+    assert game.state == GameState.PAUSADO
+
+
+def test_focus_lost_ignored_outside_jogando():
+    game = _make_game()
+    assert game.state == GameState.PRONTO
+    pygame.event.post(pygame.event.Event(pygame.WINDOWFOCUSLOST))
+    game.handle_events()
+    assert game.state == GameState.PRONTO
+
+
+def test_app_background_events_also_pause():
+    """Cobre os eventos de ciclo de vida do Android, nao so o fallback de
+    desktop (R16.1)."""
+    game = _make_game()
+    game._flap_action()
+    assert game.state == GameState.JOGANDO
+    pygame.event.post(pygame.event.Event(pygame.APP_WILLENTERBACKGROUND))
+    game.handle_events()
+    assert game.state == GameState.PAUSADO
+
+
 def test_highscore_saved_incrementally_mid_round():
     """O recorde deve ser gravado no instante em que e superado, nao so no
     GAME_OVER — um encerramento abrupto do app (Android) nao pode perder o

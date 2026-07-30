@@ -10,7 +10,7 @@ from src.bird import Bird
 from src.config import BLOCK, CREDITS, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
-from src.input import ACTION_BACK, ACTION_FLAP, ACTION_MUTE, ACTION_PAUSE, InputManager
+from src.input import ACTION_BACK, ACTION_FLAP, ACTION_FOCUS_LOST, ACTION_MUTE, ACTION_PAUSE, InputManager
 from src.particles import ParticleSystem
 from src.pipes import PipeManager
 from src.sounds import SoundManager
@@ -81,6 +81,11 @@ class Game:
         actions, quit_requested = self.input.poll()
         if quit_requested:
             self.running = False
+        if ACTION_FOCUS_LOST in actions and self.state == GameState.JOGANDO:
+            # o app foi para segundo plano (ou perdeu foco no desktop): pausa e
+            # nunca retoma sozinho, mesmo quando volta ao primeiro plano (R16.1,
+            # R16.2) — so um flap/pause explicito do jogador despausa.
+            self._toggle_pause()
         if ACTION_BACK in actions:
             self._back_action()
         if ACTION_FLAP in actions:
