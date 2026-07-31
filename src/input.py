@@ -47,15 +47,24 @@ class InputManager:
     def _tap(self, actions: set[str], window_x: float, window_y: float) -> None:
         """Converte um ponto da janela para o canvas e resolve a acao.
 
-        Mouse e toque passam pelo mesmo `to_logical` do renderizador ativo. Na v2 o
-        tratamento era assimetrico — `pygame.SCALED` pre-convertia o mouse e so o
-        toque era convertido a mao —, e a assimetria desapareceu junto com o `SCALED`
-        (design secao 33.4). A task 51 fecha o resto de R34."""
+        Mouse e toque passam pelo mesmo `to_logical` do renderizador ativo, sem
+        nenhuma regra divergente entre eles (R34.2). Na v2 o tratamento era
+        assimetrico — `pygame.SCALED` pre-convertia o mouse e so o toque era
+        convertido a mao —, e a assimetria desapareceu junto com o `SCALED` (design
+        secao 33.4)."""
         self._handle_tap(actions, *self.renderer.to_logical(window_x, window_y))
 
     def _handle_tap(self, actions: set[str], lx: float, ly: float) -> None:
-        """Toque/clique fora do canvas e ignorado; no icone de mudo alterna
-        mudo; em qualquer outro ponto do canvas, voa (R15.1, R15.4)."""
+        """Toque/clique em qualquer ponto do canvas voa; no icone de mudo alterna
+        mudo; fora do canvas e ignorado (R34.1, R34.3, R15.1, R15.4).
+
+        O recorte e contra o **canvas**, e nao contra a area jogavel. Na v2 o que
+        caisse fora dos 480x720 era barra preta de letterbox, moldura morta do SDL, e
+        descartar era certo; na v3 aquele espaco e faixa decorativa desenhada e, num
+        celular 20:9, ocupa mais tela que o jogo — justamente onde o polegar cai
+        (R25.6, design secao 32.8). Como o canvas tem a proporcao da tela e a cobre
+        por construcao, o descarte de R34.3 so sobra para o arredondamento da
+        conversao."""
         if not (0 <= lx <= config.screen_w() and 0 <= ly <= config.screen_h()):
             return
         if ui.mute_icon_rect().collidepoint(lx, ly):
