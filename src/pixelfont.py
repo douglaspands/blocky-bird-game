@@ -62,6 +62,10 @@ GLYPHS: dict[str, tuple[str, ...]] = {
     "/": ("....#", "...#.", "..#..", "..#..", ".#...", "#....", "....."),
     "!": ("..#..", "..#..", "..#..", "..#..", "..#..", ".....", "..#.."),
     "-": (".....", ".....", ".....", "#####", ".....", ".....", "....."),
+    # ponto decimal: usado pela sobreposicao de diagnostico (src/perf.py, R30.1) para
+    # exibir milissegundos com uma casa. Sem este glifo, "1.2MS" cairia no _BLANK e
+    # sairia como "1 2MS".
+    ".": (".....", ".....", ".....", ".....", ".....", ".....", "..#.."),
 }
 
 _cache: dict[tuple[str, int, tuple[int, int, int]], pygame.Surface] = {}

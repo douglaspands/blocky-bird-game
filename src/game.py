@@ -5,7 +5,7 @@ from enum import Enum, auto
 
 import pygame
 
-from src import assets, score, textures, ui
+from src import assets, perf, score, textures, ui
 from src.biome import BiomeManager
 from src.bird import Bird
 from src.config import BLOCK, CREDITS, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
@@ -63,6 +63,9 @@ class Game:
         self.input = InputManager()
         self.score = 0
         self.highscore = score.load_highscore()
+        # None em producao: a instrumentacao so existe com BLOCKY_PERF ligado (R30.2),
+        # entao o custo normal e uma comparacao contra None por frame.
+        self.profiler = perf.FrameProfiler() if perf.enabled() else None
         self.reset()
 
     def reset(self) -> None:
@@ -196,12 +199,24 @@ class Game:
         elif self.state == GameState.GAME_OVER:
             ui.draw_game_over_screen(self.screen, self.score, self.highscore)
 
+        if self.profiler is not None:
+            perf.draw_overlay(self.screen, self.profiler)
+
         pygame.display.flip()
 
     def run(self) -> None:
+        profiler = self.profiler
         while self.running:
-            self.clock.tick(FPS)
+            frame_ms = self.clock.tick(FPS)
             self.handle_events()
-            self.update()
-            self.draw()
+            if profiler is None:
+                self.update()
+                self.draw()
+            else:
+                profiler.frame(frame_ms)
+                profiler.begin()
+                self.update()
+                profiler.end_update()
+                self.draw()
+                profiler.end_draw()
         pygame.quit()
