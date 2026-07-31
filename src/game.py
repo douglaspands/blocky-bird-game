@@ -6,6 +6,7 @@ from enum import Enum, auto
 import pygame
 
 from src import assets, config, perf, score, textures, ui, viewport
+from src.bands import SideBands
 from src.biome import BiomeManager
 from src.bird import Bird
 from src.config import BLOCK, CREDITS, FPS, PIPE_W, TITLE
@@ -59,6 +60,8 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.textures = textures.generate_all(BLOCK)
+        # cache de superficie por bioma, independente de partida: sobrevive ao reset()
+        self.bands = SideBands()
         self.sounds = SoundManager()
         self.input = InputManager()
         self.score = 0
@@ -187,6 +190,9 @@ class Game:
         self.ground.draw(self.screen, self.textures, b.block_main, b.block_edge)
         self.bird.draw(self.screen, self.textures)
         self.particles.draw(self.screen)
+        # depois das colunas e da abelha, antes do HUD: a faixa e opaca e esconde a
+        # coluna que ainda nao entrou na area jogavel (R24.4, seção 32.6).
+        self.bands.draw(self.screen, self.textures, b)
         self.biome.draw_banner(self.screen)
         ui.draw_mute_icon(self.screen, self.sounds.muted)
 

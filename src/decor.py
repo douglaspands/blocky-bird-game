@@ -81,7 +81,11 @@ def _draw_stalactites(surface: pygame.Surface, x: int, idx: int, ground_y: int) 
     pygame.draw.polygon(surface, (55, 55, 62), points)
 
 
-def _draw_ore_veins(surface: pygame.Surface, x: int, idx: int, ground_y: int) -> None:
+def draw_ore_veins(surface: pygame.Surface, x: int, idx: int, ground_y: int) -> None:
+    """Veio de minerio: quatro cubos de uma cor sorteada por `idx`.
+
+    Publico porque as faixas laterais reaproveitam este desenhador para salpicar
+    minerio no corte transversal do subsolo (`bands.py`, R25.2)."""
     rng = random.Random(idx * 23 + 4)
     y = rng.randint(150, ground_y - 150)
     color = rng.choice([(120, 190, 255), (255, 215, 60), (200, 200, 210)])
@@ -109,7 +113,7 @@ def _draw_pillars(surface: pygame.Surface, x: int, idx: int, ground_y: int) -> N
 
 _LAYERS: dict[str, tuple[tuple[int, Drawer], tuple[int, Drawer]]] = {
     "overworld": ((220, _draw_clouds), (150, _draw_hills)),
-    "cave": ((130, _draw_stalactites), (100, _draw_ore_veins)),
+    "cave": ((130, _draw_stalactites), (100, draw_ore_veins)),
     "nether": ((200, _draw_lava_pools), (170, _draw_pillars)),
 }
 

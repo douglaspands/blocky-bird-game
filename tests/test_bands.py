@@ -1,17 +1,21 @@
-"""Faixas verticais: o jogo desloca para dentro da area jogavel, e o que sobra na
-vertical vira ceu e chao decorativos (R23.4, R24.1, R24.2, R24.5, R25.1, R25.7)."""
+"""Faixas decorativas: o jogo desloca para dentro da area jogavel, e o que sobra
+vira ceu, chao e paredes de terra (R23.4, R24.1-R24.5, R25.1, R25.2, R25.5, R25.7)."""
 
 import pygame
 import pytest
 
-from src import config, textures, ui
+from src import config, decor, textures, ui
+from src.bands import SideBands
+from src.biome import BIOMES, BiomeManager
 from src.bird import Bird
 from src.config import BLOCK, GAP_MARGIN, GROUND_H
+from src.game import Game, GameState
 from src.ground import Ground
 from src.pipes import PipeManager
 from src.viewport import PLAY_H, PLAY_W, compute
 
 PHONE = (1080, 2400)  # canvas 480x1067: ceu de 251px, chao extra de 96px
+WIDE = (1920, 1080)  # canvas 1280x720: faixas laterais de 400px
 SQUARE_2_3 = (PLAY_W, PLAY_H)  # sem faixa nenhuma — a geometria da v2
 
 
@@ -175,3 +179,116 @@ def test_state_screens_are_anchored_to_the_play_area(monkeypatch: pytest.MonkeyP
     assert centers
     for _, y in centers:
         assert play.top <= y <= play.bottom
+
+
+# --- Faixas laterais (task 47) ------------------------------------------------
+
+
+def _drawn_band(screen: tuple[int, int], biome_index: int = 0) -> pygame.Surface:
+    """Desenha as faixas laterais sobre um fundo conhecido e devolve o canvas."""
+    _use(screen)
+    surface = pygame.Surface(config.viewport().canvas)
+    surface.fill((255, 0, 255))  # magenta: qualquer pixel remanescente denuncia buraco
+    SideBands().draw(surface, textures.generate_all(BLOCK), BIOMES[biome_index])
+    return surface
+
+
+def test_pipe_spawns_at_the_play_right_edge():
+    """Na borda da area jogavel, nao do canvas: e o que iguala o tempo de reacao em
+    qualquer proporcao (R24.3)."""
+    play = _use(WIDE)
+    assert play.right < config.screen_w()
+    assert PipeManager(160, "dirt", "grass_side").pipes[0].x == play.right
+
+
+def test_time_from_spawn_to_bird_is_the_same_in_both_canvases():
+    """O jogador nao pode ganhar tempo de reacao por jogar numa tela mais larga
+    (R24.3)."""
+    frames = []
+    for screen in (SQUARE_2_3, WIDE):
+        play = _use(screen)
+        pm = PipeManager(160, "dirt", "grass_side")
+        bird_x = play.x + play.width // 4
+        count = 0
+        while pm.pipes[0].x > bird_x:
+            pm.pipes[0].x -= 2.5
+            count += 1
+        frames.append(count)
+    assert frames[0] == frames[1]
+
+
+@pytest.mark.parametrize("biome_index", range(len(BIOMES)), ids=[b.id for b in BIOMES])
+def test_side_band_is_opaque_over_its_whole_height(biome_index):
+    """Opacidade nao e enfeite: e o mecanismo que esconde a coluna que ainda nao
+    entrou na area jogavel (R24.4)."""
+    surface = _drawn_band(WIDE, biome_index)
+    vp = config.viewport()
+    for band in (vp.left_band, vp.right_band):
+        assert band.width > 0
+        for y in range(0, band.height, 17):
+            for x in (band.left, band.centerx, band.right - 1):
+                assert surface.get_at((x, y))[:3] != (255, 0, 255)
+
+
+def test_side_bands_are_absent_on_a_2_3_canvas():
+    """Sem sobra horizontal nao ha o que cobrir — e o desenho nao pode inventar."""
+    surface = _drawn_band(SQUARE_2_3)
+    assert surface.get_at((0, 0))[:3] == (255, 0, 255)
+    assert surface.get_at((PLAY_W - 1, PLAY_H - 1))[:3] == (255, 0, 255)
+
+
+def test_band_ground_line_matches_the_play_ground_line():
+    """A fileira de borda cai exatamente em `ground_y()`, para a terra parecer
+    continua de uma borda a outra."""
+    surface = _drawn_band(WIDE)
+    tex = textures.generate_all(BLOCK)["grass_side"]
+    band_x = config.viewport().left_band.centerx
+    for dy in range(0, BLOCK, 7):
+        assert surface.get_at((band_x, config.ground_y() + dy))[:3] == tex.get_at((band_x % BLOCK, dy))[:3]
+
+
+def test_side_bands_hide_a_pipe_that_has_not_entered_the_play_area(monkeypatch: pytest.MonkeyPatch) -> None:
+    """R24.4 por inteiro: a coluna nasce em `play.right`, cai dentro da faixa
+    direita, e nenhum pixel dela sobrevive ao desenho da faixa.
+
+    A segunda metade do teste desliga a faixa e confirma que sem ela a coluna
+    apareceria — sem isso o teste passaria mesmo que a coluna nunca tivesse sido
+    desenhada ali, e nao provaria nada sobre a oclusao."""
+    game = Game()
+    config.set_viewport(compute(*WIDE))
+    game.viewport = config.viewport()
+    game.screen = pygame.Surface(game.viewport.canvas)
+    game.reset()
+    game.state = GameState.JOGANDO
+
+    pipe = game.pipes.pipes[0]
+    assert pipe.x == game.viewport.play.right  # a coluna esta mesmo sob a faixa
+    band = game.viewport.right_band
+    samples = [(x, y) for y in range(0, band.height, 13) for x in range(band.left, band.right, 11)]
+
+    def frame(pipes: list) -> pygame.Surface:
+        game.pipes.pipes = pipes
+        game.draw()
+        return game.screen.copy()
+
+    covered, covered_empty = frame([pipe]), frame([])
+    assert all(covered.get_at(p) == covered_empty.get_at(p) for p in samples)
+
+    monkeypatch.setattr(SideBands, "draw", lambda *args, **kwargs: None)
+    naked, naked_empty = frame([pipe]), frame([])
+    assert any(naked.get_at(p) != naked_empty.get_at(p) for p in samples)
+
+
+def test_sky_parallax_and_ground_span_the_whole_canvas_width():
+    """Ceu, parallax e chao vao de borda a borda mesmo onde a faixa lateral vai
+    cobri-los, para nao haver emenda visivel (R25.5)."""
+    _use(WIDE)
+    canvas_w = config.screen_w()
+    surface = pygame.Surface(config.viewport().canvas)
+    surface.fill((255, 0, 255))
+    BiomeManager().draw_background(surface)
+    decor.DecorManager().draw(surface, "overworld")
+    Ground().draw(surface, textures.generate_all(BLOCK), "dirt", "grass_side")
+    for x in (0, canvas_w // 2, canvas_w - 1):
+        assert surface.get_at((x, 10))[:3] != (255, 0, 255)  # ceu
+        assert surface.get_at((x, config.ground_y() + 10))[:3] != (255, 0, 255)  # chao

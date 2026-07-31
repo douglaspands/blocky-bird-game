@@ -58,7 +58,10 @@ class PipePair:
 class PipeManager:
     def __init__(self, gap_size: int, block_main: str, block_edge: str) -> None:
         self.pipes: list[PipePair] = []
-        self._spawn(config.screen_w(), gap_size, block_main, block_edge)
+        # nasce na borda direita da AREA JOGAVEL, nao do canvas: e o que faz o tempo
+        # entre o surgimento da coluna e a chegada a abelha ser identico em qualquer
+        # proporcao de tela (R24.3).
+        self._spawn(config.play().right, gap_size, block_main, block_edge)
 
     def _spawn(self, x: float, gap_size: int, block_main: str, block_edge: str) -> None:
         # a abertura e sorteada dentro da AREA JOGAVEL: com uma faixa de ceu acima,
@@ -75,7 +78,7 @@ class PipeManager:
         for pipe in self.pipes:
             pipe.x -= speed
 
-        if self.pipes[-1].x <= config.screen_w() - PIPE_SPACING:
+        if self.pipes[-1].x <= config.play().right - PIPE_SPACING:
             self._spawn(self.pipes[-1].x + PIPE_SPACING, gap_size, block_main, block_edge)
 
         self.pipes = [p for p in self.pipes if not p.off_screen()]
