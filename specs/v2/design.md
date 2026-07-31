@@ -12,12 +12,12 @@ As seções 1–18 (**Parte I**) descrevem o jogo base, herdado da v1 com os aju
 
 Jogo 2D em Python 3.10+ / `pygame-ce` 2.5+, loop de jogo com timestep fixo a 60 FPS (R9). Arquitetura orientada a objetos com máquina de estados simples e separação entre lógica, renderização e áudio.
 
-**v2 — alvo duplo desktop + Android.** O mesmo código-fonte roda em Windows/Linux (executável PyInstaller, R13) e em Android celular/TV (APK Buildozer, R17). A estratégia para isso é manter *todo* o jogo escrito contra uma resolução lógica fixa de 480×720 e uma camada de ações abstratas de input, empurrando as diferenças de plataforma para três pontos isolados:
+**v2 — alvo duplo desktop + Android.** O mesmo código-fonte roda em Windows/Linux (executável PyInstaller, R13) e em Android celular/tablet, sempre em retrato (APK Buildozer, R17). A estratégia para isso é manter *todo* o jogo escrito contra uma resolução lógica fixa de 480×720 e uma camada de ações abstratas de input, empurrando as diferenças de plataforma para três pontos isolados:
 
 | Diferença | Onde é resolvida |
 |---|---|
 | Tela de tamanho/proporção arbitrária | `pygame.SCALED` no `set_mode`, escala + letterbox automáticos (seção 20) |
-| Toque, BACK do Android, D-pad de TV | `input.py`, traduzidos para as mesmas ações abstratas já existentes (seção 21) |
+| Toque, BACK do Android | `input.py`, traduzidos para as mesmas ações abstratas já existentes (seção 21) |
 | Onde se pode gravar arquivo | `storage.py`, resolve o diretório por plataforma (seção 23) |
 
 Nenhum módulo de gameplay (`bird`, `pipes`, `biome`, `score`, `particles`, `decor`, `ground`) precisa saber em que plataforma está rodando.
@@ -59,7 +59,7 @@ flappy_bird/
     ├── particles.py     # Sistema de partículas de blocos (R3.2)
     ├── textures.py      # Geração procedural de texturas voxel (R7)
     ├── pixelfont.py     # Fonte bitmap gerada por código (R7.6)               [novo na v2]
-    ├── scale.py         # fit_scale: letterbox p/ toque, sem cortar imagem (R14.3) [task 41]
+    ├── scale.py         # fit_scale: letterbox p/ toque, sem cortar imagem (R14.3)
     ├── input.py         # InputManager: teclado, mouse, gamepad, toque (R10, R15)
     ├── sounds.py        # Síntese de sons 8-bit (R8)
     └── ui.py            # HUD, telas PRONTO/PAUSADO/GAME_OVER, fonte pixelada (R6, R7.5, R11, R12)
@@ -214,7 +214,7 @@ if self.score > self.highscore:
 - Fonte (**mudou na v2**): a v1 usava `pygame.font.SysFont("couriernew", ...)`, que **não existe no Android** — o SDL cairia numa fonte substituta arbitrária ou falharia, quebrando toda a UI. A v2 passa a usar a fonte bitmap própria de `pixelfont.py` (seção 19), gerada por código, garantindo resultado idêntico em todas as plataformas (R7.6) e alinhado ao princípio de "tudo gerado por código" (R7.1).
 - Sombra dura (offset 3 px, marrom-escuro) e escala inteira permanecem como na v1 (R7.5).
 - HUD: pontuação centralizada no topo (R4.2). Telas: PRONTO, PAUSADO (overlay escurecido, R6.3), GAME_OVER (painel com pontuação/recorde, R3.3).
-- **Controle de mudo na tela (v2, R15.4)**: ícone de alto-falante desenhado por código no canto superior direito da área lógica, com área de toque generosa (mínimo 44×44 px lógicos) para ser confortável no celular. Estado (com som / mudo) refletido no ícone. Em PAUSADO, o overlay mostra também a dica de mudo por D-pad para aparelhos sem toque (seção 21).
+- **Controle de mudo na tela (v2, R15.4)**: ícone de alto-falante desenhado por código no canto superior direito da área lógica, com área de toque generosa (mínimo 44×44 px lógicos) para ser confortável no celular. Estado (com som / mudo) refletido no ícone. Em PAUSADO, o overlay mostra também a dica de mudo por setas do teclado (seção 21.3).
 - Tela PRONTO (R6.1, R11, R12), de cima para baixo:
   1. Título "BLOCKY BIRD" (dourado).
   2. Créditos (`config.CREDITS`, "POR DOUGLAS E PEDRO") logo abaixo do título (R11.1).
@@ -235,18 +235,18 @@ while running:
 
 Input unificado (R1.1, R10, R15): eventos de teclado, mouse, joystick e **toque** mapeiam para as mesmas ações abstratas em `input.py`:
 
-| Ação | Teclado/Mouse | Controle Xbox | Android (toque/TV) |
+| Ação | Teclado/Mouse | Controle Xbox | Android (toque) |
 |---|---|---|---|
-| `flap` (voar/reiniciar) | ESPAÇO, ↑, clique | Botão A (`JOYBUTTONDOWN`, button 0) | Toque na área de jogo; D-pad center / ENTER na TV |
+| `flap` (voar/reiniciar) | ESPAÇO, ↑, clique, ENTER | Botão A (`JOYBUTTONDOWN`, button 0) | Toque na área de jogo |
 | `pause` | ESC, P | Start (button 7) | BACK durante JOGANDO (R15.2) |
-| `mute` | M | Y (button 3) | Toque no ícone de mudo; D-pad ←/→ em PAUSADO |
+| `mute` | M, ←/→ em PAUSADO | Y (button 3) | Toque no ícone de mudo |
 | `quit` | — | — | BACK fora de JOGANDO (R15.3) |
 
 - `src/input.py`: classe `InputManager` que consome `pygame.event` e retorna set de ações; os estados só conhecem ações, não dispositivos (R10.4, R15.5).
 - Init: `pygame.joystick.init()` + inicialização de todos os joysticks presentes (R10.1).
 - Hotplug: tratar `JOYDEVICEADDED`/`JOYDEVICEREMOVED` reinicializando o joystick correspondente (R10.2); ausência de controle não afeta o jogo (R10.5).
 - Índices de botão seguem o mapeamento padrão do controle Xbox no SDL2/Windows; validar no playtest (task 12).
-- Detalhes do input Android (toque, BACK, D-pad de TV) na seção 21.
+- Detalhes do input Android (toque, BACK) na seção 21.
 
 ## 14. Tratamento de erros
 
@@ -320,135 +320,35 @@ def _fit_scale(text: str, scale: int) -> int:
 
 **Fallback documentado.** Se o custo de desenhar os glifos se mostrar alto, a alternativa é `pygame.font.Font(None, size)`, que usa a fonte **embutida no próprio pygame** (disponível também no Android, sem depender do sistema). É a rota de menor esforço, porém sem controle pixel-a-pixel do traço — a fonte bitmap é a preferida por consistência visual e por eliminar a dependência do módulo `pygame.font`.
 
-## 20. Escala lógica e letterbox (R9.1, R14.3)
+## 20. Escala lógica e letterbox (R9.1, R14.3, R14.4)
 
 Todo o jogo continua desenhando em coordenadas de 480×720 — nenhuma constante de gameplay muda, e por consequência a calibração de dificuldade da v1 (task 12) permanece válida.
 
 ```python
-flags = pygame.SCALED | pygame.RESIZABLE          # desktop
-flags = pygame.SCALED | pygame.FULLSCREEN         # Android
-self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), flags)
+self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.SCALED | pygame.RESIZABLE)
 ```
 
-- `pygame.SCALED` faz o SDL renderizar numa surface lógica de 480×720 e escalar para a janela/tela real **mantendo a proporção**, preenchendo o excedente com barras — letterbox (topo/base) ou pillarbox (laterais) conforme a proporção. É exatamente o comportamento pedido em R14.3, sem código de escala manual.
-- Consequência para o input: coordenadas de mouse/toque precisam ser convertidas do espaço da tela real para o espaço lógico. Com `SCALED`, o pygame já entrega eventos de mouse em coordenadas lógicas. Eventos de **toque** (`FINGERDOWN`), porém, vêm normalizados em `0.0–1.0` relativos à *janela inteira* — incluindo as barras. A conversão está detalhada na seção 21.
-- Overscan de TV: o letterbox já mantém a área de jogo longe das bordas laterais; os textos de UI ficam com margem natural. Não é necessário tratamento extra de safe area.
+Mesma chamada em desktop e Android, sem nenhum branch por plataforma — no Android, `fullscreen = 1` no `buildozer.spec` (seção 24.2) já faz a Activity ocupar o aparelho inteiro, e `orientation = portrait` trava a orientação (R14.4).
+
+- `pygame.SCALED` faz o SDL renderizar numa surface lógica de 480×720 e escalar para a janela/tela real **mantendo a proporção**, preenchendo o excedente com uma barra — letterbox (topo/base) ou pillarbox (laterais), conforme a proporção — sem código de escala manual.
+- **Por que a barra é sempre letterbox, nunca pillarbox (R14.3).** O canvas lógico do jogo é 480×720 (proporção 2:3 ≈ 0,667 largura/altura). Com `pygame.SCALED` (escala = `min(janela_w/480, janela_h/720)`), a barra sobra no eixo cuja razão NÃO é a menor das duas — ou seja, pillarbox (laterais) só ocorre quando a janela é proporcionalmente **mais larga** que 2:3. Como a orientação fica travada em retrato (R14.4), a janela do Android nunca fica mais larga que alta; a esmagadora maioria dos celulares é proporcionalmente mais alongada que 2:3 (ex. 20:9 ≈ 0,45), então a barra que sobra é sempre letterbox. Aparelhos hipotéticos mais "quadrados" que 2:3 em retrato (ex. um tablet 4:3) ainda sobrariam algum pillarbox mesmo travados em retrato — aceito conscientemente, dado que a esmagadora maioria dos aparelhos-alvo é mais alongada que a base.
+- Consequência para o input: coordenadas de mouse já chegam convertidas para o espaço lógico pelo próprio SDL sob `SCALED`. Eventos de **toque** (`FINGERDOWN`), porém, vêm normalizados em `0.0–1.0` relativos à *janela inteira* — incluindo a barra. A conversão está detalhada na seção 21.
 
 ### 20.1 Aproveitamento de tela por aparelho (medido)
 
-Aplicando a fórmula acima às resoluções típicas:
+Aplicando a fórmula acima às resoluções típicas de celular/tablet em retrato:
 
-| Aparelho | Tela | Escala | Área de jogo | Barras | Área útil |
+| Aparelho | Tela | Escala | Área de jogo | Barra | Área útil |
 |---|---|---|---|---|---|
-| Android TV 16:9 | 1920×1080 | 1,50× | 720×1080 | 600 px de cada lado | 38 % |
 | Celular 9:20 | 1080×2400 | 2,25× | 1080×1620 | 390 px topo/base | 68 % |
 | Celular 9:16 | 1080×1920 | 2,25× | 1080×1620 | 150 px topo/base | 84 % |
-| Tablet 4:3 | 1600×1200 | 1,67× | 800×1200 | 400 px de cada lado | 50 % |
+| Tablet 4:3 (retrato) | 1200×1600 | 2,22× | 1067×1600 | 67 px de cada lado | 89 % |
 
-O celular fica confortável, mas ainda sobra barra visível — foi exatamente essa barra (relatada pelo dono do projeto no Galaxy S20 FE como faixa preta lateral) que motivou a task 35 (seção 20.3): em vez de aceitar a barra como custo definitivo, o canvas real passou a ser adaptado à proporção do aparelho em runtime, preenchendo o que era barra preta com céu/parallax estendidos.
-
-### 20.1.1 Correção pós-lançamento (task 35): tela cheia sem barra preta (R14.3)
-
-**Bug relatado pelo dono do projeto:** no Galaxy S20 FE, sobrava uma faixa preta nas laterais em vez da tela preenchida. A tabela acima (medida com a resolução lógica fixa em 480×720) já mostrava que *qualquer* aparelho fora da proporção exata 2:3 sobra barra — celular ou TV —, então em vez de investigar a causa exata daquele aparelho específico (não reproduzível neste ambiente sem hardware Android real, mesma limitação da seção 25), a correção ataca a causa geral: mede a proporção real do aparelho em runtime e estende o canvas até ela bater exatamente, eliminando a barra em qualquer proporção/orientação.
-
-Mecanismo (`src/screen_adapt.py`, `src/game.py`):
-
-- A área jogável (`bird`, `pipes`, `ground`, `ui`, `particles` — toda a calibração da task 12) **continua fixa em 480×720**, sem nenhuma mudança de comportamento ou de constante de gameplay.
-- No Android, antes do `set_mode`, `pygame.display.Info()` informa a resolução real do aparelho. `screen_adapt.adapted_canvas_size(480, 720, device_w, device_h)` estica **só o eixo que sobraria como barra** até a proporção do canvas bater com a do aparelho — largura para aparelhos mais largos que a base (Android TV), altura para aparelhos mais estreitos (a maioria dos celulares modernos). O outro eixo permanece exatamente 480 ou 720.
-- `pygame.display.set_mode((canvas_w, canvas_h), pygame.SCALED | ...)` usa esse canvas como resolução lógica — como agora a proporção do canvas bate com a do aparelho, o `SCALED` do SDL não sobra barra nenhuma (a mesma mecânica da seção 20, só que aplicada a um canvas maior).
-- `Game.gameplay = Game.screen.subsurface((offset_x, offset_y, 480, 720))`: um subsurface do pygame escreve diretamente na região correspondente da surface pai, sem precisar de nenhuma composição/blit manual. Todo o código de gameplay/UI passa a desenhar em `self.gameplay` com as mesmas coordenadas locais 0..480/0..720 de sempre — só `biome.draw_background` e `decor.draw` (fundo: gradiente de céu + parallax) passam a desenhar direto em `self.screen` (o canvas inteiro), estendendo-se pela área que antes era barra preta.
-- Ancoragem do offset: `offset_y = canvas_h - 720` (ancora embaixo — o chão continua tocando a borda real da tela; o espaço extra vira céu no topo, não uma faixa "flutuando" no meio); `offset_x = (canvas_w - 480) // 2` (centralizado — sem eixo preferencial ao esticar horizontalmente). A mesma fórmula cobre os dois casos: o eixo que não estica sempre cai em offset 0.
-- `biome._make_gradient`/`BiomeManager.draw_background` e `decor._tile`/`DecorManager.draw` passaram a dimensionar pelo `surface.get_size()` recebido em vez da constante `SCREEN_W`/`SCREEN_H` — o gradiente de céu não tem variação horizontal (é uma cor por linha), então estender a largura é gratuito; o parallax já era ladrilhado em loop, só precisou trocar o limite do laço pela largura real da surface. `GROUND_Y` (usado para ancorar hills/lava/pilares no chão) passou a ser `surface.get_height() - GROUND_H`, calculado por chamada de `draw()` em vez de constante de módulo — necessário porque, na extensão vertical, o chão real fica na base do canvas, não em 720 fixo.
-- `input.InputManager` passou a receber `canvas_size`/`offset` (default = base/zero, preservando o comportamento anterior no desktop e em todos os testes que não passam esses argumentos). O toque/clique na área de céu/parallax estendida — antes barra preta, hoje visível — também voa, para não criar zona morta no meio da tela; só o hit-test do ícone de mudo desconta o offset para achar suas coordenadas locais.
-
-Validado por `tests/test_screen_adapt.py` (a função pura de cálculo do canvas), `tests/test_biome.py`/`tests/test_decor.py` (fundo cobre uma surface maior que a base sem exceção) e `tests/test_input.py` (toque na área estendida voa; ícone de mudo continua acertando com o offset). **Não verificável neste ambiente** (sem Android real nem emulador, mesma limitação da seção 25): preenchimento de fato sem barra no Galaxy S20 FE e em Android TV — fica pendente de validação manual do dono do projeto, igual ao padrão já usado no checklist da v2.
-
-### 20.1.2 Correção pós-lançamento (task 38): extensão de fundo restrita à paisagem (R14.3 refinado)
-
-**Pedido do dono do projeto**, depois de usar a build da task 35: o fundo estendido acima do topo do mundo jogável em celulares (a área que antes era barra preta, agora céu/parallax "flutuando" sem colunas nem chão) prejudicava o entendimento do jogo — não fica claro que aquela faixa não é jogável. A resolução deve ser dinâmica, mas a única proporção que precisa ser respeitada em Android é a de retrato do próprio jogo (2:3); o que não faz parte do jogo (o fundo inventado) deve ser removido, mantendo só a área realmente utilizável. Android TV (paisagem) não foi alvo da reclamação e mantém o comportamento da task 35.
-
-Mudança, inteiramente em `screen_adapt.adapted_canvas_size` (`game.py` e o resto do mecanismo da seção 20.1.1 — subsurface, offset, `draw_background`/`decor.draw` dimensionando pela surface recebida — **não mudam**, só deixam de ser exercitados em retrato):
-
-- Removido o ramo `device_aspect < base_aspect` (aparelho mais estreito/alongado que a base — a maioria dos celulares). Antes esticava a altura do canvas (`base_w, round(base_w / device_aspect)`); agora esses aparelhos devolvem a base `(480, 720)` inalterada.
-- Mantido o ramo `device_aspect > base_aspect` (aparelho mais largo que a base — Android TV 16:9 em paisagem): continua esticando a largura, sem mudança.
-- Efeito em `game.py`: com o canvas igual à base em retrato, `offset_y = canvas_h - SCREEN_H` cai para `0` naturalmente (nenhuma mudança de código necessária ali) — a subsurface da área jogável ocupa o canvas inteiro, e `pygame.SCALED` volta a aplicar letterbox/pillarbox simples (preto) para qualquer descompasso de proporção entre o canvas 480×720 e a tela real do aparelho, exatamente como no desktop (task 21) desde sempre. Não há necessidade de tratamento específico para desktop — ele nunca chamou `adapted_canvas_size` (só roda dentro de `if storage.is_android()`), então já seguia essa regra.
-- `tests/test_screen_adapt.py::test_device_narrower_than_base_stays_unchanged` substitui o teste antigo (`test_device_narrower_than_base_extends_height`), confirmando que um celular alongado (1080×2400) devolve a base sem alteração.
-
-Validado por `uv run pytest` (suíte completa), `ruff check`/`ruff format --check`/`ty check`. **Não verificável neste ambiente** (mesma limitação da seção 25): confirmar visualmente em aparelho Android real que não sobra mais fundo estendido acima da área jogável em retrato, e que Android TV continua preenchendo a tela em paisagem sem barra.
-
-### 20.1.3 Correção pós-lançamento (task 39): área jogável dinâmica em retrato, sem pillarbox (R14.3 refinado de novo)
-
-**Pedido do dono do projeto**, ainda insatisfeito depois da task 38: a task 38 trocou o fundo decorativo confuso por letterbox/pillarbox simples em retrato — mas pillarbox nenhum é aceitável, nem o preto nem o decorativo. A resolução deve ser dinâmica; a única proporção que precisa ser respeitada em Android é a de retrato, e só a área realmente utilizável deve aparecer, sem sobra de nenhum tipo.
-
-A diferença essencial em relação à task 35 (que já tinha experimentado esticar o canvas em retrato): lá, a altura extra virava só fundo — a área jogável (`bird`/`pipes`/`ground`/`ui`) continuava fixa em 480×720 dentro de uma subsurface centralizada, e o espaço extra "flutuava" sem colunas nem chão (por isso a task 38 removeu). Na task 39, a altura extra passa a ser área jogável de verdade: `config.SCREEN_H` (antes uma constante fixa em `config.py`) vira um valor mutável em runtime, e pipes/chão/UI leem esse valor dinamicamente a cada uso — o mundo cresce de verdade, sem cortar nem inventar decoração.
-
-**Mecanismo:**
-
-- `config.py`: `SCREEN_W` continua fixo em 480 (eixo âncora, nunca muda). `BASE_SCREEN_H = 720` guarda a altura de referência original (calibração da task 12, usada como base de comparação de aspecto e de escala de dificuldade). `SCREEN_H: int = BASE_SCREEN_H` passa a ser mutável — `game.py` escreve nele a cada `Game.__init__`. Como é mutável, todo consumidor precisa acessar `config.SCREEN_H` (referência ao módulo) em vez de `from src.config import SCREEN_H` (que congelaria o valor no momento do import, antes do cálculo dinâmico rodar) — `ground.py`, `pipes.py`, `ui.py` foram ajustados para isso; `SCREEN_W` continua importável por nome normalmente, já que nunca muda. Duas funções auxiliares centralizam cálculos repetidos entre módulos: `config.ground_y()` (topo do chão) e `config.height_scale()` (fator `SCREEN_H / BASE_SCREEN_H`, usado para escalar dificuldade).
-- `src/screen_adapt.py::portrait_height(base_w, base_h, device_w, device_h)`: nova função pura, irmã de `adapted_canvas_size` (mantida intocada para o caso paisagem/TV — tasks 35/38). Para aparelho mais estreito/alongado que a base (a maioria dos celulares), devolve a altura jogável real que bate exatamente com a proporção do aparelho (`round(base_w * device_h / device_w)`); para aparelho mais largo, dados inválidos ou proporção igual à base, devolve `base_h` sem alteração (esse caso fica com `adapted_canvas_size`).
-- `game.py::Game.__init__`: primeiro decide `device_w, device_h` (Android: `pygame.display.Info()`; desktop: `(SCREEN_W, BASE_SCREEN_H)` — o desktop não tem "aparelho", então o cálculo abaixo sempre devolve exatamente a base 480×720 nesse caso, sem mudança de comportamento). Depois compara `device_w/device_h` com `SCREEN_W/BASE_SCREEN_H` para decidir entre os dois ramos: paisagem chama `adapted_canvas_size` e fixa `config.SCREEN_H = BASE_SCREEN_H` (tasks 35/38, inalterado); retrato chama `portrait_height` e atribui o resultado a `config.SCREEN_H` — o canvas passado ao `set_mode` (`SCREEN_W, config.SCREEN_H`) fica com a MESMA proporção do aparelho, então o `pygame.SCALED` não sobra pillarbox nenhum. `offset_x`/`offset_y` continuam calculados pela mesma fórmula de sempre (seção 20.1.1) — em retrato, `offset_y` cai para `0` porque `canvas_h == config.SCREEN_H` por construção; a subsurface `self.gameplay` passa a cobrir o canvas inteiro (não sobra nada fora dela).
-- `pipes.py::PipeManager._spawn`: `gap_size` (do bioma) e `GAP_MARGIN` são multiplicados por `config.height_scale()` antes de definir o intervalo de `gap_y` e de construir o `PipePair` — um aparelho com o dobro da altura jogável tem aberturas/margens com o dobro do tamanho em pixels, preservando a sensação de dificuldade da task 12 em vez de ficar mais fácil de graça. `PipePair.gap_size` mudou de `int` para `float` (o valor já vem escalado).
-- `ground.py`/`ui.py`: todo uso de `SCREEN_H`/`GROUND_Y` (chão, overlay de pausa/game-over, título/HUD/recorde) trocado por `config.SCREEN_H`/`config.ground_y()`, lidos a cada chamada — nenhuma mudança de layout relativo, só passam a acompanhar a altura real.
-- `biome.py`/`decor.py` não precisaram de nenhum ajuste — já dimensionavam pelo `surface.get_size()` recebido desde a task 35 (seção 20.1.1), então automaticamente cobrem a nova altura da subsurface jogável sem código extra.
-
-**Redimensionamento ao vivo no desktop (limite real, verificado por experimento) — decisão de escopo consciente:** o pedido do dono do projeto também valia para o desktop, e a ideia natural seria recalcular `config.SCREEN_H`/recriar o `set_mode` a cada evento `pygame.VIDEORESIZE` durante o arrasto da janela. **Testado diretamente neste ambiente** (script isolado, não só teste automatizado) com `pygame-ce 2.5.7`/SDL `2.32.10`:
-
-```python
-screen = pygame.display.set_mode((480, 720), pygame.SCALED | pygame.RESIZABLE)
-screen2 = pygame.display.set_mode((480, 900), pygame.SCALED | pygame.RESIZABLE)  # 2a chamada, mesma sessao
-```
-
-A segunda chamada **crasha com Segmentation Fault** (não uma exceção Python capturável — o processo morre). Contornável só com `pygame.display.quit()` + `pygame.display.init()` entre as duas chamadas (o mesmo padrão já usado em `conftest.py`, seção 20.2) — mas isso recria a janela do zero, e o teste confirmou que o tamanho REAL da janela também é resetado para bater exatamente com a nova resolução lógica (`get_window_size()` passa a ser `(480, 900)`, não o tamanho que o usuário tinha arrastado). Ou seja: não existe, nesta versão do SDL/pygame-ce, uma forma de só "reencaixar" a proporção lógica dentro do tamanho real atual da janela — recriar o display sempre também redefine o tamanho real, o que causaria uma guerra de resize visível (cada arrasto do usuário dispararia uma "correção" que muda o tamanho de novo) e risco de crash sem o `quit()`/`init()`.
-
-**Decisão:** a área jogável dinâmica em retrato é calculada **uma única vez**, no `Game.__init__` — tanto para Android (a partir de `pygame.display.Info()`, que não muda depois do app aberto) quanto para desktop (a partir do formato inicial fixo `480×720`, que já bate exatamente com a base, então o resultado é idêntico ao comportamento anterior). Redimensionar a janela do desktop **depois** de aberta continua exatamente como a task 21 sempre fez: `pygame.SCALED` reamostra automaticamente com letterbox/pillarbox simples, sem nenhuma intervenção deste código — não há regressão em relação ao que já existia, só não ganha o comportamento "sem pillarbox" durante um arrasto ao vivo. Como o desktop já abre exatamente na proporção base (nunca foi o aparelho que motivou a reclamação original), essa lacuna é aceita conscientemente em vez de arriscar um crash ou um resize-loop visível.
-
-Validado por: `tests/test_screen_adapt.py` (`portrait_height`, função pura); `tests/test_pipes.py::test_gap_size_and_margin_scale_with_dynamic_screen_height` (escala de dificuldade); `tests/test_game.py::test_android_portrait_device_has_no_pillarbox` e `test_android_tv_landscape_keeps_fixed_play_area` (`Game.__init__` de ponta a ponta, com `storage.is_android`/`pygame.display.Info` mockados — o primeiro teste do projeto a exercitar esse caminho através da classe `Game` real, não só das funções puras); suíte completa (94 testes), `ruff check`/`ruff format --check`/`ty check` sem violações; scripts manuais (não headless, com driver de vídeo real) confirmando `screen.get_size() == gameplay.get_size()` para um celular simulado (1080×2400 → canvas/gameplay 480×1067, sem pillarbox) e o caso Android TV inalterado (1920×1080 → canvas 1280×720, gameplay 480×720). Fixture `_reset_screen_h` adicionada ao `conftest.py` para que `config.SCREEN_H` (agora estado global mutável) não vaze de um teste para o próximo. **Não verificável neste ambiente** (mesma limitação da seção 25): confirmar visualmente em celular Android real que não sobra pillarbox nenhum em retrato, e que a dificuldade permanece equilibrada em aparelhos com proporções bem diferentes de 2:3.
-
-### 20.1.4 Correção pós-lançamento (task 40): resolução fixa de volta, pillarbox eliminado por zoom/corte (R14.3 revertido e simplificado)
-
-**Pedido do dono do projeto, revertendo a direção da task 39:** a resolução lógica deve voltar a ser sempre fixa em 480×720 (a mesma calibração da task 12, nunca mudando por aparelho) — não mais dinâmica em retrato. A eliminação do pillarbox deve vir de a **imagem** dar zoom até cobrir a tela real, cortando o excedente de um dos eixos, e não de mudar a resolução lógica do jogo. Em outras palavras: é a tela que cede espaço ao jogo (corte), nunca o jogo que se estica para caber na tela.
-
-A diferença essencial em relação a `pygame.SCALED` (seção 20) e ao mecanismo de canvas adaptativo das tasks 35/38/39: `SCALED` faz **fit** (encolhe o canvas até caber inteiro na janela, sobra barra no eixo que não bate — a escala usada é o **menor** dos dois fatores de eixo); as tasks 35/38/39 eliminavam a barra fazendo o **canvas** (ou a própria área jogável, na task 39) crescer até bater com a proporção do aparelho. A task 40 troca os dois por **cover**: o canvas lógico nunca muda de tamanho, e é a imagem renderizada que dá zoom com a escala **maior** dos dois fatores de eixo — cobrindo a janela por completo e deixando o excedente do outro eixo cortado (fora da janela), sem barra nenhuma.
-
-**Mecanismo:**
-
-- `src/scale.py::cover_scale(canvas_w, canvas_h, window_w, window_h) -> (escala, offset_x, offset_y)`: função pura, substitui por completo `src/screen_adapt.py` (removido — `adapted_canvas_size`/`portrait_height` deixam de existir). `escala = max(window_w/canvas_w, window_h/canvas_h)` (o maior fator, ao contrário do `min` que o `SCALED` usa internamente); `offset_x`/`offset_y` centralizam o canvas ampliado sobre a janela e ficam `<= 0` sempre que o eixo correspondente sobra e é cortado. Dados inválidos (janela ou canvas com tamanho <= 0) devolvem escala 1 sem deslocamento.
-- `config.py`: `SCREEN_H` volta a ser uma constante de módulo comum (720), nunca escrita em runtime; `BASE_SCREEN_H` e `config.height_scale()` (ambos da task 39) removidos. `config.ground_y()` permanece (agora trivialmente `SCREEN_H - GROUND_H`, sem custo de manter).
-- `game.py::Game.__init__` não usa mais `pygame.SCALED`. No Android, `pygame.display.Info()` continua sendo consultado, mas agora o resultado vira diretamente o tamanho da JANELA REAL (`pygame.display.set_mode((device_w, device_h), pygame.RESIZABLE)`) — garantindo que a surface real bata com o aparelho, em vez de depender de um comportamento implícito do `fullscreen=1` do `buildozer.spec` sem o renderer do `SCALED` (não verificável neste ambiente sem hardware, então a opção mais segura foi escolhida). No desktop, abre exatamente em 480×720, igual à task 21 (nenhuma mudança de comportamento aí).
-- `self.gameplay` volta a ser uma `pygame.Surface` comum e fixa (480×720) — não mais uma subsurface com offset dentro de um canvas maior (tasks 35/38/39). Todo o desenho, **incluindo o fundo** (`biome.draw_background`/`decor.draw`, que nas tasks 35/38 desenhavam direto em `self.screen` para se estender pela área "extra"), volta a mirar só nela — não existe mais uma distinção entre "canvas" e "área jogável", os dois são a mesma coisa de novo.
-- Novo `Game._present()`, chamado no fim de `draw()` no lugar do `pygame.display.flip()` direto: le `pygame.display.get_surface()` a cada frame (não um `self.screen` cacheado, que ficaria desatualizado depois de um resize ao vivo — ver abaixo), calcula `cover_scale(SCREEN_W, SCREEN_H, win_w, win_h)`, escala `self.gameplay` com `pygame.transform.scale` (vizinho mais próximo — mantém a estética blocky de pixel art, a mesma familia visual que o `SCALED` já produzia por padrão) e desenha o resultado centralizado sobre a janela real, sempre cobrindo-a por completo.
-- `pipes.py::PipeManager._spawn` volta a usar `gap_size`/`GAP_MARGIN` sem escalar (revertido o `config.height_scale()` da task 39, que deixou de existir); `PipePair.gap_size` volta a `int`. `ground.py`/`ui.py` não precisaram de nenhuma mudança de código — já liam `config.SCREEN_H`/`config.ground_y()` a cada chamada (task 39), e isso continua correto agora que o valor simplesmente não muda mais.
-
-**Ganho colateral não pedido, destravado pela remoção do `SCALED`:** o crash de Segmentation Fault ao chamar `set_mode(..., pygame.SCALED)` uma segunda vez na mesma sessão (que tinha motivado o desvio de escopo consciente da task 39, deixando o resize ao vivo do desktop sem o comportamento "sem pillarbox") era especificamente do **renderer SDL** que `SCALED` exige. `input.py::InputManager.poll()` agora trata `pygame.VIDEORESIZE` diretamente, chamando `pygame.display.set_mode(event.size, pygame.RESIZABLE)` — sem `SCALED`, sem renderer, sem o crash. Resultado: redimensionar a janela do desktop ao vivo agora também dá zoom/corte em tempo real, o que a task 39 tinha deixado de fora conscientemente. **Verificado neste ambiente** com driver de vídeo real (não headless): a janela abre com `GetClientRect` de exatamente 480×720; redimensionada ao vivo para 900×736 (proporção bem diferente da base), o fundo/UI cobrem a janela inteira, ampliados e cortados nas bordas, sem nenhuma barra preta, confirmado por captura de tela.
-
-**Conversão de coordenadas de entrada:** com `SCALED`, `MOUSEBUTTONDOWN` chegava com `event.pos` já pré-convertido para o espaço lógico pelo SDL; sem `SCALED`, isso deixa de acontecer, e tanto mouse quanto toque precisam do mesmo desfazer de escala. `InputManager._window_to_logical(x, y)` centraliza essa conversão usando `cover_scale` (substituindo o antigo `_touch_to_canvas`, exclusivo de toque) — `MOUSEBUTTONDOWN` passa `event.pos` direto (já em pixels reais da janela); `FINGERDOWN` multiplica as coordenadas normalizadas pelo tamanho da janela primeiro. Como o zoom/corte cobre a janela real por completo, não existe mais barra/zona morta — `_handle_tap` não precisa mais checar limites antes do hit-test do ícone de mudo (ao contrário do letterbox antigo, onde tocar na barra era explicitamente ignorado).
-
-Validado por: `tests/test_scale.py` (`cover_scale`, função pura — aspecto igual/mais largo/mais alto, e a invariante de que o canvas ampliado nunca deixa a janela descoberta); `tests/test_game.py::test_desktop_opens_at_fixed_base_resolution` (a asserção central do pedido), `test_android_portrait_device_gets_real_fullscreen_window`/`test_android_tv_landscape_also_gets_real_fullscreen_window` (janela real bate com o aparelho simulado, `gameplay` continua sempre 480×720); `tests/test_input.py::test_tap_in_mismatched_window_has_no_dead_zone`/`test_mouse_click_near_real_window_edge_maps_inside_logical_area`; suíte completa (89 testes), `ruff check`/`ruff format --check`/`ty check` sem violações. **Não verificável neste ambiente** (mesma limitação da seção 25): confirmar visualmente em celular e Android TV reais que a janela abre exatamente na resolução do aparelho e que o zoom/corte cobre a tela sem pillarbox.
-
-### 20.1.5 Correção pós-lançamento (task 41): orientação retrato travada, Android TV removido, pillarbox eliminado por letterbox (R14.3/R14.4 revertidos e simplificados)
-
-**Pedido do dono do projeto, revertendo a direção da task 40:** o jogo DEVE rodar sempre em retrato no Android — nunca em paisagem, exatamente como sempre foi no desktop (v1). E a eliminação do pillarbox deve voltar a aceitar letterbox (barra no topo/base) contanto que a imagem inteira continue visível — ao contrário do zoom/corte da task 40 (que cortava o excedente de um dos eixos para nunca sobrar barra nenhuma).
-
-**Por que travar a orientação resolve o pillarbox por si só.** O canvas lógico do jogo é 480×720 (proporção 2:3 ≈ 0,667 largura/altura). Com `pygame.SCALED` (fit: escala = `min(janela_w/480, janela_h/720)`), a barra sobra no eixo cuja razão NÃO é a menor das duas — ou seja, pillarbox (laterais) só acontece quando a janela é proporcionalmente **mais larga** que 2:3. Isso é exatamente o que acontecia antes: `orientation = all` no `buildozer.spec` deixava o Android decidir a orientação (inclusive paisagem, se o aparelho girasse ou se o SO escolhesse assim por padrão), e uma janela em paisagem é sempre mais larga que um jogo em formato retrato — daí o pillarbox relatado no Galaxy S20 FE. Travando a orientação em `portrait`, a janela real do Android NUNCA fica mais larga que alta; a esmagadora maioria dos celulares modernos é proporcionalmente **mais alongada** que 2:3 (ex. 20:9 ≈ 0,45), então a barra que sobra é sempre letterbox (topo/base), nunca pillarbox. Aparelhos hipotéticos mais "quadrados" que 2:3 em retrato (ex. um tablet 4:3) ainda sobrariam pillarbox mesmo travados em retrato — aceito conscientemente, já que a esmagadora maioria dos celulares-alvo é mais alongada que a base, e o pedido explícito do dono do projeto prioriza nunca cortar a imagem sobre eliminar 100% do pillarbox em qualquer proporção concebível.
-
-**Conflito real com o suporte a Android TV (tasks 27/29/30) — decisão consciente do dono do projeto.** Travar `portrait` é incompatível com Android TV: TVs são paisagem por hardware, não giram, e um app travado em retrato não roda corretamente (ou não aparece) na interface leanback. Como o pedido de "sempre retrato, sem pillarbox" e o suporte a TV são mutuamente exclusivos, o dono do projeto optou explicitamente por remover o suporte a Android TV nesta task, em vez de manter os dois com lógica condicional por tipo de aparelho (foi cogitado e descartado — complexidade desproporcional ao valor, já que o suporte a TV nunca chegou a ser validado em hardware real, seção 25).
-
-**Mecanismo:**
-
-- `buildozer.spec`: `orientation = all` → `orientation = portrait`. Removidas as quatro chaves específicas de Android TV (`android.extra_manifest_xml`, `android.manifest.intent_filters`, `android.extra_manifest_application_arguments`, `android.add_resources` do banner) — `android/tv_extra_manifest.xml`, `android/tv_intent_filter.xml`, `android/tv_banner_attribute.txt`, `scripts/generate_tv_banner.py` e `assets/android_banner.png` removidos do repositório (não fazem mais nada sem essas chaves apontando para eles).
-- `src/game.py::Game.__init__`: volta a usar `pygame.SCALED | pygame.RESIZABLE` (o mecanismo original da task 21, seção 20) — nenhum branch por plataforma no tamanho da janela: `self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.SCALED | pygame.RESIZABLE)`. O `fullscreen = 1` do `buildozer.spec` já faz a Activity Android ocupar o aparelho inteiro; `SCALED` letterboxa a resolução lógica fixa 480×720 dentro dessa janela automaticamente — não é mais necessário consultar `pygame.display.Info()` nem decidir flags por `storage.is_android()`, removendo o import de `storage` de `game.py`. `self.gameplay` (a subsurface separada da task 35/39/40) deixa de existir — todo o desenho volta a mirar `self.screen` diretamente, e `draw()` termina com `pygame.display.flip()` no lugar do `Game._present()` (removido).
-- `src/scale.py`: `cover_scale` (escala = **máximo** dos dois eixos, corta o excedente) substituída por `fit_scale` (escala = **mínimo** dos dois eixos, sobra letterbox, nunca corta) — mesma assinatura `(canvas_w, canvas_h, window_w, window_h) -> (escala, offset_x, offset_y)`, só a fórmula interna muda (`min` em vez de `max`), e os offsets passam a ser sempre `>= 0` (barra sobra) em vez de `<= 0` (corte).
-- `src/input.py::InputManager`: com `SCALED` de volta, `MOUSEBUTTONDOWN.pos` já chega pré-convertido para o espaço lógico pelo próprio SDL (confirmado experimentalmente na task 21, seção 20.1) — `_handle_tap` volta a receber `event.pos` direto, sem chamar nenhuma conversão manual. Só `FINGERDOWN` (que chega normalizado 0.0–1.0 relativo à janela inteira, sem passar pelo `SCALED`) precisa de conversão — `_touch_to_logical(norm_x, norm_y)` usa `scale.fit_scale` para desfazer o letterbox. Como agora pode sobrar barra de verdade (ao contrário do zoom/corte da task 40, que cobria a janela por completo), `_handle_tap` volta a ignorar toques fora da área lógica `0 <= x <= SCREEN_W, 0 <= y <= SCREEN_H` (a barra não deve disparar `flap`) — o comportamento original da task 23, restaurado. O tratamento manual de `pygame.VIDEORESIZE` (adicionado na task 40 para recriar o display sem `SCALED`, seção 20.1.4) foi removido: `SCALED` já reamostra automaticamente o letterbox ao redimensionar a janela do desktop, sem precisar recriar o display — o motivo original da task 40 para esse código (o crash de `set_mode(SCALED)` chamado duas vezes na mesma sessão, seção 20.2) só se aplicava a uma recriação explícita, não ao resize ao vivo tratado pelo próprio SDL.
-- `src/config.py`: nenhuma mudança de valor (`SCREEN_H` já era uma constante fixa desde a task 40) — só o comentário, atualizado para descrever `SCALED`/letterbox em vez de zoom/corte.
-- Os mapeamentos de input adicionados especificamente para Android TV na task 25 (`K_RETURN`/`K_KP_ENTER` → flap, D-pad ←/→ → mudo em PAUSADO) **permanecem no código** — são inofensivos em qualquer plataforma (inclusive desktop, onde Enter já é um atalho razoável) e removê-los não traria benefício, só risco de regressão sem necessidade.
-
-**Testes:** `tests/test_scale.py` reescrito para `fit_scale` (aspecto igual, janela mais larga → letterbox vertical, janela mais alta → letterbox horizontal, e a invariante central de que o canvas escalado nunca excede a janela, ao contrário da invariante "nunca deixa a janela descoberta" da task 40). `tests/test_game.py`: as três asserções de janela por-aparelho (task 40) substituídas por `test_screen_uses_fixed_logical_resolution_via_scaled`, confirmando que `game.screen.get_size()` é sempre `(480, 720)` independente de `storage.is_android()` — não há mais nenhum ramo de tamanho de janela por plataforma para testar separadamente. `tests/test_input.py`: os testes de "zoom/corte cobre a janela, sem zona morta" (task 40) substituídos por `test_finger_tap_outside_logical_area_is_ignored`, restaurando o teste original da task 23 (toque na barra de letterbox é ignorado). `conftest.py`: a fixture `_reset_display` (que já existia desde a task 21) teve o comentário restaurado para explicar a real limitação que motivou sua criação — o driver `dummy` só permite um `set_mode(SCALED)` por processo.
-
-**Suíte completa (86 testes) verde; `ruff check`/`ruff format --check`/`ty check` sem violações.** Validado com `uv run main.py` (driver de vídeo real, não headless): a janela abre em 480×720 sem exceção. **Não verificável neste ambiente** (mesma limitação da seção 25): confirmar visualmente em celular Android real que a orientação fica travada em retrato e que não sobra pillarbox nas laterais (só letterbox ocasional no topo/base, dependendo da proporção exata do aparelho).
+O tablet 4:3 é o exemplo do caso "mais quadrado que 2:3" citado acima — mesmo em retrato, sobra um pillarbox pequeno, aceito conscientemente.
 
 ### 20.2 Incompatibilidade de `SCALED` com a suíte de testes atual (verificado)
 
-Comportamento confirmado experimentalmente neste projeto, com pygame 2.6.1:
+Comportamento confirmado experimentalmente neste projeto:
 
 ```
 SDL_VIDEODRIVER=dummy + set_mode(SCALED):
@@ -458,7 +358,7 @@ SDL_VIDEODRIVER=dummy + set_mode(SCALED):
 
 `pygame.SCALED` exige criar um renderer SDL, e o driver de vídeo `dummy` — que o
 `conftest.py` força para rodar headless — só permite **um** por processo. Como
-`tests/test_game.py` instancia `Game()` (e portanto chama `set_mode`) em 6 testes
+`tests/test_game.py` instancia `Game()` (e portanto chama `set_mode`) em vários testes
 diferentes do mesmo processo, adotar `SCALED` ingenuamente **quebra a suíte**.
 
 As variáveis de ambiente `SDL_RENDER_DRIVER=software` e
@@ -468,29 +368,17 @@ Solução verificada: derrubar e reinicializar o display antes de cada `set_mode
 funciona repetidamente:
 
 ```python
-# fixture autouse em conftest.py
+# fixture autouse em conftest.py (_reset_display)
 pygame.display.quit()
 pygame.display.init()
 ```
-
-A task 21 deve incluir esse ajuste no `conftest.py` como parte da entrega, e a suíte
-completa deve passar antes de considerá-la concluída.
-
-**Atualização (task 40):** `pygame.SCALED` foi removido do projeto (seção 20.1.4) — o
-zoom/corte que o substituiu não usa renderer SDL, então esta incompatibilidade
-específica não existia mais nesse meio-tempo.
-
-**Atualização (task 41):** `pygame.SCALED` voltou (seção 20.1.5), então esta
-incompatibilidade **volta a se aplicar** — a fixture `_reset_display` (nunca removida,
-mantida por isolamento geral de estado de janela entre testes mesmo durante a task 40)
-continua sendo o que evita o `failed to create renderer` documentado acima.
 
 ## 21. Entrada Android: toque e BACK (R15)
 
 ### 21.1 Toque (celular/tablet)
 
 - O SDL sintetiza eventos de mouse a partir do toque por padrão, então `MOUSEBUTTONDOWN` já dispararia `flap` sem código novo. Ainda assim tratamos `pygame.FINGERDOWN` explicitamente, para (a) não depender desse comportamento default e (b) suportar toques simultâneos sem ambiguidade.
-- `FINGERDOWN` traz `event.x`/`event.y` normalizados (0.0–1.0) em relação à janela real. Para decidir se o toque caiu no ícone de mudo é preciso converter para coordenadas lógicas, desfazendo o letterbox de `pygame.SCALED` (`InputManager._touch_to_logical`, seção 20.1.5 — usa `scale.fit_scale`, escala **min**/fit, restaurado na task 41):
+- `FINGERDOWN` traz `event.x`/`event.y` normalizados (0.0–1.0) em relação à janela real. Para decidir se o toque caiu no ícone de mudo é preciso converter para coordenadas lógicas, desfazendo o letterbox de `pygame.SCALED` (`InputManager._touch_to_logical`, seção 20 — usa `scale.fit_scale`, escala **min**/fit):
 
 ```python
 win_w, win_h = pygame.display.get_window_size()
@@ -514,13 +402,11 @@ O SDL mapeia o BACK do Android para a tecla `pygame.K_AC_BACK`. O `InputManager`
 
 Esse desvio fica no `Game` (que conhece o estado), não no `InputManager` — mantendo a separação da v1 em que o input não conhece estados.
 
-### 21.3 Mapeamentos herdados do suporte a Android TV (removido na task 41)
+### 21.3 Mapeamentos adicionais de teclado (R15.4, R15.5)
 
-A v2 original suportava Android TV: D-pad/controle remoto (via joystick/gamepad já suportado desde a v1, R10, ou como teclado — `K_RETURN`/`K_KP_ENTER` para o botão central, setas para as direções), mudo por D-pad ←/→ no overlay de PAUSADO (sem exigir toque nem tecla M), e o próprio APK declarava suporte à interface leanback da TV (design seção 24.2, removido). A task 41 (seção 20.1.5) removeu o suporte a Android TV como alvo de distribuição — travar a orientação em retrato (necessário para eliminar o pillarbox) é incompatível com TVs, que são paisagem por hardware.
+`K_RETURN`/`K_KP_ENTER` mapeiam para `flap` e as setas ←/→ alternam mudo no overlay de PAUSADO — mapeamentos adicionais aos de teclado/mouse/gamepad já cobertos (R10, R15.5), inofensivos em qualquer plataforma (Enter já é um atalho razoável também no desktop).
 
-Os mapeamentos de input em si (`K_RETURN`/`K_KP_ENTER` → `flap`, D-pad ←/→ → mudo em PAUSADO) **permanecem no código**: são inofensivos em qualquer plataforma — inclusive desktop, onde Enter continua sendo um atalho razoável — e não exigem detectar "é TV" (convivem com os mapeamentos normais, R15.5). Removê-los traria só risco de regressão sem nenhum benefício, já que não há mais nenhuma tela sem toque/teclado completo (Android TV) para justificar a existência deles em primeiro lugar — mas mantê-los também não custa nada.
-
-**Bug real encontrado ao revisar a alcançabilidade (task 25, histórico).** Um perfil de controle remoto básico — só D-pad, botão central e voltar, sem tecla ESC/P e sem botão Start de gamepad — conseguia pausar (BACK durante JOGANDO, task 23) mas **não tinha como despausar**: `_flap_action()` não tratava o estado PAUSADO (era no-op), e BACK em PAUSADO encerra o jogo em vez de alternar. O único caminho restante era sair. O mesmo gap afetava quem só usa toque no celular (tocar a tela tampouco despausava). Corrigido fazendo `_flap_action()` também transicionar PAUSADO → JOGANDO (sem chamar `bird.flap()`, para não dar um pulo indesejado ao retomar) — reaproveitando a mesma ação primária (RETURN/toque) já usada para iniciar e reiniciar, em vez de inventar um mecanismo novo. Essa correção continua válida e relevante mesmo sem TV, já que também beneficia qualquer jogador de teclado.
+**Bug real encontrado ao revisar a alcançabilidade.** Um perfil de entrada só com teclas de seta, Enter e BACK — sem tecla ESC/P e sem botão Start de gamepad — conseguia pausar (BACK durante JOGANDO, seção 21.2) mas **não tinha como despausar**: `_flap_action()` não tratava o estado PAUSADO (era no-op), e BACK em PAUSADO encerra o jogo em vez de alternar. O único caminho restante era sair. O mesmo gap afetava quem só usa toque no celular (tocar a tela tampouco despausava). Corrigido fazendo `_flap_action()` também transicionar PAUSADO → JOGANDO (sem chamar `bird.flap()`, para não dar um pulo indesejado ao retomar) — reaproveitando a mesma ação primária (RETURN/toque) já usada para iniciar e reiniciar, em vez de inventar um mecanismo novo.
 
 ## 22. Ciclo de vida do app (R16.1, R16.2)
 
@@ -598,7 +484,7 @@ Buildozer → python-for-android (p4a) → bootstrap SDL2 → APK. É a rota pad
 
 ```ini
 requirements = python3,pygame-ce,android
-orientation = portrait                 # trava retrato, elimina pillarbox (R14.3/R14.4, task 41)
+orientation = portrait                 # trava retrato, elimina pillarbox (R14.3/R14.4)
 fullscreen = 1
 p4a.local_recipes = ./p4a-recipes
 p4a.bootstrap = sdl2
@@ -611,7 +497,7 @@ android.allow_backup = True
 ```
 
 - `android` entra em `requirements` por causa do `android.storage` usado na seção 23.
-- `orientation = portrait` (task 41, seção 20.1.5): trava a activity em retrato — o jogo nunca roda em paisagem no Android, mesmo se o aparelho for girado. É o que garante, combinado com `pygame.SCALED` (seção 20), que a barra de letterbox sobre sempre no topo/base e nunca nas laterais (pillarbox). _(v2 original usava `orientation = all` para suportar Android TV em paisagem — ver histórico na seção 20.1.5; removido nesta task, já que travar em retrato é incompatível com TV.)_
+- `orientation = portrait`: trava a activity em retrato — o jogo nunca roda em paisagem no Android, mesmo se o aparelho for girado. É o que garante, combinado com `pygame.SCALED` (seção 20), que a barra de letterbox sobre sempre no topo/base e nunca nas laterais (pillarbox).
 - Assinatura: build `debug` (`buildozer android debug`), assinado com a chave de debug do Android SDK. Instala direto com "fontes desconhecidas" habilitado; não serve para Play Store (fora de escopo, R17.1).
 
 ### 24.3 Job de CI do APK (R17.2)
@@ -632,7 +518,7 @@ O job é independente para que uma falha no build Android (o passo mais frágil,
 
 Registrado explicitamente porque afeta como as tasks devem ser aceitas:
 
-- **Não há aparelho Android nem emulador neste ambiente de desenvolvimento.** Logo, os itens que dependem de Android real — instalar o APK, jogar por toque, operar por controle remoto de TV, medir FPS em aparelho de entrada, confirmar persistência do recorde no storage do app — **precisam de validação manual pelo dono do projeto**.
+- **Não há aparelho Android nem emulador neste ambiente de desenvolvimento.** Logo, os itens que dependem de Android real — instalar o APK, jogar por toque, medir FPS em aparelho de entrada, confirmar persistência do recorde no storage do app — **precisam de validação manual pelo dono do projeto**.
 - **Atualização (task 28): o Docker local, dado como inacessível na v1** (ao tentar validar o workflow com `act`), **ficou disponível neste ambiente** numa sessão posterior. Isso permitiu rodar o build real (`docker run kivy/buildozer android debug`) ponta a ponta até `BUILD SUCCESSFUL`, algo que a v1 não conseguia verificar — ver seção 24.1/24.2/24.3 para os bugs reais encontrados e corrigidos nesse processo. A disponibilidade do Docker pode variar entre sessões/ambientes; não assumir que builds futuros terão o mesmo acesso sem verificar (`docker ps`) primeiro.
 - O que **pode** ser verificado automaticamente aqui: fonte bitmap (comparação de superfícies renderizadas), conversão de coordenadas de toque para espaço lógico (função pura, testável), resolução do diretório de save por plataforma (com `ANDROID_ARGUMENT` monkeypatched), transições de estado por ações `back`/`focus_lost` (eventos sintéticos), e o jogo inteiro no desktop com `SCALED` (incluindo redimensionamento de janela).
 - O checklist manual em `tasks.md` marca claramente qual item é de qual categoria. Nenhum item dependente de hardware deve ser marcado como concluído sem teste real.
@@ -739,7 +625,7 @@ exclude = ["p4a-recipes", "specs", ".buildozer", "build", "dist"]
 
 **Problema.** O jogo nunca definiu um ícone próprio. Na janela do desktop (`pygame.display.set_mode`, R9.1) o pygame usa seu ícone padrão; o executável PyInstaller (`BlockyBird.spec`, R13.1) não passava `icon=`, então o `.exe` herdava o ícone genérico do bootloader; o `buildozer.spec` (R17.1) não declarava `icon.filename` nem as chaves de ícone adaptativo, então o APK usava o ícone padrão do Android (o "robozinho" verde genérico do template do buildozer). Nada disso identificava o jogo visualmente antes de abri-lo.
 
-**Princípio herdado (R7.1).** Como todo o resto da apresentação visual, o ícone é gerado por código, reaproveitando `textures.make_bee()` — nenhum arquivo de imagem externo entra no repositório manualmente. O padrão seguido é o já estabelecido por `scripts/generate_tv_banner.py` (task 27): um script standalone que importa `src/textures.py`/`src/pixelfont.py`, desenha em superfícies `pygame.Surface` e salva PNGs em `assets/`. A diferença desta task é que, além de PNG, o ícone do Windows precisa de um arquivo `.ico` multi-resolução.
+**Princípio herdado (R7.1).** Como todo o resto da apresentação visual, o ícone é gerado por código, reaproveitando `textures.make_bee()` — nenhum arquivo de imagem externo entra no repositório manualmente. `scripts/generate_app_icon.py` segue o mesmo padrão já usado por outros scripts de geração de assets do projeto: um script standalone que importa `src/textures.py`/`src/pixelfont.py`, desenha em superfícies `pygame.Surface` e salva PNGs em `assets/`. A diferença desta task é que, além de PNG, o ícone do Windows precisa de um arquivo `.ico` multi-resolução.
 
 ### 29.1 `scripts/generate_app_icon.py`
 
@@ -747,7 +633,7 @@ Gera cinco arquivos em `assets/`, todos a partir da mesma abelha-fonte (`texture
 
 | Arquivo | Tamanho | Uso | Camada |
 |---|---|---|---|
-| `app_icon_512.png` | 512×512 | Ícone de janela do desktop (`pygame.display.set_icon`, R21.2) e fonte para o `.ico` | abelha + fundo (céu/grama), composto — igual em espírito ao banner de TV |
+| `app_icon_512.png` | 512×512 | Ícone de janela do desktop (`pygame.display.set_icon`, R21.2) e fonte para o `.ico` | abelha + fundo (céu/grama), composto |
 | `app_icon.ico` | 16/32/48/64/128/256 px, um único arquivo | Ícone do `.exe` no PyInstaller (`BlockyBird.spec`, R21.3) | mesma composição de `app_icon_512.png`, reamostrada por tamanho |
 | `android_icon_legacy.png` | 512×512 | `icon.filename` do `buildozer.spec` — Android < 8.0/API 26 sem suporte a ícone adaptativo (R21.6) | abelha + fundo, com margem de ~10% (launchers antigos aplicam sua própria máscara/sombra por cima, sem zona segura formalizada) |
 | `android_icon_foreground.png` | 432×432, fundo transparente | `icon.adaptive_foreground.filename` (R21.4) | só a abelha, escalada para caber nos 66 dp centrais de um canvas de 108 dp (≈61%, ou ≤264 px de lado dentro do canvas de 432 px) — a zona segura de máscara (R21.5) |
@@ -768,7 +654,7 @@ def make_foreground() -> pygame.Surface:
 ```
 
 - `_scale_nearest_fit`: mesma técnica de `textures.py` (escala inteira/vizinho-mais-próximo) aplicada ao maior lado da abelha até caber em `max_side`, mantendo a proporção original do sprite — evita esticar a abelha de forma desproporcional (o pedido original do dono do projeto, "proporções ajustadas").
-- Composição do ícone com fundo (`app_icon_512.png`, `android_icon_legacy.png`): céu com o mesmo gradiente do Overworld (`biome.BIOMES[0].sky_top/sky_bottom`) e uma faixa de grama/terra na base (reaproveitando `textures.make_block("grass_side")`/`"dirt"`), com a abelha centralizada e ocupando a maior parte do quadro — visualmente consistente com o banner de TV (task 27) e com a cena real do jogo.
+- Composição do ícone com fundo (`app_icon_512.png`, `android_icon_legacy.png`): céu com o mesmo gradiente do Overworld (`biome.BIOMES[0].sky_top/sky_bottom`) e uma faixa de grama/terra na base (reaproveitando `textures.make_block("grass_side")`/`"dirt"`), com a abelha centralizada e ocupando a maior parte do quadro — visualmente consistente com a cena real do jogo.
 
 ### 29.2 Construção do `.ico` sem depender de Pillow
 
@@ -848,6 +734,6 @@ icon.adaptive_background.filename = assets/android_icon_background.png
 
 ### 29.5 Testes
 
-- `tests/test_generate_app_icon.py`: chama as funções puras do script (composição do foreground, cálculo de `max_side` pela zona segura, `build_ico`) sem depender de rodar o script inteiro como processo — mesmo padrão que poderia ter sido aplicado a `generate_tv_banner.py` (que não tem teste dedicado hoje; esta task não expande retroativamente a cobertura daquele script, só não repete a lacuna no novo). Casos: a abelha do foreground cabe em `SAFE_ZONE_FRACTION * FOREGROUND_CANVAS` em ambos os eixos; o `.ico` gerado tem as 6 entradas esperadas e cada uma decodifica de volta para as dimensões corretas via `pygame.image.load`; `android_icon_background.png` não tem pixels com alfa parcial (é uma camada opaca de verdade, já que o Android a trata como fundo sólido).
+- `tests/test_generate_app_icon.py`: chama as funções puras do script (composição do foreground, cálculo de `max_side` pela zona segura, `build_ico`) sem depender de rodar o script inteiro como processo. Casos: a abelha do foreground cabe em `SAFE_ZONE_FRACTION * FOREGROUND_CANVAS` em ambos os eixos; o `.ico` gerado tem as 6 entradas esperadas e cada uma decodifica de volta para as dimensões corretas via `pygame.image.load`; `android_icon_background.png` não tem pixels com alfa parcial (é uma camada opaca de verdade, já que o Android a trata como fundo sólido).
 - `tests/test_assets.py`: `asset_path()` nos dois ramos (`storage.is_frozen()` verdadeiro/falso via monkeypatch, mesmo padrão já usado para `storage.save_dir()` em `tests/test_storage.py`, seção 23).
 - Smoke test manual (`uv run main.py` e o `.exe` gerado por PyInstaller): ambos abrem sem exceção; `pyinstaller` confirma "Copying icon to EXE" no log de build.
