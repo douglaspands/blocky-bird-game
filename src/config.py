@@ -8,7 +8,7 @@ SCREEN_H = 720  # resolucao logica FIXA (proporcao 2:3), calibracao da task 12 â
 # barra que sobra e sempre no topo/base, nunca nas laterais.
 
 FPS = 60
-TITLE = "Blocky Bird"
+TITLE = "Blocky Bee"
 CREDITS = "por Douglas e Pedro"
 
 GRAVITY = 0.45

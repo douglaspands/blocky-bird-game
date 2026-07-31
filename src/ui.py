@@ -86,7 +86,7 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
         SCREEN_W // 2,
         config.SCREEN_H // 4,
         [
-            ("BLOCKY BIRD", 12, (255, 220, 60)),
+            ("BLOCKY BEE", 12, (255, 220, 60)),
             (CREDITS.upper(), 5, (230, 230, 230)),
         ],
     )

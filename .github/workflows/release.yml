@@ -34,28 +34,28 @@ jobs:
         run: uv sync
 
       - name: Build executable
-        run: uv run pyinstaller BlockyBird.spec
+        run: uv run pyinstaller BlockyBee.spec
 
       - name: Package Windows build
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path dist/BlockyBird.exe -DestinationPath BlockyBird-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.zip
+        run: Compress-Archive -Path dist/BlockyBee.exe -DestinationPath BlockyBee-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.zip
 
       - name: Package Linux build
         if: runner.os == 'Linux'
-        run: tar -cjf BlockyBird-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.tar.bz2 -C dist BlockyBird
+        run: tar -cjf BlockyBee-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.tar.bz2 -C dist BlockyBee
 
       - name: Upload Windows asset
         if: runner.os == 'Windows'
         uses: softprops/action-gh-release@v2
         with:
-          files: BlockyBird-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.zip
+          files: BlockyBee-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.zip
 
       - name: Upload Linux asset
         if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v2
         with:
-          files: BlockyBird-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.tar.bz2
+          files: BlockyBee-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.tar.bz2
 
   build-apk:
     # Job independente: uma falha aqui nao deve impedir a publicacao dos
@@ -92,9 +92,9 @@ jobs:
         # por isso "universal" em vez de uma arquitetura unica.
         run: |
           apk=$(find bin -maxdepth 1 -name '*.apk' | head -n1)
-          cp "$apk" "BlockyBird-android-universal-${{ github.event.release.tag_name }}.apk"
+          cp "$apk" "BlockyBee-android-universal-${{ github.event.release.tag_name }}.apk"
 
       - name: Upload APK asset (uncompressed)
         uses: softprops/action-gh-release@v2
         with:
-          files: BlockyBird-android-universal-${{ github.event.release.tag_name }}.apk
+          files: BlockyBee-android-universal-${{ github.event.release.tag_name }}.apk

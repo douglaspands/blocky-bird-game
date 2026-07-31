@@ -1,6 +1,6 @@
 [app]
-title = Blocky Bird
-package.name = blockybird
+title = Blocky Bee
+package.name = blockybee
 package.domain = com.douglaspands
 
 source.dir = .
