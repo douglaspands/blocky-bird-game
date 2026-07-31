@@ -54,8 +54,50 @@ Ao publicar uma Release no GitHub (com uma tag de versão, ex. `v1.0.0`), o work
 [`.github/workflows/release.yml`](.github/workflows/release.yml) builda o executável
 para Windows e Linux automaticamente e anexa aos assets da release:
 
-- `BlockyBird-windows-<tag>.zip`
-- `BlockyBird-linux-<tag>.tar.bz2`
+- `BlockyBird-windows-x64-<tag>.zip`
+- `BlockyBird-linux-x64-<tag>.tar.bz2`
+- `BlockyBird-android-universal-<tag>.apk` (Android — celular/tablet, sempre em retrato, ver abaixo)
+
+## Instalar no Android (celular)
+
+1. Baixe `BlockyBird-android-universal-<tag>.apk` dos assets da Release desejada.
+2. No aparelho, abra o arquivo baixado e permita a instalação de "fontes
+   desconhecidas" quando solicitado (o app não vem de uma loja, então o Android
+   pede essa confirmação uma vez por origem).
+3. Toque no ícone "Blocky Bird" para abrir.
+
+Controles: toque em qualquer ponto da tela para voar/reiniciar; o ícone de mudo
+no canto silencia o áudio; o botão BACK do sistema pausa durante o jogo e fecha
+o app nas outras telas. O app roda sempre em orientação retrato, mesmo girando
+o aparelho.
+
+Requisitos: Android 5.0 (API 21) ou superior.
+
+### Build local do APK (Docker + Buildozer)
+
+Reproduz o mesmo processo do CI, útil para testar mudanças na cadeia Android
+sem depender de uma Release:
+
+```bash
+yes y | docker run --rm -i -v "$(pwd)":/home/user/hostcwd -v "$HOME/.buildozer":/home/user/.buildozer kivy/buildozer android debug
+```
+
+No Windows, usando o PowerShell (sem Git Bash/WSL):
+
+```powershell
+docker run --rm -it -v "${PWD}:/home/user/hostcwd" -v "${HOME}/.buildozer:/home/user/.buildozer" kivy/buildozer android debug
+```
+
+A imagem `kivy/buildozer` roda como root e o buildozer pede confirmação
+interativa (`input()`) para isso, além da aceitação das licenças do Android
+SDK no primeiro build — sem stdin conectado, o processo recebe EOF
+imediatamente e falha (`EOFError: EOF when reading a line`). O `-it` conecta
+o terminal para responder `y` manualmente quando solicitado; no bash, o CI
+(ver `.github/workflows/release.yml`) usa `yes y | docker run -i ...` para
+automatizar isso, já que o PowerShell não tem `yes` embutido.
+
+O APK gerado fica em `bin/*.apk`. Ver `buildozer.spec` e `specs/v2/design.md`
+(seção 24) para detalhes da configuração e das receitas locais necessárias.
 
 ## Estrutura
 

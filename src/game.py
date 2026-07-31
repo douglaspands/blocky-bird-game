@@ -1,16 +1,26 @@
 """Classe Game: loop principal e maquina de estados (R6)."""
 
+import contextlib
 from enum import Enum, auto
 
 import pygame
 
-from src import score, textures, ui
+from src import assets, score, textures, ui
 from src.biome import BiomeManager
 from src.bird import Bird
 from src.config import BLOCK, CREDITS, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
-from src.input import ACTION_FLAP, ACTION_MUTE, ACTION_PAUSE, InputManager
+from src.input import (
+    ACTION_BACK,
+    ACTION_FLAP,
+    ACTION_FOCUS_LOST,
+    ACTION_LEFT,
+    ACTION_MUTE,
+    ACTION_PAUSE,
+    ACTION_RIGHT,
+    InputManager,
+)
 from src.particles import ParticleSystem
 from src.pipes import PipeManager
 from src.sounds import SoundManager
@@ -26,7 +36,25 @@ class GameState(Enum):
 class Game:
     def __init__(self) -> None:
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+        # icone da abelha na janela/taskbar do desktop (R21.2); sem efeito
+        # visivel no Android (sem barra de titulo), mas nao ha custo em
+        # tentar. Degradacao graciosa: um asset ausente/corrompido nunca
+        # deve impedir o jogo de abrir (mesma disciplina do audio, R8.4).
+        with contextlib.suppress(OSError, pygame.error):
+            pygame.display.set_icon(pygame.image.load(str(assets.asset_path("app_icon_512.png"))))
+        # SCALED: SDL renderiza numa surface logica fixa 480x720 e escala para a
+        # janela/tela real mantendo a proporcao do JOGO, com letterbox automatico
+        # (barra no topo/base ou nas laterais, conforme o aparelho) e sem cortar
+        # nada da imagem (R9.1, R14.3). Combinado com `orientation = portrait` no
+        # buildozer.spec (o app nunca roda em paisagem no Android — task 41, ver
+        # design.md secao 20.1.5), a tela real fica sempre mais estreita/alongada
+        # que a base 2:3, entao a barra que sobra e sempre letterbox (topo/base),
+        # nunca pillarbox (laterais).
+        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.SCALED | pygame.RESIZABLE)
+        # descarta eventos de janela gerados pela criacao do display (ex.: WindowShown,
+        # WindowFocusGained/Lost) para nao serem lidos como acoes do jogador antes do
+        # loop comecar — visto sob SDL_VIDEODRIVER=dummy com SDL 2.32 (pygame-ce).
+        pygame.event.clear()
         pygame.display.set_caption(f"{TITLE} - {CREDITS}")
         self.clock = pygame.time.Clock()
         self.running = True
@@ -56,6 +84,12 @@ class Game:
         elif self.state == GameState.JOGANDO:
             self.bird.flap()
             self.sounds.play("flap")
+        elif self.state == GameState.PAUSADO:
+            # despausa sem flapar: garante que todo estado seja alcancavel so
+            # com o botao central do D-pad/toque, mesmo sem tecla de pause
+            # dedicada (ESC/P) ou botao Start de gamepad (R14.4, R15.5) — sem
+            # isso, quem pausa via BACK (task 23) ficaria sem como voltar.
+            self.state = GameState.JOGANDO
         elif self.state == GameState.GAME_OVER:
             self.reset()
 
@@ -65,15 +99,35 @@ class Game:
         elif self.state == GameState.PAUSADO:
             self.state = GameState.JOGANDO
 
+    def _back_action(self) -> None:
+        """BACK do Android pausa em JOGANDO; nos demais estados, encerra o
+        jogo (R15.2, R15.3). Fica no Game (que conhece o estado), nao no
+        InputManager, mantendo a separacao acao/estado da v1."""
+        if self.state == GameState.JOGANDO:
+            self._toggle_pause()
+        else:
+            self.running = False
+
     def handle_events(self) -> None:
         actions, quit_requested = self.input.poll()
         if quit_requested:
             self.running = False
+        if ACTION_FOCUS_LOST in actions and self.state == GameState.JOGANDO:
+            # o app foi para segundo plano (ou perdeu foco no desktop): pausa e
+            # nunca retoma sozinho, mesmo quando volta ao primeiro plano (R16.1,
+            # R16.2) — so um flap/pause explicito do jogador despausa.
+            self._toggle_pause()
+        if ACTION_BACK in actions:
+            self._back_action()
         if ACTION_FLAP in actions:
             self._flap_action()
         if ACTION_PAUSE in actions:
             self._toggle_pause()
         if ACTION_MUTE in actions:
+            self.sounds.toggle_mute()
+        if self.state == GameState.PAUSADO and (ACTION_LEFT in actions or ACTION_RIGHT in actions):
+            # D-pad esquerda/direita alterna mudo em PAUSADO — unica forma de
+            # mudar sem tecla M nem toque, para Android TV (R14.4, R15.4).
             self.sounds.toggle_mute()
 
     def _collision_texture(self) -> str | None:
@@ -86,12 +140,18 @@ class Game:
         return None
 
     def _update_score(self) -> None:
-        """+1 por coluna ultrapassada, uma unica vez por coluna (R4.1)."""
+        """+1 por coluna ultrapassada, uma unica vez por coluna (R4.1). Grava o
+        recorde no instante em que e superado, nao so no GAME_OVER — um
+        encerramento abrupto do app pelo Android nao perde o recorde ja
+        alcancado (R4.3, R16.4)."""
         for pipe in self.pipes.pipes:
             if not pipe.scored and pipe.x + PIPE_W < self.bird.pos.x:
                 pipe.scored = True
                 self.score += 1
                 self.sounds.play("score")
+                if self.score > self.highscore:
+                    self.highscore = self.score
+                    score.save_highscore(self.highscore)
 
     def update(self) -> None:
         if self.state == GameState.PRONTO:
@@ -110,9 +170,7 @@ class Game:
                 self.state = GameState.GAME_OVER
                 self.particles.burst(self.bird.rect.center, self.textures[hit_texture])
                 self.sounds.play("hit")
-                if self.score > self.highscore:
-                    self.highscore = self.score
-                    score.save_highscore(self.highscore)
+                # recorde ja foi gravado incrementalmente em _update_score() se superado
         # PAUSADO: fisica, obstaculos, biomas e particulas ficam congelados (R3.3, R6.3).
         if self.state != GameState.PAUSADO:
             self.particles.update()
@@ -126,6 +184,7 @@ class Game:
         self.bird.draw(self.screen, self.textures)
         self.particles.draw(self.screen)
         self.biome.draw_banner(self.screen)
+        ui.draw_mute_icon(self.screen, self.sounds.muted)
 
         if self.state == GameState.PRONTO:
             ui.draw_ready_screen(self.screen, self.highscore)

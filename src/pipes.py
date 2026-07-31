@@ -4,7 +4,8 @@ import random
 
 import pygame
 
-from src.config import BLOCK, GAP_MARGIN, GROUND_H, PIPE_SPACING, PIPE_W, SCREEN_H, SCREEN_W
+from src import config
+from src.config import BLOCK, GAP_MARGIN, PIPE_SPACING, PIPE_W, SCREEN_W
 
 
 class PipePair:
@@ -24,8 +25,7 @@ class PipePair:
     @property
     def bottom_rect(self) -> pygame.Rect:
         top = round(self.gap_y + self.gap_size / 2)
-        ground_y = SCREEN_H - GROUND_H
-        return pygame.Rect(round(self.x), top, PIPE_W, ground_y - top)
+        return pygame.Rect(round(self.x), top, PIPE_W, config.ground_y() - top)
 
     def off_screen(self) -> bool:
         return self.x + PIPE_W < 0
@@ -59,11 +59,14 @@ class PipeManager:
         self._spawn(SCREEN_W, gap_size, block_main, block_edge)
 
     def _spawn(self, x: float, gap_size: int, block_main: str, block_edge: str) -> None:
-        gap_y = random.uniform(GAP_MARGIN, SCREEN_H - GROUND_H - GAP_MARGIN)
+        gap_y = random.uniform(GAP_MARGIN, config.ground_y() - GAP_MARGIN)
         self.pipes.append(PipePair(x, gap_y, gap_size, block_main, block_edge))
 
     def update(self, speed: float, gap_size: int, block_main: str, block_edge: str) -> None:
-        """Move as colunas (R2.3), spawna novas com o bioma atual (R2.1/R2.2/R2.5) e remove as que saem da tela (R2.4)."""
+        """Move as colunas (R2.3), spawna novas com o bioma atual (R2.1/R2.2/R2.5).
+
+        Remove as que saem da tela (R2.4).
+        """
         for pipe in self.pipes:
             pipe.x -= speed
 

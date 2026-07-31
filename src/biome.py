@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pygame
 
 from src import ui
-from src.config import SCREEN_H, SCREEN_W
+from src.config import SCREEN_W
 
 FADE_FRAMES = 60  # <= 1s a 60 FPS (R5.4)
 BANNER_FRAMES = 90
@@ -27,29 +27,56 @@ class Biome:
 
 BIOMES: list[Biome] = [
     Biome(
-        "overworld", "Overworld", 0, 2.5, 160,
-        (135, 206, 235), (200, 230, 245), "dirt", "grass_side", "overworld",
+        "overworld",
+        "Overworld",
+        0,
+        2.5,
+        160,
+        (135, 206, 235),
+        (200, 230, 245),
+        "dirt",
+        "grass_side",
+        "overworld",
     ),
     Biome(
-        "cave", "Cave", 10, 3.0, 145,
-        (25, 25, 35), (60, 58, 70), "stone", "cobblestone", "cave",
+        "cave",
+        "Cave",
+        10,
+        3.0,
+        145,
+        (25, 25, 35),
+        (60, 58, 70),
+        "stone",
+        "cobblestone",
+        "cave",
     ),
     Biome(
-        "nether", "Nether", 25, 3.3, 140,
-        (80, 15, 10), (150, 60, 20), "netherrack", "obsidian", "nether",
+        "nether",
+        "Nether",
+        25,
+        3.3,
+        140,
+        (80, 15, 10),
+        (150, 60, 20),
+        "netherrack",
+        "obsidian",
+        "nether",
     ),
 ]
 
 
 def _lerp_color(c1: tuple[int, int, int], c2: tuple[int, int, int], t: float) -> tuple[int, int, int]:
-    return tuple(round(a + (b - a) * t) for a, b in zip(c1, c2))
+    r, g, b = (round(x + (y - x) * t) for x, y in zip(c1, c2, strict=True))
+    return (r, g, b)
 
 
-def _make_gradient(top: tuple[int, int, int], bottom: tuple[int, int, int]) -> pygame.Surface:
-    surf = pygame.Surface((SCREEN_W, SCREEN_H))
-    for y in range(SCREEN_H):
-        t = y / max(SCREEN_H - 1, 1)
-        pygame.draw.line(surf, _lerp_color(top, bottom, t), (0, y), (SCREEN_W, y))
+def _make_gradient(
+    top: tuple[int, int, int], bottom: tuple[int, int, int], width: int, height: int
+) -> pygame.Surface:
+    surf = pygame.Surface((width, height))
+    for y in range(height):
+        t = y / max(height - 1, 1)
+        pygame.draw.line(surf, _lerp_color(top, bottom, t), (0, y), (width, y))
     return surf
 
 
@@ -63,14 +90,28 @@ def _biome_for_score(score: int) -> Biome:
 
 class BiomeManager:
     def __init__(self) -> None:
-        self._gradients = {b.id: _make_gradient(b.sky_top, b.sky_bottom) for b in BIOMES}
+        self._gradients: dict[str, pygame.Surface] = {}
+        self._gradient_size: tuple[int, int] | None = None
         self.current = BIOMES[0]
         self.previous = BIOMES[0]
         self.fade_timer = 0
         self.banner_timer = 0
 
+    def _ensure_gradients(self, size: tuple[int, int]) -> None:
+        """Regenera os gradientes so quando o tamanho do canvas muda (R14.3) —
+        no Android o canvas real (celular/TV) so e conhecido em runtime, maior
+        que a area jogavel 480x720 quando estica para preencher a tela sem barra."""
+        if self._gradient_size == size:
+            return
+        width, height = size
+        self._gradients = {b.id: _make_gradient(b.sky_top, b.sky_bottom, width, height) for b in BIOMES}
+        self._gradient_size = size
+
     def update(self, score: int) -> bool:
-        """Detecta cruzamento de threshold (R5.1) e ativa fade + banner (R5.4). Retorna True se houve transicao."""
+        """Detecta cruzamento de threshold (R5.1) e ativa fade + banner (R5.4).
+
+        Retorna True se houve transicao.
+        """
         target = _biome_for_score(score)
         if target.id != self.current.id:
             self.previous = self.current
@@ -83,6 +124,7 @@ class BiomeManager:
         return False
 
     def draw_background(self, surface: pygame.Surface) -> None:
+        self._ensure_gradients(surface.get_size())
         current_grad = self._gradients[self.current.id]
         if self.fade_timer > 0:
             prev_grad = self._gradients[self.previous.id]

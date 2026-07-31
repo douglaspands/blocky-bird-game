@@ -2,7 +2,8 @@
 
 import pygame
 
-from src.config import BLOCK, GROUND_H, SCREEN_H, SCREEN_W
+from src import config
+from src.config import BLOCK, GROUND_H, SCREEN_W
 
 
 class Ground:
@@ -14,7 +15,7 @@ class Ground:
 
     @property
     def rect(self) -> pygame.Rect:
-        return pygame.Rect(0, SCREEN_H - GROUND_H, SCREEN_W, GROUND_H)
+        return pygame.Rect(0, config.ground_y(), SCREEN_W, GROUND_H)
 
     def draw(
         self,
@@ -26,13 +27,13 @@ class Ground:
         """Usa sempre as texturas do bioma atual, sem congelamento (R7.3)."""
         main_tex = textures[block_main]
         edge_tex = textures[block_edge]
-        top_y = SCREEN_H - GROUND_H
+        top_y = config.ground_y()
 
         x = round(self.offset) - BLOCK
         while x < SCREEN_W:
             surface.blit(edge_tex, (x, top_y))
             y = top_y + BLOCK
-            while y < SCREEN_H:
+            while y < config.SCREEN_H:
                 surface.blit(main_tex, (x, y))
                 y += BLOCK
             x += BLOCK
