@@ -16,7 +16,9 @@ calibrada na v1 continua exatamente a mesma em qualquer aparelho — o que sobra
 **faixa decorativa**: céu estendido e terra mais funda num celular alongado, corte
 transversal do subsolo nas laterais de um monitor. A área jogável passa a ser lida como um
 poço vertical cortado na terra, com mobs do universo Minecraft (creeper, enderman, ghast e
-outros seis) povoando as faixas sem interagir com o jogo.
+outros seis) povoando as faixas sem interagir com o jogo. As faixas são cenário, mas não são
+zona morta: tocar ou clicar sobre elas vale como toque na área jogável, para que num celular
+alongado o polegar não precise mirar na coluna estreita do meio da tela.
 
 **Desempenho.** O jogo passa a ser renderizado com **aceleração por GPU por padrão**, via
 `pygame._sdl2.video`, com cascata de três níveis para compatibilidade (acelerado → driver
@@ -42,7 +44,7 @@ prompt de exemplo, para que o método seja reproduzível por quem está começan
 
 ## Conteúdo desta pasta
 
-- [`requirements.md`](requirements.md) — requisitos R1–R33 em formato EARS. R1–R13 são o jogo base (v1); R14–R17 são a entrega Android e R18–R21 os aumentos de escopo da v2; **R22–R33 são da v3** (identidade, tela e orientação, preservação da dificuldade, faixas decorativas, GPU, desempenho, timestep, qualidade adaptativa, instrumentação, documentação, rastreabilidade e motivação/método).
+- [`requirements.md`](requirements.md) — requisitos R1–R34 em formato EARS. R1–R13 são o jogo base (v1); R14–R17 são a entrega Android e R18–R21 os aumentos de escopo da v2; **R22–R34 são da v3** (identidade, tela e orientação, preservação da dificuldade, faixas decorativas, GPU, desempenho, timestep, qualidade adaptativa, instrumentação, documentação, rastreabilidade, motivação/método e entrada em toda a área visível).
 - [`design.md`](design.md) — arquitetura técnica. Parte I (seções 1–18) é o jogo base; Parte II (19–25) é Android; Parte III (26–28) é qualidade; Parte IV (29) é o ícone; **Parte V (30–43) é a v3**.
 - [`tasks.md`](tasks.md) — plano incremental. Tasks 1–19 são o histórico da v1; 20–41 são a v2; **tasks 42–73 são a v3**.
 - [`traceability.md`](traceability.md) — matriz critério → design → task → teste, verificada por `tests/test_traceability.py`.
@@ -54,6 +56,7 @@ prompt de exemplo, para que o método seja reproduzível por quem está começan
 | `set_mode` sem `FULLSCREEN`: janela de 480×720 centralizada, barra preta nos quatro lados | Tela cheia na resolução nativa, canvas lógico com a proporção real do aparelho |
 | Barra preta inevitável por descompasso de proporção (2:3 contra ~0,45 no celular e ~1,78 no monitor) | O que sobra vira faixa decorativa temática, em vez de barra |
 | Tentativas anteriores de preencher a tela mudavam a dificuldade (task 39) ou cortavam a cena (task 40) | Área jogável fixa em 480×720 de mundo; só o canvas ao redor é elástico |
+| Toque fora dos 480×720 era descartado (barra de letterbox, zona morta) | A tela inteira é superfície de entrada: qualquer ponto faz voar, só o ícone de mudo é exceção |
 | ~96 desenhos por frame, todos em CPU, nenhuma superfície convertida | Render acelerado por GPU com todo conteúdo estático pré-renderizado |
 | Física por frame: aparelho lento roda o jogo em câmera lenta | Timestep fixo com acumulador; aparelho lento perde só fluidez |
 | ~40 objetos descartados por frame; escrita de JSON dentro do frame | Retângulos e listas persistentes, `gc.freeze()`, persistência no fim da partida ou ao ir para segundo plano |

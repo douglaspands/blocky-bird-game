@@ -391,6 +391,8 @@ ly = (event.y * win_h - off_y) / scale                # -> espaço lógico 480x7
 
 - Toque fora da área lógica (na barra de letterbox) é ignorado — não dispara `flap` nem `mute`; toque no ícone de mudo alterna mudo; qualquer outro toque na área de jogo emite `flap` (R15.1, R15.4).
 
+> **Revogado na v3 (R34, seção 32.8).** O descarte por área descrito acima vale enquanto o espaço fora do jogo for barra preta de letterbox. Na v3 esse espaço vira faixa decorativa desenhada, e o toque sobre ela passa a valer como toque na área jogável — o único recorte que sobra é contra o canvas inteiro.
+
 **Descoberto na implementação (task 23): o `MOUSEBUTTONDOWN` sintetizado pelo toque real precisa do MESMO hit-test do ícone.** Se `MOUSEBUTTONDOWN` continuasse mapeando para `flap` incondicionalmente (como na v1), tocar no ícone de mudo no Android dispararia **os dois** eventos — `FINGERDOWN` (mudo, correto) e o `MOUSEBUTTONDOWN` sintético (flap, incorreto) — no mesmo frame. Resolvido com um `_handle_tap(actions, lx, ly)` único, chamado por ambos os handlers: com `pygame.SCALED` em uso, `MOUSEBUTTONDOWN` passa `event.pos` direto (já convertido para o espaço lógico pelo próprio SDL); `FINGERDOWN` passa pela conversão manual acima. `ui.MUTE_ICON_RECT` fica em `ui.py`, junto do `draw_mute_icon()` que o desenha, e `input.py` importa essa geometria para o hit-test — mantendo desenho e posição do botão como uma única fonte de verdade.
 
 ### 21.2 Botão BACK (R15.2, R15.3)
@@ -972,7 +974,9 @@ Para conferir a proporção de um celular sem aparelho, a variável de ambiente 
 
 Sem `pygame.SCALED`, o SDL deixa de converter as coordenadas do mouse para o espaço lógico — na v2, `input.py` dependia disso (`# com pygame.SCALED, event.pos já vem em coordenadas lógicas`). Na v3 a conversão passa a vir do renderizador (`to_logical`, seção 33), que usa `Renderer.coordinates_from_window` no caminho de GPU e a `scale.fit_scale` já existente no caminho de superfície. Mouse e toque passam a usar o mesmo caminho, e `input.py` deixa de ter dois tratamentos diferentes.
 
-Toque sobre faixa decorativa é ignorado (R25.6), com a mesma regra que a v2 já aplicava à barra de letterbox — só que agora o teste é contra `viewport.play`, e o botão de mudo é exceção por estar deliberadamente posicionado na faixa de céu (R15.4, R25.7).
+**Toque sobre faixa decorativa não é ignorado (R34.1).** A regra da v2 — descartar o que caísse fora dos 480×720 — existia porque ali não havia nada: a barra de letterbox era moldura morta do SDL, e um toque nela era ruído, não intenção. Na v3 a faixa é conteúdo desenhado do jogo e, num celular 20:9, ocupa mais tela que a própria área jogável — justamente onde o polegar cai. Transportar a regra antiga transformaria a maior parte da tela em zona morta, que é o problema que esta versão se propôs a resolver.
+
+Some, portanto, o teste contra `viewport.play`. Sobram dois recortes de área, ambos estreitos: o hit-test do ícone de mudo, que continua sendo exceção por estar deliberadamente posicionado na faixa de céu (R15.4, R25.7), e o descarte de coordenada fora do **canvas** (R34.3) — que só ocorre por arredondamento da conversão, já que o canvas cobre a tela inteira por construção (seção 32.3). Mouse e toque seguem o mesmo caminho `renderer.to_logical`, agora sem nenhuma regra de área divergente entre eles (R34.2): o mesmo ponto físico produz a mesma ação no celular e no PC.
 
 ## 33. Camada de renderização e aceleração por GPU (R26)
 

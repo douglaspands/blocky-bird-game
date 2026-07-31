@@ -4,7 +4,7 @@
 
 Blocky Bee é um clone de Flappy Bird em Python/Pygame com temática Minecraft. O jogador controla uma abelha voxel que voa entre colunas de blocos, com progressão de biomas (Overworld → Cave → Nether), efeitos sonoros e partículas de blocos. Todos os gráficos e sons são gerados por código — sem assets externos ou material protegido da Mojang.
 
-**Escopo da v3:** além de tudo que a v1 e a v2 entregaram (jogo completo para desktop e para Android, ver `specs/v1/` e `specs/v2/`), a v3 ataca cinco frentes. (1) **Identidade:** o jogo passa a se chamar **Blocky Bee** — o personagem sempre foi uma abelha, e o nome antigo ("Bird") era herança do gênero, não do jogo. (2) **Aproveitamento de tela:** a barra preta que sobrava em todo aparelho — nos quatro lados no Android, nas laterais num monitor maximizado — é eliminada em todos os sistemas operacionais, sem cortar a cena e **sem alterar a dificuldade**: a área jogável continua sendo exatamente a mesma coluna de 480×720 de mundo, e o espaço que sobra vira faixa decorativa com temática Minecraft (céu estendido, terra mais funda, corte transversal do subsolo e mobs que não interagem com o jogo). (3) **Desempenho:** o jogo passa a ser renderizado com aceleração por GPU por padrão, com todo o conteúdo estático pré-renderizado, pressão de coletor de lixo reduzida e taxa de quadros independente do aparelho — o Android da v2 sofria com queda de FPS e com física em câmera lenta quando não sustentava 60 FPS. (4) **Documentação:** toda classe e função pública passa a ter docstring obrigatória, verificada em CI, e o projeto ganha um site de documentação que publica a API junto com os documentos de spec. (5) **Rigor de SDD:** matriz de rastreabilidade ligando cada critério de aceitação ao design, à tarefa e ao teste que o prova, verificada por teste automatizado, mais cobertura mínima no CI, e um README que explica a motivação do projeto e o método. O desktop continua suportado; nenhum requisito da v1 ou da v2 é removido.
+**Escopo da v3:** além de tudo que a v1 e a v2 entregaram (jogo completo para desktop e para Android, ver `specs/v1/` e `specs/v2/`), a v3 ataca cinco frentes. (1) **Identidade:** o jogo passa a se chamar **Blocky Bee** — o personagem sempre foi uma abelha, e o nome antigo ("Bird") era herança do gênero, não do jogo. (2) **Aproveitamento de tela:** a barra preta que sobrava em todo aparelho — nos quatro lados no Android, nas laterais num monitor maximizado — é eliminada em todos os sistemas operacionais, sem cortar a cena e **sem alterar a dificuldade**: a área jogável continua sendo exatamente a mesma coluna de 480×720 de mundo, e o espaço que sobra vira faixa decorativa com temática Minecraft (céu estendido, terra mais funda, corte transversal do subsolo e mobs que não interagem com o jogo). A tela inteira também passa a valer como superfície de entrada: tocar sobre a faixa decorativa faz o pássaro voar como se o toque tivesse caído na área jogável, para que nenhuma parte da tela do celular seja zona morta. (3) **Desempenho:** o jogo passa a ser renderizado com aceleração por GPU por padrão, com todo o conteúdo estático pré-renderizado, pressão de coletor de lixo reduzida e taxa de quadros independente do aparelho — o Android da v2 sofria com queda de FPS e com física em câmera lenta quando não sustentava 60 FPS. (4) **Documentação:** toda classe e função pública passa a ter docstring obrigatória, verificada em CI, e o projeto ganha um site de documentação que publica a API junto com os documentos de spec. (5) **Rigor de SDD:** matriz de rastreabilidade ligando cada critério de aceitação ao design, à tarefa e ao teste que o prova, verificada por teste automatizado, mais cobertura mínima no CI, e um README que explica a motivação do projeto e o método. O desktop continua suportado; nenhum requisito da v1 ou da v2 é removido.
 
 **Escopo da v2 (mantido):** além de tudo que a v1 entregou (jogo completo para desktop, ver `specs/v1/`), a v2 torna o jogo jogável em Android — celular/tablet, sempre em orientação retrato — no maior número possível de aparelhos, distribuído como APK instalável diretamente. Inclui também itens de qualidade e apresentação que não mudam o gameplay, adicionados como aumento de escopo após a entrega Android: (1) todo o código Python do projeto passa a ser verificado pela ferramenta `ruff` (lint + formatação), com conformidade obrigatória e checada em CI; (2) calibração do tamanho da fonte bitmap própria (R7.6), que estava grande demais em várias telas a ponto de textos se sobreporem entre si ou com outros elementos de UI; (3) um ícone do aplicativo com a personagem do jogo (a abelha voxel, R7.2), gerado por código, para a janela/executável do desktop e para o launcher do Android — incluindo o formato de **ícone adaptativo** exigido desde o Android 8.0 (API 26), para que a abelha não fique cortada nem distorcida pelas diferentes máscaras de ícone dos fabricantes (círculo, "squircle", quadrado arredondado). O desktop continua suportado; nenhum requisito da v1 é removido.
 
@@ -172,7 +172,7 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 
 ### Critérios de aceitação
 
-1. QUANDO o jogador toca em qualquer ponto da área de jogo, O sistema DEVE executar a ação de voar/iniciar/reiniciar — equivalente a ESPAÇO (R1.1, R3.4, R6.2).
+1. QUANDO o jogador toca em qualquer ponto da tela — área jogável ou faixa decorativa (R34.1) —, O sistema DEVE executar a ação de voar/iniciar/reiniciar — equivalente a ESPAÇO (R1.1, R3.4, R6.2).
 2. QUANDO o jogador aciona o botão BACK do Android durante JOGANDO, O sistema DEVE pausar o jogo (em vez de encerrar o app).
 3. QUANDO o jogador aciona o botão BACK do Android em PRONTO, PAUSADO ou GAME_OVER, O sistema DEVE encerrar o jogo.
 4. O sistema DEVE oferecer forma de alternar mudo sem teclado físico: um controle de mudo tocável na tela (celular), além do botão Y do gamepad já previsto em R10.3.
@@ -310,7 +310,7 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 3. O sistema DEVE exibir mobs decorativos do universo Minecraft nas faixas, com pelo menos três variedades por bioma, todos gerados por código a partir das mesmas paletas do jogo (R7.1), sem imagem externa nem material de terceiros.
 4. Os mobs e o conteúdo das faixas NÃO DEVEM colidir com o pássaro, gerar pontuação, alterar a velocidade do jogo nem influenciar qualquer regra — são exclusivamente decorativos.
 5. O céu, as camadas de parallax (R7.4) e o chão DEVEM ser desenhados na largura inteira do canvas, para que a cena seja contínua de uma borda à outra.
-6. QUANDO o jogador toca ou clica sobre uma faixa decorativa, O sistema DEVE ignorar a entrada, salvo quando o ponto cair sobre um controle de interface ali posicionado (R15.4).
+6. QUANDO o jogador toca ou clica sobre uma faixa decorativa, O sistema DEVE tratar a entrada como se ela tivesse ocorrido na área jogável (R34.1), salvo quando o ponto cair sobre um controle de interface ali posicionado (R15.4).
 7. QUANDO existe faixa de céu acima da área jogável, O sistema DEVE posicionar a pontuação do HUD e o botão de mudo nela, liberando a área de jogo.
 
 ---
@@ -427,6 +427,20 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 3. O `README.md` DEVE incluir um prompt de exemplo, pronto para uso, que planejaria e construiria um projeto como este seguindo o método.
 4. O prompt de exemplo DEVE combinar a definição de produto (objetivo, público, user stories, critérios de aceitação, fora de escopo) com a definição técnica (stack, ferramental, estrutura, restrições e protocolo de trabalho).
 5. O prompt de exemplo DEVE vir acompanhado de explicação sobre o porquê de cada parte, e DEVE ser genérico o bastante para servir de ponto de partida para outros projetos.
+
+---
+
+## R34 — Entrada em toda a área visível
+
+**User story:** Como jogador de celular, quero tocar em qualquer ponto da tela para voar, para não precisar mirar com o polegar na coluna estreita da área jogável.
+
+### Critérios de aceitação
+
+1. QUANDO o jogador toca ou clica em qualquer ponto do canvas — incluindo as faixas decorativas de R25 —, O sistema DEVE executar a ação de voar/iniciar/reiniciar, exceto quando o ponto cair sobre um controle de interface (R15.4).
+2. O sistema DEVE aplicar a mesma regra ao toque do Android e ao clique de mouse do desktop, sem ramificação por plataforma (extensão de R15.5).
+3. SE o ponto convertido para coordenadas lógicas cair fora do canvas, O sistema DEVE ignorar a entrada.
+4. QUANDO o jogo está em PRONTO, PAUSADO ou GAME_OVER, a entrada sobre faixa decorativa DEVE ter o mesmo efeito que teria sobre a área jogável (R6.2, R3.4).
+5. O sistema NÃO DEVE, por receber entrada, dar à faixa decorativa qualquer outro papel de jogo — colisão, pontuação e velocidade seguem inalteradas (reafirma R25.4).
 
 ---
 

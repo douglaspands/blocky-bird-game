@@ -313,7 +313,7 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
   `bird`, `pipes`, `ground`, `decor`, `particles`, `biome` e `ui` deixam de receber `pygame.Surface` e passam a receber `Renderer`. Introduzir um `FakeRenderer` de teste que registra as chamadas, e converter `tests/test_ui_layout.py`, `tests/test_decor.py` e a parte afetada de `tests/test_game.py` para afirmar sobre chamadas em vez de inspecionar pixels. _(R26.4)_
 
 - [ ] **51. Entrada: conversão de coordenadas pelo backend**
-  `input.py` passa a converter mouse e toque pelo mesmo caminho (`renderer.to_logical`), eliminando o tratamento assimétrico da v2 (que dependia de `pygame.SCALED` pré-converter o mouse). Toque sobre faixa decorativa é ignorado, com o teste contra `viewport.play`, exceto sobre o ícone de mudo deliberadamente posicionado na faixa de céu. Testes: clique e toque no mesmo ponto físico produzem a mesma ação; toque na faixa lateral não voa; toque no ícone de mudo alterna o mudo mesmo estando fora da área jogável. _(R25.6, R15.1, R15.4)_
+  `input.py` passa a converter mouse e toque pelo mesmo caminho (`renderer.to_logical`), eliminando o tratamento assimétrico da v2 (que dependia de `pygame.SCALED` pré-converter o mouse). O recorte de área deixa de ser contra a área jogável: toque ou clique em qualquer ponto do canvas, faixa decorativa inclusive, dispara a ação de voar (seção 32.8) — o hit-test do ícone de mudo é a única exceção, e só coordenada fora do canvas é descartada. Testes: clique e toque no mesmo ponto físico produzem a mesma ação; toque na faixa lateral e na faixa de céu voam; toque no ícone de mudo alterna o mudo em vez de voar; coordenada fora do canvas é ignorada; em PRONTO e em GAME_OVER o toque na faixa inicia e reinicia a partida. _(R34.1, R34.2, R34.3, R34.4, R25.6, R15.1, R15.4)_
 
 ### Bloco E — Atlas pré-renderizado
 
@@ -405,8 +405,9 @@ Verificável automaticamente / no desktop:
 - [ ] Nenhuma constante de física ou de bioma alterada (R24.2) — inspeção + testes de física da v1/v2 ainda verdes
 - [ ] Coluna nasce em `play.right` e não aparece fora da área jogável (R24.3, R24.4) — `tests/test_pipes.py`
 - [ ] Teto do voo na borda da área jogável, não do canvas (R24.5) — `tests/test_bird.py`
-- [ ] Mobs sempre fora da área jogável, sem efeito em colisão ou pontuação (R25.4) — `tests/test_mobs.py`
-- [ ] Toque em faixa decorativa ignorado, exceto no ícone de mudo (R25.6) — `tests/test_input.py`
+- [ ] Mobs sempre fora da área jogável, sem efeito em colisão ou pontuação (R25.4, R34.5) — `tests/test_mobs.py`
+- [ ] Toque/clique em faixa decorativa dispara a ação de voar, com o ícone de mudo como única exceção (R25.6, R34.1, R34.4) — `tests/test_input.py`
+- [ ] Mouse e toque no mesmo ponto produzem a mesma ação; coordenada fora do canvas é ignorada (R34.2, R34.3) — `tests/test_input.py`
 - [ ] Cascata de render cai de nível sem levantar exceção (R26.2, R26.3) — `tests/test_render.py`
 - [ ] Zero `transform.rotate`, `random.Random` ou Surface nova durante o desenho (R27.2, R27.3) — `tests/test_render.py`
 - [ ] Sem escrita em disco durante JOGANDO (R27.5) — `tests/test_game.py`
@@ -427,6 +428,7 @@ Requer aparelho Android real:
 - [ ] Display em tela cheia na resolução nativa (R23.3)
 - [ ] O app não gira ao virar o aparelho (R23.5)
 - [ ] Faixas decorativas e mobs visíveis e coerentes com o bioma (R25.1, R25.2, R25.3)
+- [ ] Toque em qualquer ponto da tela, faixas decorativas inclusive, faz a abelha voar (R34.1)
 - [ ] Backend acelerado em uso, mostrado na sobreposição (R26.1, R26.5)
 - [ ] 60 FPS sustentado em JOGANDO no aparelho de referência (R27.1)
 - [ ] Dificuldade percebida igual à do desktop (R24)
