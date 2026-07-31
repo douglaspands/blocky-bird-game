@@ -17,6 +17,7 @@ Ver specs/v3/design.md secao 32.
 """
 
 import os
+import warnings
 from dataclasses import dataclass
 
 import pygame
@@ -44,6 +45,14 @@ visual no PC ser representativa do celular."""
 ENV_CANVAS = "BLOCKY_CANVAS"
 """`BLOCKY_CANVAS=LxA` forca o canvas, para conferir a proporcao de um celular sem
 aparelho. Ferramenta de desenvolvimento, no mesmo espirito de `BLOCKY_PERF`."""
+
+ENV_ORIENTATION = "SDL_IOS_ORIENTATIONS"
+"""Nome de ambiente do hint `SDL_HINT_ORIENTATIONS` do SDL2.
+
+O prefixo `IOS` e historico: a documentacao do proprio SDL descreve o hint como
+"which orientations are allowed on iOS/Android". Escrever `SDL_HINT_ORIENTATIONS`
+no ambiente nao teria efeito nenhum — esse e o nome da macro em C, e `SDL_GetHint`
+procura pela string para a qual ela aponta, que e esta."""
 
 
 @dataclass(frozen=True)
@@ -161,6 +170,32 @@ def screen_size() -> tuple[int, int]:
         if sizes:
             return sizes[0]
     return DESKTOP_WINDOW
+
+
+def lock_portrait_orientation() -> None:
+    """Trava a orientacao em retrato pelo lado do SDL. Chamar ANTES de `pygame.init()`.
+
+    Reforca o `orientation = portrait` que o `buildozer.spec` ja declara: o manifesto
+    convence o Android, este hint convence o SDL, e o jogo nunca gira quando o
+    aparelho e virado (R23.5). Nao sobrescreve um valor ja definido no ambiente, para
+    continuar sendo possivel investigar paisagem sem editar codigo."""
+    os.environ.setdefault(ENV_ORIENTATION, "Portrait")
+
+
+def restore_window_size(size: tuple[int, int]) -> None:
+    """Devolve a janela ao tamanho que o jogador tinha arrastado.
+
+    Recriar o display para trocar o canvas cria a janela do tamanho do canvas
+    (seção 32.7); sem isto, arrastar uma janela para 1920x1080 a veria encolher para
+    os 1280x720 do canvas. Com `SCALED`, tamanho de janela e tamanho de canvas sao
+    independentes — e o SDL escala um para o outro."""
+    with warnings.catch_warnings():
+        # pygame-ce avisa que misturar `Window` com o desenho via `display` esta
+        # depreciado. Aqui a `Window` e usada so para redimensionar; o desenho segue
+        # em `display` ate a camada de render entrar (task 49).
+        warnings.simplefilter("ignore", DeprecationWarning)
+        window = pygame.Window.from_display_module()  # ty: ignore[deprecated]
+    window.size = size
 
 
 def display_flags() -> int:

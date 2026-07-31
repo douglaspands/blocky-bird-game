@@ -19,12 +19,17 @@ from src.input import (
     ACTION_LEFT,
     ACTION_MUTE,
     ACTION_PAUSE,
+    ACTION_RESIZE,
     ACTION_RIGHT,
     InputManager,
 )
 from src.particles import ParticleSystem
 from src.pipes import PipeManager
 from src.sounds import SoundManager
+
+RESIZE_SETTLE_FRAMES = 12
+"""Frames sem novo evento de redimensionamento antes de aplicar o novo canvas —
+~200ms a 60 FPS, o bastante para o arrasto assentar sem parecer travado."""
 
 
 class GameState(Enum):
@@ -36,13 +41,9 @@ class GameState(Enum):
 
 class Game:
     def __init__(self) -> None:
+        # antes do init: o SDL le o hint de orientacao ao criar o subsistema de video
+        viewport.lock_portrait_orientation()
         pygame.init()
-        # icone da abelha na janela/taskbar do desktop (R21.2); sem efeito
-        # visivel no Android (sem barra de titulo), mas nao ha custo em
-        # tentar. Degradacao graciosa: um asset ausente/corrompido nunca
-        # deve impedir o jogo de abrir (mesma disciplina do audio, R8.4).
-        with contextlib.suppress(OSError, pygame.error):
-            pygame.display.set_icon(pygame.image.load(str(assets.asset_path("app_icon_512.png"))))
         # O canvas logico recebe a proporcao REAL da tela (Android) ou da janela
         # (desktop), com a area jogavel de 480x720 posicionada dentro dele — o que
         # sobra vira faixa decorativa, nunca barra preta (R23.1, R23.4). Como a
@@ -51,12 +52,9 @@ class Game:
         # consulta para se posicionar.
         self.viewport = viewport.compute(*viewport.screen_size())
         config.set_viewport(self.viewport)
-        self.screen = pygame.display.set_mode(self.viewport.canvas, viewport.display_flags())
-        # descarta eventos de janela gerados pela criacao do display (ex.: WindowShown,
-        # WindowFocusGained/Lost) para nao serem lidos como acoes do jogador antes do
-        # loop comecar — visto sob SDL_VIDEODRIVER=dummy com SDL 2.32 (pygame-ce).
-        pygame.event.clear()
-        pygame.display.set_caption(f"{TITLE} - {CREDITS}")
+        self._open_display()
+        self._pending_resize: tuple[int, int] | None = None
+        self._resize_idle = 0
         self.clock = pygame.time.Clock()
         self.running = True
         self.textures = textures.generate_all(BLOCK)
@@ -70,6 +68,55 @@ class Game:
         # entao o custo normal e uma comparacao contra None por frame.
         self.profiler = perf.FrameProfiler() if perf.enabled() else None
         self.reset()
+
+    def _open_display(self) -> None:
+        """Cria (ou recria) o display para o viewport ativo."""
+        # icone da abelha na janela/taskbar do desktop (R21.2); sem efeito
+        # visivel no Android (sem barra de titulo), mas nao ha custo em
+        # tentar. Degradacao graciosa: um asset ausente/corrompido nunca
+        # deve impedir o jogo de abrir (mesma disciplina do audio, R8.4).
+        with contextlib.suppress(OSError, pygame.error):
+            pygame.display.set_icon(pygame.image.load(str(assets.asset_path("app_icon_512.png"))))
+        self.screen = pygame.display.set_mode(self.viewport.canvas, viewport.display_flags())
+        pygame.display.set_caption(f"{TITLE} - {CREDITS}")
+        # descarta eventos de janela gerados pela criacao do display (ex.: WindowShown,
+        # WindowFocusGained/Lost) para nao serem lidos como acoes do jogador antes do
+        # loop comecar — visto sob SDL_VIDEODRIVER=dummy com SDL 2.32 (pygame-ce).
+        pygame.event.clear()
+
+    def apply_resize(self, size: tuple[int, int]) -> None:
+        """Recalcula o canvas e as faixas para uma janela `size` (R23.6).
+
+        A area jogavel nao muda: continua sendo a mesma coluna de 480x720 de mundo,
+        so o canvas ao redor e elastico (R24.1). Os caches de faixa e de gradiente se
+        invalidam sozinhos, porque sao chaveados pelo tamanho do canvas.
+
+        Trocar o canvas logico do `SCALED` exige recriar o display, e recriar sem o
+        `display.quit()/init()` aborta o processo no pygame-ce 2.5.7 — medido tanto
+        no driver do Windows quanto no `dummy`. Quando a camada de render entrar
+        (task 49), isto vira `renderer.logical_size = viewport.canvas` e todo o
+        rodeio desaparece."""
+        new_viewport = viewport.compute(*size)
+        if new_viewport.canvas == self.viewport.canvas:
+            return
+        self.viewport = new_viewport
+        config.set_viewport(new_viewport)
+        pygame.display.quit()
+        pygame.display.init()
+        self._open_display()
+        viewport.restore_window_size(size)
+
+    def _tick_resize(self) -> None:
+        """Aplica o redimensionamento pendente quando o arrasto para.
+
+        Sem esperar o arrasto assentar, cada pixel de uma janela sendo arrastada
+        recriaria o display — dezenas de vezes por segundo."""
+        if self._pending_resize is None:
+            return
+        self._resize_idle += 1
+        if self._resize_idle >= RESIZE_SETTLE_FRAMES:
+            size, self._pending_resize = self._pending_resize, None
+            self.apply_resize(size)
 
     def reset(self) -> None:
         play = config.play()
@@ -119,6 +166,10 @@ class Game:
         actions, quit_requested = self.input.poll()
         if quit_requested:
             self.running = False
+        if ACTION_RESIZE in actions:
+            self._pending_resize = pygame.display.get_window_size()
+            self._resize_idle = 0
+        self._tick_resize()
         if ACTION_FOCUS_LOST in actions and self.state == GameState.JOGANDO:
             # o app foi para segundo plano (ou perdeu foco no desktop): pausa e
             # nunca retoma sozinho, mesmo quando volta ao primeiro plano (R16.1,

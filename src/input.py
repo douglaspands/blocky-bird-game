@@ -23,6 +23,7 @@ ACTION_BACK = "back"
 ACTION_FOCUS_LOST = "focus_lost"
 ACTION_LEFT = "left"
 ACTION_RIGHT = "right"
+ACTION_RESIZE = "resize"
 
 # eventos de ciclo de vida do app (R16.1): WINDOWFOCUSLOST cobre o desktop (alt-tab)
 # como fallback nas plataformas que nao emitem os eventos de app do SDL.
@@ -74,6 +75,10 @@ class InputManager:
                 quit_requested = True
             elif event.type in FOCUS_LOST_EVENTS:
                 actions.add(ACTION_FOCUS_LOST)
+            elif event.type == pygame.WINDOWRESIZED:
+                # so acontece no desktop: no Android a janela e a tela inteira e a
+                # orientacao esta travada (R23.5, R23.6).
+                actions.add(ACTION_RESIZE)
             elif event.type == pygame.KEYDOWN:
                 if event.key in FLAP_KEYS:
                     actions.add(ACTION_FLAP)

@@ -343,8 +343,26 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 
   **Validado:** suíte completa (173 testes) verde; `ruff check`, `ruff format --check` e `ty check` sem violações. Conferência visual no canvas 960×720 nos três biomas, mais uma verificação ponto a ponto do material na emenda: em Overworld, Cave e Nether o bloco da faixa e o do chão da área jogável são o mesmo em toda a altura da junção (variam só no ruído interno da textura, que é por construção).
 
-- [ ] **48. Retrato travado e recomputação em redimensionamento**
+- [x] **48. Retrato travado e recomputação em redimensionamento**
   Definir `SDL_HINT_ORIENTATIONS=Portrait` antes do `pygame.init()`, reforçando no lado do SDL o `orientation = portrait` que o `buildozer.spec` já declara. No desktop, tratar `WINDOWRESIZED` recalculando o `Viewport` e reconstruindo o atlas. Verificar no APK construído (task 72) que o `AndroidManifest.xml` traz `android:screenOrientation="portrait"`, com a mesma disciplina de inspeção do `.apk` usada na task 37. Testes: um evento de redimensionamento sintético produz um `Viewport` novo e coerente, e a área jogável permanece 480×720 depois dele. _(R23.5, R23.6)_
+
+  **Ajuste 1 — o nome do hint no plano não é o nome que o SDL lê.** `SDL_HINT_ORIENTATIONS` é o nome da macro em C; a string que ela contém, e que `SDL_GetHint` procura no ambiente, é `SDL_IOS_ORIENTATIONS` (`#define SDL_HINT_ORIENTATIONS "SDL_IOS_ORIENTATIONS"`, conferido no cabeçalho do SDL2). O prefixo `IOS` é histórico — a própria documentação do SDL descreve o hint como "which orientations are allowed on iOS/Android". Exportar o nome da macro não teria efeito nenhum, e o silêncio seria total. Não é verificável localmente: a build do SDL2 para Windows nem contém essa string, porque quem a lê são os backends de Android e iOS.
+
+  **Ajuste 2 — "reconstruindo o atlas" ainda não se aplica.** O atlas nasce no bloco E. Hoje os caches que dependem do canvas — faixas laterais e gradientes de bioma — são chaveados pelo tamanho, então se invalidam sozinhos quando o canvas muda; não houve o que invalidar à mão.
+
+  **Descoberto na implementação — trocar o canvas do `SCALED` exige recriar o display, e recriar tem armadilha.** Medido: o **terceiro** `set_mode(SCALED)` de um processo **aborta o interpretador** no pygame-ce 2.5.7, sem exceção para capturar, tanto no driver `windows` quanto no `dummy`. Com `display.quit()` + `display.init()` antes de cada recriação, seis ciclos seguidos funcionam — é a mesma limitação de um renderizador SDL por processo que o `conftest.py` documenta desde a v2 (design seção 20.2). Quando a camada de render entrar (task 49), isto vira `renderer.logical_size = viewport.canvas` e o rodeio inteiro desaparece.
+
+  **Descoberto na implementação — recriar o display encolhe a janela.** `set_mode(canvas)` cria a janela do tamanho do canvas, então arrastar para 1920×1080 faria a janela pular para os 1280×720 do canvas: o redimensionamento pareceria quebrado. `viewport.restore_window_size()` devolve o tamanho arrastado via `pygame.Window.from_display_module()` — a mesma ponte que o design já prevê para a task 49. Com `SCALED`, tamanho de janela e tamanho de canvas são independentes, e é justamente isso que se está usando.
+
+  **Debounce.** Cada pixel de um arrasto emite um `WINDOWRESIZED`; aplicar todos recriaria o display dezenas de vezes por segundo. O novo canvas só é aplicado depois de `RESIZE_SETTLE_FRAMES` (12, ~200ms a 60 FPS) sem evento novo, e um evento durante a espera reinicia a contagem — só o tamanho final chega ao `set_mode`.
+
+  **Limite conhecido:** numa janela mais baixa que os 720px da área jogável, o SDL não permite que ela fique menor que o canvas lógico, e a altura para em 720. É coerente com o canvas nunca encolher abaixo da área jogável (R23.4), então foi mantido.
+
+  **Testes (8 novos, `tests/test_resize.py`):** o hint de retrato é definido e não sobrescreve um valor já presente no ambiente (investigar paisagem não deve exigir editar código); um `WINDOWRESIZED` sintético vira ação de redimensionamento; aplicar 1920×1080 produz canvas 1280×720 com a área jogável intacta e o `config` enxergando o novo canvas; aplicar 1080×2400 recalcula as faixas, não só o tamanho; uma janela maior na mesma proporção não recria o display; e o debounce só aplica depois que o arrasto assenta, com o reinício da contagem a cada evento novo.
+
+  **Validado:** suíte completa (181 testes) verde; `ruff check`, `ruff format --check` e `ty check` sem violações. Exercitado também no driver real do Windows, fora do `dummy`: quatro redimensionamentos consecutivos (1920×1080, 1000×1400, 1400×700, 960×720) recalculam canvas e faixas, mantêm a área jogável em 480×720 e preservam o tamanho da janela, sem travar.
+
+  **Não verificável neste ambiente:** a trava de orientação em aparelho real e o `android:screenOrientation="portrait"` no `AndroidManifest.xml` do APK — task 72.
 
 ### Bloco D — Render acelerado por GPU
 
@@ -447,6 +465,7 @@ Verificável automaticamente / no desktop:
 - [x] Nenhuma constante de física ou de bioma alterada (R24.2) — inspeção + testes de física da v1/v2 ainda verdes, mais `tests/test_bands.py::test_fall_is_identical_in_both_canvases`
 - [x] Coluna nasce em `play.right` e não aparece fora da área jogável (R24.3, R24.4) — `tests/test_bands.py`
 - [x] Teto do voo na borda da área jogável, não do canvas (R24.5) — `tests/test_bands.py`
+- [x] Redimensionar a janela recalcula canvas e faixas, mantendo a área jogável (R23.6) — `tests/test_resize.py`
 - [ ] Mobs sempre fora da área jogável, sem efeito em colisão ou pontuação (R25.4, R34.5) — `tests/test_mobs.py`
 - [ ] Toque/clique em faixa decorativa dispara a ação de voar, com o ícone de mudo como única exceção (R25.6, R34.1, R34.4) — `tests/test_input.py`
 - [ ] Mouse e toque no mesmo ponto produzem a mesma ação; coordenada fora do canvas é ignorada (R34.2, R34.3) — `tests/test_input.py`
