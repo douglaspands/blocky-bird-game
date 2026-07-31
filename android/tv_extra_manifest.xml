@@ -1,5 +1,0 @@
-<!-- Injetado via android.extra_manifest_xml no buildozer.spec, direto dentro
-     do elemento <manifest>. Declara que o app nao exige tela de toque, para
-     ser reconhecido como compativel com Android TV (R14.1, R17.3). -->
-<uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-<uses-feature android:name="android.software.leanback" android:required="false" />

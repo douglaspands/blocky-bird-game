@@ -56,22 +56,20 @@ para Windows e Linux automaticamente e anexa aos assets da release:
 
 - `BlockyBird-windows-x64-<tag>.zip`
 - `BlockyBird-linux-x64-<tag>.tar.bz2`
-- `BlockyBird-android-universal-<tag>.apk` (Android — celular e Android TV, ver abaixo)
+- `BlockyBird-android-universal-<tag>.apk` (Android — celular/tablet, sempre em retrato, ver abaixo)
 
-## Instalar no Android (celular ou TV)
+## Instalar no Android (celular)
 
 1. Baixe `BlockyBird-android-universal-<tag>.apk` dos assets da Release desejada.
 2. No aparelho, abra o arquivo baixado e permita a instalação de "fontes
    desconhecidas" quando solicitado (o app não vem de uma loja, então o Android
    pede essa confirmação uma vez por origem).
-3. Toque no ícone "Blocky Bird" para abrir. Em Android TV, o app aparece na home
-   com o próprio banner do jogo.
+3. Toque no ícone "Blocky Bird" para abrir.
 
-Controles no celular: toque em qualquer ponto da tela para voar/reiniciar; o
-ícone de mudo no canto silencia o áudio; o botão BACK do sistema pausa durante o
-jogo e fecha o app nas outras telas. Em Android TV, o jogo é 100% operável pelo
-controle remoto: OK/Enter para voar, D-pad ←/→ para mudo na tela de pausa, e
-BACK com o mesmo comportamento do celular — não é necessário toque nem teclado.
+Controles: toque em qualquer ponto da tela para voar/reiniciar; o ícone de mudo
+no canto silencia o áudio; o botão BACK do sistema pausa durante o jogo e fecha
+o app nas outras telas. O app roda sempre em orientação retrato, mesmo girando
+o aparelho.
 
 Requisitos: Android 5.0 (API 21) ou superior.
 

@@ -10,7 +10,7 @@ source.exclude_dirs = tests,specs,.venv,dist,build,.git,.github,__pycache__,p4a-
 version = 0.2.0
 requirements = python3,pygame-ce,android
 
-orientation = all
+orientation = portrait
 fullscreen = 1
 
 # receita local do pygame-ce: a oficial nao esta mergeada no p4a upstream
@@ -28,17 +28,6 @@ p4a.bootstrap = sdl2
 # 'spawn'". v2024.01.21 e a ultima release antes dessa mudanca. Ver
 # specs/v2/design.md secao 24.1 para o relato completo desta investigacao.
 p4a.branch = v2024.01.21
-
-# Android TV: sem tela de toque obrigatoria + categoria leanback launcher (R17.3)
-android.extra_manifest_xml = ./android/tv_extra_manifest.xml
-android.manifest.intent_filters = ./android/tv_intent_filter.xml
-# android.extra_manifest_application_arguments espera um CAMINHO DE ARQUIVO
-# (mesma convencao de android.extra_manifest_xml acima), nao o texto inline —
-# achado real: buildozer/targets/android.py faz open(valor, 'rt').read(),
-# entao o valor antigo (a string do atributo em si) falhava com
-# FileNotFoundError na etapa de empacotamento (--> gradle).
-android.extra_manifest_application_arguments = ./android/tv_banner_attribute.txt
-android.add_resources = assets/android_banner.png:drawable/banner.png
 
 # Icone do launcher com a abelha do jogo (R21), gerado por
 # scripts/generate_app_icon.py — ver specs/v2/design.md secao 29.

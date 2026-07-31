@@ -5,10 +5,10 @@ from enum import Enum, auto
 
 import pygame
 
-from src import assets, config, score, storage, textures, ui
+from src import assets, score, textures, ui
 from src.biome import BiomeManager
 from src.bird import Bird
-from src.config import BLOCK, CREDITS, FPS, PIPE_W, SCREEN_W, TITLE
+from src.config import BLOCK, CREDITS, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
 from src.input import (
@@ -23,7 +23,6 @@ from src.input import (
 )
 from src.particles import ParticleSystem
 from src.pipes import PipeManager
-from src.screen_adapt import adapted_canvas_size, portrait_height
 from src.sounds import SoundManager
 
 
@@ -43,61 +42,31 @@ class Game:
         # deve impedir o jogo de abrir (mesma disciplina do audio, R8.4).
         with contextlib.suppress(OSError, pygame.error):
             pygame.display.set_icon(pygame.image.load(str(assets.asset_path("app_icon_512.png"))))
-        if storage.is_android():
-            info = pygame.display.Info()
-            device_w, device_h = info.current_w, info.current_h
-        else:
-            # Desktop nao tem "aparelho": o formato inicial e a propria base 2:3,
-            # entao o calculo abaixo devolve exatamente 480x720 sem nenhuma mudanca
-            # de comportamento (task 21). Redimensionar a janela na sessao continua
-            # com o letterbox/pillarbox automatico do SCALED (nao recalculado ao
-            # vivo — recriar o display em runtime crashou em teste real com esta
-            # versao do SDL/pygame-ce, ver design.md secao 20.1.3).
-            device_w, device_h = SCREEN_W, config.BASE_SCREEN_H
-        is_landscape = device_w > 0 and device_h > 0 and device_w / device_h > SCREEN_W / config.BASE_SCREEN_H
-        if is_landscape:
-            # Aparelho em paisagem mais largo que a base (Android TV 16:9): o canvas
-            # de FUNDO estica na largura para eliminar o pillarbox (R14.3) — o fundo
-            # (biome/decor) se estende por esse canvas maior, area jogavel continua
-            # fixa em 480x720 (calibracao da task 12 intocada). Tasks 35/38,
-            # inalterado pela task 39.
-            canvas_w, canvas_h = adapted_canvas_size(SCREEN_W, config.BASE_SCREEN_H, device_w, device_h)
-            config.SCREEN_H = config.BASE_SCREEN_H
-        else:
-            # Aparelho em retrato (a maioria dos celulares): a area JOGAVEL de
-            # verdade acompanha a proporcao real do aparelho — largura fixa em 480,
-            # altura dinamica — eliminando o pillarbox sem estender fundo decorativo
-            # nem cortar nada (R14.3 refinado, task 39). config.SCREEN_H passa a
-            # valer para toda a sessao; ground/pipes/ui leem o valor dinamico.
-            config.SCREEN_H = portrait_height(SCREEN_W, config.BASE_SCREEN_H, device_w, device_h)
-            canvas_w, canvas_h = SCREEN_W, config.SCREEN_H
-        # SCALED: SDL renderiza numa surface logica do tamanho do canvas e escala p/ a
-        # janela/tela real mantendo a proporcao (letterbox/pillarbox automatico, R9.1).
-        self.screen = pygame.display.set_mode((canvas_w, canvas_h), pygame.SCALED | pygame.RESIZABLE)
+        # SCALED: SDL renderiza numa surface logica fixa 480x720 e escala para a
+        # janela/tela real mantendo a proporcao do JOGO, com letterbox automatico
+        # (barra no topo/base ou nas laterais, conforme o aparelho) e sem cortar
+        # nada da imagem (R9.1, R14.3). Combinado com `orientation = portrait` no
+        # buildozer.spec (o app nunca roda em paisagem no Android — task 41, ver
+        # design.md secao 20.1.5), a tela real fica sempre mais estreita/alongada
+        # que a base 2:3, entao a barra que sobra e sempre letterbox (topo/base),
+        # nunca pillarbox (laterais).
+        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.SCALED | pygame.RESIZABLE)
         # descarta eventos de janela gerados pela criacao do display (ex.: WindowShown,
         # WindowFocusGained/Lost) para nao serem lidos como acoes do jogador antes do
         # loop comecar — visto sob SDL_VIDEODRIVER=dummy com SDL 2.32 (pygame-ce).
         pygame.event.clear()
         pygame.display.set_caption(f"{TITLE} - {CREDITS}")
-        # subsurface: area jogavel SCREEN_W x SCREEN_H, ancorada embaixo (o chao toca
-        # a borda real da tela) e centralizada na largura. offset_y so fica > 0 no
-        # caso paisagem (canvas_h == config.SCREEN_H em retrato, sempre). Todo
-        # gameplay/UI continua desenhando em coordenadas locais 0..SCREEN_W/0..SCREEN_H
-        # — so o fundo (biome/decor) desenha direto em self.screen (canvas inteiro).
-        offset_x = (canvas_w - SCREEN_W) // 2
-        offset_y = canvas_h - config.SCREEN_H
-        self.gameplay = self.screen.subsurface((offset_x, offset_y, SCREEN_W, config.SCREEN_H))
         self.clock = pygame.time.Clock()
         self.running = True
         self.textures = textures.generate_all(BLOCK)
         self.sounds = SoundManager()
-        self.input = InputManager(canvas_size=(canvas_w, canvas_h), offset=(offset_x, offset_y))
+        self.input = InputManager()
         self.score = 0
         self.highscore = score.load_highscore()
         self.reset()
 
     def reset(self) -> None:
-        self.bird = Bird(SCREEN_W // 4, config.SCREEN_H // 2)
+        self.bird = Bird(SCREEN_W // 4, SCREEN_H // 2)
         self.biome = BiomeManager()
         b = self.biome.current
         self.pipes = PipeManager(b.gap_size, b.block_main, b.block_edge)
@@ -208,26 +177,24 @@ class Game:
 
     def draw(self) -> None:
         b = self.biome.current
-        # fundo (ceu + parallax) preenche o canvas inteiro (R14.3); gameplay/UI
-        # desenham na subsurface 480x720, coordenadas locais inalteradas.
         self.biome.draw_background(self.screen)
         self.decor.draw(self.screen, b.decor)
-        self.pipes.draw(self.gameplay, self.textures)
-        self.ground.draw(self.gameplay, self.textures, b.block_main, b.block_edge)
-        self.bird.draw(self.gameplay, self.textures)
-        self.particles.draw(self.gameplay)
-        self.biome.draw_banner(self.gameplay)
-        ui.draw_mute_icon(self.gameplay, self.sounds.muted)
+        self.pipes.draw(self.screen, self.textures)
+        self.ground.draw(self.screen, self.textures, b.block_main, b.block_edge)
+        self.bird.draw(self.screen, self.textures)
+        self.particles.draw(self.screen)
+        self.biome.draw_banner(self.screen)
+        ui.draw_mute_icon(self.screen, self.sounds.muted)
 
         if self.state == GameState.PRONTO:
-            ui.draw_ready_screen(self.gameplay, self.highscore)
+            ui.draw_ready_screen(self.screen, self.highscore)
         elif self.state == GameState.JOGANDO:
-            ui.draw_hud_score(self.gameplay, self.score)
+            ui.draw_hud_score(self.screen, self.score)
         elif self.state == GameState.PAUSADO:
-            ui.draw_hud_score(self.gameplay, self.score)
-            ui.draw_paused_overlay(self.gameplay)
+            ui.draw_hud_score(self.screen, self.score)
+            ui.draw_paused_overlay(self.screen)
         elif self.state == GameState.GAME_OVER:
-            ui.draw_game_over_screen(self.gameplay, self.score, self.highscore)
+            ui.draw_game_over_screen(self.screen, self.score, self.highscore)
 
         pygame.display.flip()
 

@@ -4,7 +4,7 @@
 
 Blocky Bird é um clone de Flappy Bird em Python/Pygame com temática Minecraft. O jogador controla uma abelha voxel que voa entre colunas de blocos, com progressão de biomas (Overworld → Cave → Nether), efeitos sonoros e partículas de blocos. Todos os gráficos e sons são gerados por código — sem assets externos ou material protegido da Mojang.
 
-**Escopo da v2:** além de tudo que a v1 entregou (jogo completo para desktop, ver `specs/v1/`), a v2 torna o jogo jogável em Android — celular/tablet e Android TV — no maior número possível de aparelhos, distribuído como APK instalável diretamente. Inclui também itens de qualidade e apresentação que não mudam o gameplay, adicionados como aumento de escopo após a entrega Android: (1) todo o código Python do projeto passa a ser verificado pela ferramenta `ruff` (lint + formatação), com conformidade obrigatória e checada em CI; (2) calibração do tamanho da fonte bitmap própria (R7.6), que estava grande demais em várias telas a ponto de textos se sobreporem entre si ou com outros elementos de UI; (3) um ícone do aplicativo com a personagem do jogo (a abelha voxel, R7.2), gerado por código, para a janela/executável do desktop e para o launcher do Android — incluindo o formato de **ícone adaptativo** exigido desde o Android 8.0 (API 26), para que a abelha não fique cortada nem distorcida pelas diferentes máscaras de ícone dos fabricantes (círculo, "squircle", quadrado arredondado). O desktop continua suportado; nenhum requisito da v1 é removido.
+**Escopo da v2:** além de tudo que a v1 entregou (jogo completo para desktop, ver `specs/v1/`), a v2 torna o jogo jogável em Android — celular/tablet, sempre em orientação retrato — no maior número possível de aparelhos, distribuído como APK instalável diretamente. Inclui também itens de qualidade e apresentação que não mudam o gameplay, adicionados como aumento de escopo após a entrega Android: (1) todo o código Python do projeto passa a ser verificado pela ferramenta `ruff` (lint + formatação), com conformidade obrigatória e checada em CI; (2) calibração do tamanho da fonte bitmap própria (R7.6), que estava grande demais em várias telas a ponto de textos se sobreporem entre si ou com outros elementos de UI; (3) um ícone do aplicativo com a personagem do jogo (a abelha voxel, R7.2), gerado por código, para a janela/executável do desktop e para o launcher do Android — incluindo o formato de **ícone adaptativo** exigido desde o Android 8.0 (API 26), para que a abelha não fique cortada nem distorcida pelas diferentes máscaras de ícone dos fabricantes (círculo, "squircle", quadrado arredondado). O desktop continua suportado; nenhum requisito da v1 é removido. _(v2 original também incluía Android TV; removido na task 41 — ver R14.)_
 
 Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistema DEVE <resposta>`).
 
@@ -105,7 +105,7 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 
 ## R9 — Requisitos não funcionais
 
-1. O jogo DEVE rodar a 60 FPS fixos, com resolução **lógica** de 480×720 escalada para a resolução real da tela mantendo a proporção (letterbox/pillarbox) — na v1 o letterbox estava fora de escopo; na v2 é obrigatório (ver R14.3).
+1. O jogo DEVE rodar a 60 FPS fixos, com resolução **lógica** fixa de 480×720 ampliada (zoom) para cobrir a resolução real da tela por completo, cortando o excedente de um dos eixos em vez de sobrar barra — na v1 o letterbox estava fora de escopo; na v2 preencher a tela sem pillarbox é obrigatório (ver R14.3).
 2. O jogo DEVE depender apenas de Python ≥ 3.10 e `pygame-ce` ≥ 2.5 (mais stdlib) em tempo de execução. `pygame-ce` substitui o `pygame` usado na v1 por ser o pacote com suporte a Android na cadeia de build escolhida (R17) e ser compatível a nível de API.
 3. O projeto DEVE ser gerenciado com a ferramenta `uv` (instalada localmente): dependências declaradas em `pyproject.toml`, ambiente criado via `uv sync` e jogo iniciado com `uv run main.py` a partir da raiz do projeto.
 4. A física DEVE ser determinística por frame (timestep fixo via clock do Pygame).
@@ -151,16 +151,16 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 2. QUANDO uma Release é publicada no GitHub com uma tag de versão, O sistema de CI DEVE gerar automaticamente os executáveis de Windows e Linux e anexá-los como assets da release, comprimidos como `.zip` (Windows) e `.tar.bz2` (Linux).
 3. A mesma Release DEVE também publicar o APK de Android (ver R17), totalizando três assets por release.
 
-## R14 — Compatibilidade com Android (celular e TV)
+## R14 — Compatibilidade com Android (celular e tablet, sempre em retrato)
 
-**User story:** Como jogador, quero jogar no meu celular e na minha Android TV, para não depender de um PC.
+**User story:** Como jogador, quero jogar no meu celular, para não depender de um PC.
 
 ### Critérios de aceitação
 
-1. O jogo DEVE rodar em Android 5.0 (API 21) ou superior, em celulares, tablets e Android TV.
-2. O APK DEVE conter as ABIs `armeabi-v7a`, `arm64-v8a` e `x86_64`, para cobrir aparelhos antigos, atuais e ambientes x86 (emuladores, Chromebooks, TV boxes Intel).
-3. QUANDO o jogo inicia em qualquer tela, O sistema DEVE preencher a tela inteira sem distorcer a imagem, sem cortar UI e **sem pillarbox/letterbox**, com a área jogável ancorada no chão. Em aparelhos **em paisagem** mais largos que a base (Android TV 16:9), a área jogável DEVE continuar fixa em 480×720 (calibração de dificuldade intocada), estendendo apenas o fundo (céu/parallax) até a proporção do aparelho. Em aparelhos **em retrato** (celulares, a esmagadora maioria), a única proporção que precisa ser respeitada é a do próprio aparelho — a área jogável real (não decorativa) DEVE acompanhar essa proporção dinamicamente, largura fixa em 480 e altura variável, sem barra preta e sem fundo inventado além do que é jogável; a dificuldade (abertura e margem das colunas, R2) DEVE escalar proporcionalmente à altura real para não ficar mais fácil em aparelhos com mais altura lógica. _(v2 original: preenchia com barras pretas; a task 35 corrigiu estendendo fundo em todo aparelho após relato real no Galaxy S20 FE; a task 38 restringiu a extensão de fundo só à paisagem, reintroduzindo pillarbox simples em retrato; a task 39 eliminou esse pillarbox tornando a própria área jogável dinâmica em retrato, em vez de decorativa ou de barra preta. Ver design.md seção 20.1.3)._
-4. O jogo DEVE ser inteiramente jogável sem tela de toque (Android TV, operado por controle remoto/D-pad ou gamepad), e DEVE declarar a tela de toque como recurso não obrigatório.
+1. O jogo DEVE rodar em Android 5.0 (API 21) ou superior, em celulares e tablets, sempre em orientação retrato. _(v2 original: incluía Android TV/paisagem; a task 41 removeu esse alvo — ver critério 4 e nota abaixo)._
+2. O APK DEVE conter as ABIs `armeabi-v7a`, `arm64-v8a` e `x86_64`, para cobrir aparelhos antigos, atuais e ambientes x86 (emuladores, Chromebooks).
+3. QUANDO o jogo inicia em qualquer aparelho, O sistema DEVE preencher a tela real sem distorcer a imagem, sem cortar UI e **sem cortar nenhuma parte da imagem renderizada**; barra (letterbox) no topo/base é aceitável. A resolução lógica DEVE continuar fixa em 480×720 em qualquer aparelho (a mesma calibração de dificuldade da task 12, nunca mudando com a tela). _(v2 original: preenchia com barras pretas; a task 35 corrigiu estendendo o fundo em todo aparelho após relato real no Galaxy S20 FE; a task 38 restringiu a extensão de fundo só à paisagem, reintroduzindo pillarbox simples em retrato; a task 39 eliminou esse pillarbox tornando a própria área jogável dinâmica em retrato; a task 40 reverteu a resolução de volta à fixa e eliminou o pillarbox por zoom/corte da imagem (cortando o excedente); a task 41 reverteu o corte: com a orientação sempre travada em retrato (critério 4), `pygame.SCALED` (letterbox padrão, nunca corta a imagem) já é suficiente — a tela real nunca fica mais larga, relativamente, que a base 2:3, então a barra que sobra é sempre letterbox, nunca pillarbox. Ver design.md seção 20.1.5)._
+4. O manifesto do APK DEVE travar a orientação em retrato (`orientation = portrait` no `buildozer.spec`) — o jogo NUNCA DEVE rodar em paisagem no Android, mesmo que o aparelho seja fisicamente girado. _(v2 original: permitia paisagem para suportar Android TV, com o jogo inteiramente jogável sem tela de toque via D-pad/controle remoto; a task 41 removeu esse suporte a pedido do dono do projeto, já que travar em retrato — necessário para eliminar o pillarbox do critério 3 — é incompatível com TVs, que são paisagem por hardware. Os mapeamentos de input adicionados para TV continuam no código por serem inofensivos em qualquer plataforma, mas deixam de ser um alvo de distribuição suportado)._
 5. O jogo NÃO DEVE depender de fontes, arquivos ou recursos do sistema operacional que não existam no Android (ver R7.6).
 6. SE o aparelho não tiver saída de áudio disponível, O sistema DEVE continuar funcionando sem som (já coberto por R8.4, reafirmado para Android).
 
@@ -173,7 +173,7 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 1. QUANDO o jogador toca em qualquer ponto da área de jogo, O sistema DEVE executar a ação de voar/iniciar/reiniciar — equivalente a ESPAÇO (R1.1, R3.4, R6.2).
 2. QUANDO o jogador aciona o botão BACK do Android durante JOGANDO, O sistema DEVE pausar o jogo (em vez de encerrar o app).
 3. QUANDO o jogador aciona o botão BACK do Android em PRONTO, PAUSADO ou GAME_OVER, O sistema DEVE encerrar o jogo.
-4. O sistema DEVE oferecer forma de alternar mudo sem teclado físico: um controle de mudo tocável na tela (celular) e, em aparelhos sem toque, uma ação alcançável por D-pad na tela de PAUSADO (Android TV), além do botão Y do gamepad já previsto em R10.3.
+4. O sistema DEVE oferecer forma de alternar mudo sem teclado físico: um controle de mudo tocável na tela (celular), além do botão Y do gamepad já previsto em R10.3. _(v2 original: incluía D-pad na tela de PAUSADO para Android TV; a task 41 removeu esse alvo de distribuição — o mapeamento de D-pad continua no código, inofensivo, mas deixou de ser um requisito de plataforma suportada)._
 5. Toque, teclado, mouse e controle DEVEM continuar funcionando simultaneamente, sem seleção de dispositivo (extensão de R10.4).
 
 ## R16 — Ciclo de vida do aplicativo Android
@@ -195,8 +195,8 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 
 1. O projeto DEVE poder ser empacotado como APK via Buildozer/python-for-android, assinado com chave de debug — suficiente para instalação direta ao permitir "fontes desconhecidas".
 2. QUANDO uma Release é publicada no GitHub com tag de versão, O sistema de CI DEVE gerar o APK e anexá-lo como asset da release **sem compressão** (arquivo `.apk` puro, `BlockyBird-<tag>.apk`), pronto para download e instalação direta.
-3. O APK DEVE declarar suporte a Android TV (categoria de launcher leanback e banner de 320×180) para ser reconhecido e iniciável na interface de TV.
-4. O manifesto DEVE permitir as orientações necessárias para funcionar tanto em celular (retrato) quanto em Android TV (paisagem fixa por hardware).
+3. ~~O APK DEVE declarar suporte a Android TV (categoria de launcher leanback e banner de 320×180) para ser reconhecido e iniciável na interface de TV.~~ **Removido na task 41** — incompatível com a orientação retrato travada exigida por R14.4/R14.3; o app não é mais distribuído para Android TV.
+4. O manifesto DEVE travar o app em orientação retrato (ver R14.4).
 
 ## R18 — Conformidade com Ruff
 
@@ -251,7 +251,7 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 4. O APK Android (R17) DEVE declarar o ícone da abelha como ícone do launcher em formato de **ícone adaptativo** (camadas de primeiro plano e de fundo separadas), para que o sistema componha a forma final (círculo, "squircle", quadrado arredondado etc.) sem cortar nem distorcer a personagem, em qualquer aparelho Android 8.0+ (API 26+).
 5. Na camada de primeiro plano do ícone adaptativo, a abelha DEVE ficar inteiramente dentro da zona seguro-de-máscara (os 66 dp centrais de um canvas de 108 dp, ~61% da área), para não ser cortada por nenhuma máscara padrão do sistema — este é o comportamento concreto por trás de "aparecer com as proporções ajustadas".
 6. O APK Android TAMBÉM DEVE declarar um ícone legado (não adaptativo) equivalente, para aparelhos com Android anterior à 8.0 (API < 26), que não suportam ícone adaptativo.
-7. A geração de todas as variações/resoluções do ícone (desktop `.ico`, ícone legado do Android, camadas adaptativas de primeiro plano/fundo) DEVE ser reprodutível por um script versionado no repositório — sem edição manual de imagem fora do controle de versão — seguindo o mesmo padrão já usado para o banner do Android TV (`scripts/generate_tv_banner.py`, task 27).
+7. A geração de todas as variações/resoluções do ícone (desktop `.ico`, ícone legado do Android, camadas adaptativas de primeiro plano/fundo) DEVE ser reprodutível por um script versionado no repositório — sem edição manual de imagem fora do controle de versão (`scripts/generate_app_icon.py`). _(v2 original citava `scripts/generate_tv_banner.py` como precedente do mesmo padrão; removido na task 41 junto do suporte a Android TV.)_
 
 ---
 

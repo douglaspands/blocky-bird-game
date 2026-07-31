@@ -1,4 +1,3 @@
-from src import config
 from src.config import GAP_MARGIN, GROUND_H, PIPE_SPACING, PIPE_W, SCREEN_H, SCREEN_W
 from src.pipes import PipeManager
 
@@ -63,17 +62,3 @@ def test_pipe_removed_once_fully_off_screen():
         frames += 1
     assert first_pipe not in pm.pipes
     assert first_pipe.x + PIPE_W < 0
-
-
-def test_gap_size_and_margin_scale_with_dynamic_screen_height(monkeypatch):
-    """Aparelho em retrato com mais altura jogavel real (task 39) nao pode ganhar
-    espaco de reacao extra de graca — abertura e margem escalam na mesma
-    proporcao que SCREEN_H em relacao a BASE_SCREEN_H."""
-    monkeypatch.setattr(config, "SCREEN_H", config.BASE_SCREEN_H * 2)
-
-    pm = PipeManager(160, "dirt", "grass_side")
-    pipe = pm.pipes[0]
-
-    assert pipe.gap_size == 320
-    scaled_margin = GAP_MARGIN * 2
-    assert scaled_margin <= pipe.gap_y <= config.SCREEN_H - GROUND_H - scaled_margin

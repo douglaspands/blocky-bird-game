@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 import pygame
 
 from src import config
@@ -291,30 +289,13 @@ def test_flap_in_game_over_resets_to_pronto():
     assert game.score == 0
 
 
-def test_android_portrait_device_has_no_pillarbox(monkeypatch):
-    """Celular alongado (1080x2400, mais estreito que a base 2:3): a area
-    jogavel de verdade acompanha a proporcao real do aparelho — canvas e
-    gameplay tem exatamente o mesmo tamanho, sem sobra de letterbox/pillarbox
-    (task 39)."""
+def test_screen_uses_fixed_logical_resolution_via_scaled(monkeypatch):
+    """`pygame.SCALED` mantem `game.screen` sempre na resolucao logica fixa
+    480x720 (calibracao da task 12), com o SDL cuidando do letterbox para a
+    tela real por baixo dos panos — nao ha mais nenhum ramo de codigo que
+    dimensione a janela por plataforma (task 41, reverte o zoom/corte por
+    aparelho da task 40). Testado tambem com `storage.is_android()` mockado
+    para True, confirmando que o comportamento independe da plataforma."""
     monkeypatch.setattr("src.storage.is_android", lambda: True)
-    monkeypatch.setattr(pygame.display, "Info", lambda: SimpleNamespace(current_w=1080, current_h=2400))
-
     game = _make_game()
-
-    assert game.screen.get_size() == game.gameplay.get_size()
-    assert config.SCREEN_H != config.BASE_SCREEN_H
-    assert abs(config.SCREEN_W / config.SCREEN_H - 1080 / 2400) < 1e-3
-
-
-def test_android_tv_landscape_keeps_fixed_play_area(monkeypatch):
-    """Android TV 16:9 em paisagem (mais largo que a base): comportamento das
-    tasks 35/38 inalterado pela task 39 — area jogavel fixa em 480xBASE_SCREEN_H,
-    so o fundo (canvas) se estende pela largura extra."""
-    monkeypatch.setattr("src.storage.is_android", lambda: True)
-    monkeypatch.setattr(pygame.display, "Info", lambda: SimpleNamespace(current_w=1920, current_h=1080))
-
-    game = _make_game()
-
-    assert config.SCREEN_H == config.BASE_SCREEN_H
-    assert game.screen.get_size() != game.gameplay.get_size()
-    assert game.screen.get_width() > game.gameplay.get_width()
+    assert game.screen.get_size() == (config.SCREEN_W, config.SCREEN_H)

@@ -6,8 +6,6 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 import pytest
 
-from src import config
-
 
 @pytest.fixture(scope="session", autouse=True)
 def _pygame_session():
@@ -31,16 +29,7 @@ def _isolate_cwd(tmp_path, monkeypatch):
 def _reset_display():
     """pygame.SCALED exige um renderer SDL, e o driver dummy so permite um por
     processo — sem isso, o 2o+ set_mode(SCALED) do processo falha com
-    'failed to create renderer' (varios testes criam Game() cada um)."""
+    'failed to create renderer' (varios testes criam Game() cada um; ver
+    design.md secao 20.2)."""
     pygame.display.quit()
     pygame.display.init()
-
-
-@pytest.fixture(autouse=True)
-def _reset_screen_h():
-    """config.SCREEN_H e mutavel em runtime desde a task 39 (Game.__init__ escreve
-    nele para simular retrato/paisagem em Android) — sem reset, um teste que simula
-    um aparelho Android vazaria a altura dinamica para os testes seguintes do mesmo
-    processo."""
-    yield
-    config.SCREEN_H = config.BASE_SCREEN_H

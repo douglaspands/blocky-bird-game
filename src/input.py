@@ -4,6 +4,7 @@ import pygame
 
 from src import ui
 from src.config import SCREEN_H, SCREEN_W
+from src.scale import fit_scale
 
 BUTTON_A = 0
 BUTTON_Y = 3
@@ -29,21 +30,20 @@ ACTION_RIGHT = "right"
 FOCUS_LOST_EVENTS = (pygame.APP_WILLENTERBACKGROUND, pygame.APP_DIDENTERBACKGROUND, pygame.WINDOWFOCUSLOST)
 
 
+def _touch_to_logical(norm_x: float, norm_y: float) -> tuple[float, float]:
+    """Converte coordenada de toque normalizada (0.0-1.0, relativa a janela
+    inteira) para o espaco logico fixo 480x720, desfazendo o letterbox/
+    pillarbox que `pygame.SCALED` aplica automaticamente (R14.3). Mouse ja
+    chega pre-convertido pelo SDL; so toque precisa disso."""
+    win_w, win_h = pygame.display.get_window_size()
+    scale, off_x, off_y = fit_scale(SCREEN_W, SCREEN_H, win_w, win_h)
+    return (norm_x * win_w - off_x) / scale, (norm_y * win_h - off_y) / scale
+
+
 class InputManager:
-    def __init__(
-        self,
-        canvas_size: tuple[int, int] = (SCREEN_W, SCREEN_H),
-        offset: tuple[int, int] = (0, 0),
-    ) -> None:
-        """`canvas_size` e a resolucao logica real passada ao `SCALED` (pode ser
-        maior que 480x720 no Android, esticada para preencher a tela — R14.3); `offset`
-        e onde a area jogavel 480x720 fica ancorada dentro desse canvas. Ambos default
-        para o caso simples (canvas == area jogavel, sem deslocamento), usado no
-        desktop e nos testes que nao passam esses argumentos."""
+    def __init__(self) -> None:
         pygame.joystick.init()
         self.joysticks: dict[int, pygame.joystick.JoystickType] = {}
-        self._canvas_w, self._canvas_h = canvas_size
-        self._offset_x, self._offset_y = offset
         for device_index in range(pygame.joystick.get_count()):
             self._add_joystick(device_index)
 
@@ -54,27 +54,13 @@ class InputManager:
     def _remove_joystick(self, instance_id: int) -> None:
         self.joysticks.pop(instance_id, None)
 
-    def _touch_to_canvas(self, norm_x: float, norm_y: float) -> tuple[float, float]:
-        """Converte coordenada de toque normalizada (0.0-1.0, relativa a janela inteira)
-        para o espaco do canvas (a resolucao logica passada ao SCALED), desfazendo o
-        letterbox/pillarbox residual do SDL (R14.3)."""
-        win_w, win_h = pygame.display.get_window_size()
-        scale = min(win_w / self._canvas_w, win_h / self._canvas_h)
-        draw_w, draw_h = self._canvas_w * scale, self._canvas_h * scale
-        off_x, off_y = (win_w - draw_w) / 2, (win_h - draw_h) / 2
-        cx = (norm_x * win_w - off_x) / scale
-        cy = (norm_y * win_h - off_y) / scale
-        return cx, cy
-
-    def _handle_tap(self, actions: set[str], cx: float, cy: float) -> None:
-        """Toque/clique fora do canvas real (barra residual, se sobrar por
-        arredondamento) e ignorado; no icone de mudo alterna mudo; em qualquer outro
-        ponto do canvas voa — inclusive na area de ceu/parallax estendida, que deixou
-        de ser barra preta (R15.1, R15.4, R14.3)."""
-        if not (0 <= cx <= self._canvas_w and 0 <= cy <= self._canvas_h):
+    def _handle_tap(self, actions: set[str], lx: float, ly: float) -> None:
+        """Toque/clique fora da area logica (na barra de letterbox/pillarbox) e
+        ignorado; no icone de mudo alterna mudo; em qualquer outro ponto da
+        area de jogo, voa (R15.1, R15.4)."""
+        if not (0 <= lx <= SCREEN_W and 0 <= ly <= SCREEN_H):
             return
-        gx, gy = cx - self._offset_x, cy - self._offset_y
-        if ui.MUTE_ICON_RECT.collidepoint(gx, gy):
+        if ui.MUTE_ICON_RECT.collidepoint(lx, ly):
             actions.add(ACTION_MUTE)
         else:
             actions.add(ACTION_FLAP)
@@ -103,10 +89,10 @@ class InputManager:
                 elif event.key in RIGHT_KEYS:
                     actions.add(ACTION_RIGHT)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # com pygame.SCALED, event.pos ja vem em coordenadas do canvas (R9.1)
+                # com pygame.SCALED, event.pos ja vem em coordenadas logicas (R9.1)
                 self._handle_tap(actions, *event.pos)
             elif event.type == pygame.FINGERDOWN:
-                self._handle_tap(actions, *self._touch_to_canvas(event.x, event.y))
+                self._handle_tap(actions, *_touch_to_logical(event.x, event.y))
             elif event.type == pygame.JOYBUTTONDOWN:
                 if event.button == BUTTON_A:
                     actions.add(ACTION_FLAP)

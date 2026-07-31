@@ -1,6 +1,0 @@
-<!-- Injetado via android.manifest.intent_filters no buildozer.spec.
-     Faz o app aparecer na home do Android TV (Leanback launcher, R17.3). -->
-<intent-filter>
-    <action android:name="android.intent.action.MAIN" />
-    <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-</intent-filter>
