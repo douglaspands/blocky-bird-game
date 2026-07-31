@@ -57,12 +57,13 @@ def _stack(
     top_y: int,
     lines: list[tuple[str, int, tuple[int, int, int]]],
     margin: int = 8,
-) -> None:
+) -> int:
     """Empilha linhas de texto verticalmente pela altura real renderizada (R19.3).
 
     Ao contrario de deltas fixos em pixels, a posicao de cada linha depende da
     altura de fato ocupada pela linha anterior (GLYPH_H * escala + sombra), entao
-    duas linhas nunca colidem mesmo se a escala de uma delas mudar.
+    duas linhas nunca colidem mesmo se a escala de uma delas mudar. Retorna o y
+    onde a proxima linha comecaria, para permitir compor um espacamento extra.
     """
     y = top_y
     for text, base_size, color in lines:
@@ -70,6 +71,7 @@ def _stack(
         height = pixelfont.GLYPH_H * scale
         draw_text(surface, text, (center_x, y + height // 2), base_size=base_size, color=color)
         y += height + SHADOW_OFFSET + margin
+    return y
 
 
 def _dim_overlay(surface: pygame.Surface) -> None:
@@ -79,15 +81,24 @@ def _dim_overlay(surface: pygame.Surface) -> None:
 
 
 def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
-    _stack(
+    next_y = _stack(
         surface,
         SCREEN_W // 2,
         config.SCREEN_H // 4,
         [
             ("BLOCKY BIRD", 12, (255, 220, 60)),
             (CREDITS.upper(), 5, (230, 230, 230)),
-            ("ESPACO / CLIQUE PARA VOAR", 6, (255, 255, 255)),
         ],
+    )
+    instruction = "ESPACO / CLIQUE PARA VOAR"
+    instruction_scale = _fit_scale(instruction, _scale_for(9))
+    instruction_y = next_y + 16 + (pixelfont.GLYPH_H * instruction_scale) // 2
+    draw_text(
+        surface,
+        instruction,
+        (SCREEN_W // 2, instruction_y),
+        base_size=9,
+        color=GOLD,
     )
     draw_text(
         surface,
