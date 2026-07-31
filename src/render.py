@@ -264,7 +264,13 @@ class GpuRenderer(Renderer):
         """Envia a superficie para a GPU uma unica vez (R27.2).
 
         O `blend_mode` e fixado em mistura alfa para casar com o caminho de
-        superficie, onde `convert_alpha()` sempre produz uma imagem com alfa."""
+        superficie, onde uma superficie com alfa por pixel mistura ao ser blitada e
+        `Image.alpha` vale para as duas. Numa textura opaca com alfa 255 a mistura
+        nao muda o resultado, entao um so modo serve para os dois casos.
+
+        Aqui nao se converte: `Texture.from_surface` ja faz a conversao no envio, e
+        no caminho de GPU nao ha formato de display para converter (a janela vem do
+        `_sdl2`, sem `display.set_mode`)."""
         texture = video.Texture.from_surface(self.sdl, surface)
         texture.blend_mode = pygame.BLENDMODE_BLEND
         return GpuImage(texture)
@@ -341,15 +347,14 @@ class SurfaceRenderer(Renderer):
         self._scaled = None
 
     def make_image(self, surface: pygame.Surface) -> Image:
-        """Converte para o formato do display, com alfa por pixel (R27.4).
+        """Converte para o formato do display antes de guardar (R27.4).
 
-        Sem display inicializado a conversao levanta `pygame.error`; nesse caso a
-        superficie original serve, so mais lenta — nunca vale impedir o jogo de
-        abrir por causa de uma otimizacao."""
-        try:
-            return SurfaceImage(surface.convert_alpha())
-        except pygame.error:
-            return SurfaceImage(surface)
+        E aqui que a conversao rende: neste caminho a imagem *e* uma `Surface`, e
+        cada `draw` dela e um blit que pagaria conversao de formato se ela nao
+        estivesse no formato do display. Superficies que ja chegam convertidas da
+        origem (texturas, glifos) passam por aqui de novo, o que e barato e mantem a
+        garantia valendo para quem constroi a superficie na hora."""
+        return SurfaceImage(convert(surface))
 
     def clear(self, color: Color) -> None:
         """Preenche o canvas inteiro com `color`."""
@@ -463,6 +468,36 @@ def _open_sdl_window(window: tuple[int, int], *, fullscreen: bool, title: str) -
     except Exception as exc:
         logger.warning("janela do _sdl2 indisponivel: %s", exc)
         return None
+
+
+def convert(surface: pygame.Surface) -> pygame.Surface:
+    """Devolve `surface` no formato de pixel do display (R27.4).
+
+    Toda superficie nasce no formato padrao do pygame, que nao e necessariamente o do
+    display. Blitar uma superficie de formato diferente faz o SDL converter pixel a
+    pixel, a cada blit; converte-la uma vez, na inicializacao, paga esse custo de uma
+    vez so. Por isso a conversao acontece na origem — em `textures.generate_all` e no
+    cache de `pixelfont.render` — e nao apenas aqui na hora de virar imagem.
+
+    `convert_alpha` so para quem tem alfa por pixel, e `convert` para o resto:
+    `convert()` numa superficie SRCALPHA descartaria a transparencia (as asas da
+    abelha, o vazado dos glifos), e `convert_alpha()` numa superficie opaca
+    acrescentaria um canal alfa que so faria o blit passar pelo caminho de mistura
+    sem necessidade.
+
+    Sem formato de display definido a conversao levanta `pygame.error`. E condicao
+    real em dois lugares: nos testes que rodam antes de qualquer `set_mode`, e no
+    caminho de GPU, que nunca chama `display.set_mode` porque a janela vem do
+    `_sdl2` — e onde a conversao seria inocua de qualquer forma, ja que
+    `Texture.from_surface` converte no envio. A superficie original serve, so mais
+    lenta: nunca vale impedir o jogo de abrir por causa de uma otimizacao.
+    """
+    try:
+        if surface.get_flags() & pygame.SRCALPHA:
+            return surface.convert_alpha()
+        return surface.convert()
+    except pygame.error:
+        return surface
 
 
 def _dest_rect(dest: Dest, image: Image, area: pygame.Rect | None) -> pygame.Rect:

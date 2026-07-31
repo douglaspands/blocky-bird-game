@@ -6,6 +6,8 @@ na v1 (ex.: "couriernew"), o que quebraria o alinhamento/legibilidade da UI.
 
 import pygame
 
+from src.render import convert
+
 GLYPH_W = 5
 GLYPH_H = 7
 SPACING = 1  # colunas de espaco entre glifos, em unidades de bloco
@@ -90,11 +92,17 @@ def _render_uncached(text: str, scale: int, color: tuple[int, int, int]) -> pyga
 
 
 def render(text: str, scale: int, color: tuple[int, int, int]) -> pygame.Surface:
-    """Renderiza texto (maiusculas) na fonte bitmap 5x7, com cache por (texto, escala, cor)."""
+    """Renderiza texto (maiusculas) na fonte bitmap 5x7, com cache por (texto, escala, cor).
+
+    A conversao para o formato do display (R27.4) acontece ao preencher o cache, e
+    nao a cada chamada: a superficie e montada uma vez por (texto, escala, cor) e
+    devolvida pronta dai em diante. E onde a placar, que muda de texto a cada ponto,
+    paga a conversao — uma vez por valor novo, nunca por frame.
+    """
     text = text.upper()
     key = (text, scale, color)
     cached = _cache.get(key)
     if cached is None:
-        cached = _render_uncached(text, scale, color)
+        cached = convert(_render_uncached(text, scale, color))
         _cache[key] = cached
     return cached

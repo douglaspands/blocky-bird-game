@@ -6,7 +6,8 @@ import os
 import pygame
 import pytest
 
-from src import render
+from src import pixelfont, render, textures
+from src.config import BLOCK
 
 CANVAS = (480, 720)
 WINDOW = (960, 720)
@@ -242,6 +243,136 @@ def test_both_backends_convert_window_coordinates_the_same_way(monkeypatch: pyte
 
 
 # --- caminho de superficie -------------------------------------------------------
+
+
+# --- conversao para o formato do display (R27.4) --------------------------------
+
+
+def _no_display_format() -> None:
+    """Deixa o processo sem formato de display, como no inicio de cada teste.
+
+    E a condicao real do caminho de GPU, que nunca chama `display.set_mode` porque a
+    janela vem do `_sdl2`."""
+    pygame.display.quit()
+    pygame.display.init()
+
+
+def _spy_on_conversion(monkeypatch: pytest.MonkeyPatch, module) -> list[pygame.Surface]:
+    """Anota o que `render.convert` devolveu dentro de `module`, sem trocar o que ele faz.
+
+    A conversao continua sendo a de verdade; o espiao so registra o resultado, para
+    que o teste possa afirmar que a superficie entregue e exatamente a que passou por
+    ela — sob o driver `dummy` o formato do display coincide com o formato padrao do
+    pygame, entao comparar mascaras nao distinguiria uma superficie convertida de uma
+    que nunca passou pela conversao."""
+    produced: list[pygame.Surface] = []
+
+    def spy(surface: pygame.Surface) -> pygame.Surface:
+        result = render.convert(surface)
+        produced.append(result)
+        return result
+
+    monkeypatch.setattr(module, "convert", spy)
+    return produced
+
+
+def test_opaque_surface_is_converted_to_the_display_format() -> None:
+    """O caso comum: um bloco sem transparencia vira uma superficie do formato do display."""
+    display = pygame.display.set_mode(WINDOW)
+    tile = pygame.Surface((8, 8))
+    tile.fill((10, 120, 200))
+
+    converted = render.convert(tile)
+
+    assert converted is not tile  # `convert()` sempre devolve uma superficie nova
+    assert converted.get_bitsize() == display.get_bitsize()
+    assert converted.get_masks() == display.get_masks()
+    assert converted.get_at((0, 0))[:3] == (10, 120, 200)
+
+
+def test_conversion_of_an_opaque_surface_does_not_add_an_alpha_channel() -> None:
+    """`convert_alpha()` numa superficie opaca a mandaria para o caminho de mistura
+    a cada blit, sem nada para misturar — e o custo que a conversao existe para evitar."""
+    pygame.display.set_mode(WINDOW)
+    assert not render.convert(pygame.Surface((8, 8))).get_flags() & pygame.SRCALPHA
+
+
+def test_conversion_keeps_per_pixel_transparency() -> None:
+    """O outro lado: `convert()` numa superficie SRCALPHA apagaria o alfa por pixel —
+    as asas da abelha e o vazado dos glifos virariam retangulos opacos."""
+    pygame.display.set_mode(WINDOW)
+    sprite = pygame.Surface((8, 8), pygame.SRCALPHA)
+    sprite.set_at((4, 4), (240, 200, 30, 255))
+
+    converted = render.convert(sprite)
+
+    assert converted is not sprite
+    assert converted.get_flags() & pygame.SRCALPHA
+    assert converted.get_at((4, 4)) == (240, 200, 30, 255)
+    assert converted.get_at((0, 0))[3] == 0  # o resto continua vazado
+
+
+def test_conversion_without_a_display_returns_the_original_surface() -> None:
+    """Sem formato de display a conversao levanta `pygame.error`; a superficie
+    original serve, so mais lenta — nunca vale impedir o jogo de abrir por causa de
+    uma otimizacao (R26.3)."""
+    _no_display_format()
+    tile = pygame.Surface((8, 8))
+    assert render.convert(tile) is tile
+
+
+def test_the_surface_path_converts_what_it_turns_into_an_image() -> None:
+    """Neste caminho a imagem *e* uma `Surface`, e cada desenho dela e um blit."""
+    renderer = render.SurfaceRenderer(CANVAS, WINDOW)
+    tile = pygame.Surface((8, 8))
+    assert renderer.make_image(tile).raw is not tile
+
+
+def test_every_generated_texture_is_converted(monkeypatch: pytest.MonkeyPatch) -> None:
+    """As texturas base sao as superficies mais reusadas do jogo (R27.4)."""
+    pygame.display.set_mode(WINDOW)
+    produced = _spy_on_conversion(monkeypatch, textures)
+
+    generated = textures.generate_all(BLOCK)
+
+    assert len(generated) == 8
+    assert {id(surf) for surf in generated.values()} == {id(surf) for surf in produced}
+
+
+def test_the_bee_texture_survives_the_conversion_with_its_transparency() -> None:
+    """A unica textura com alfa por pixel: converte-la pelo caminho errado encheria
+    de amarelo o fundo do sprite que `Bird.draw` rotaciona (R7.2)."""
+    pygame.display.set_mode(WINDOW)
+    bee = textures.generate_all(BLOCK)["bee_0"]
+    assert bee.get_flags() & pygame.SRCALPHA
+    assert bee.get_at((0, 0))[3] == 0  # o canto continua vazado
+
+
+def test_the_font_cache_is_filled_with_converted_surfaces(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A conversao acontece ao preencher o cache, uma vez por (texto, escala, cor)."""
+    pygame.display.set_mode(WINDOW)
+    pixelfont._cache.clear()
+    produced = _spy_on_conversion(monkeypatch, pixelfont)
+
+    surface = pixelfont.render("SCORE 1", 2, (255, 255, 255))
+
+    assert produced == [surface]
+    assert pixelfont.render("SCORE 1", 2, (255, 255, 255)) is surface
+    assert len(produced) == 1  # a chamada seguinte veio do cache, sem converter de novo
+    assert surface.get_flags() & pygame.SRCALPHA  # o vazado dos glifos sobreviveu
+
+
+def test_textures_and_text_are_still_produced_without_a_display() -> None:
+    """Condicao real, e nao hipotetica: e assim que a suite roda sob o driver
+    `dummy` antes de qualquer `set_mode`, e assim que o caminho de GPU roda sempre."""
+    _no_display_format()
+    pixelfont._cache.clear()
+
+    generated = textures.generate_all(BLOCK)
+    text = pixelfont.render("GAME OVER", 2, (255, 255, 255))
+
+    assert generated["dirt"].get_size() == (BLOCK, BLOCK)
+    assert text.get_height() == pixelfont.GLYPH_H * 2
 
 
 def test_surface_path_reuses_its_scaled_buffer() -> None:

@@ -4,6 +4,8 @@ import random
 
 import pygame
 
+from src.render import convert
+
 TEX_SIZE = 16
 
 
@@ -89,7 +91,13 @@ def scale_pixel_perfect(surface: pygame.Surface, size: int) -> pygame.Surface:
 
 
 def generate_all(block_size: int) -> dict[str, pygame.Surface]:
-    """Gera todas as texturas base 16x16 e escala pixel-perfect para block_size (R7.1)."""
+    """Gera todas as texturas base 16x16 e escala pixel-perfect para block_size (R7.1).
+
+    Cada textura sai ja no formato de pixel do display (R27.4). Estas sao as
+    superficies mais reusadas do jogo — a mesma pedra vira dezenas de blocos de
+    coluna por frame, e alimenta tambem as faixas laterais e os sprites rotacionados
+    da abelha —, entao converte-las na geracao vale por todos esses usos de uma vez.
+    """
     raw = {
         "dirt": make_dirt(),
         "grass_side": make_grass_side(),
@@ -100,4 +108,4 @@ def generate_all(block_size: int) -> dict[str, pygame.Surface]:
         "bee_0": make_bee(0),
         "bee_1": make_bee(1),
     }
-    return {name: scale_pixel_perfect(surf, block_size) for name, surf in raw.items()}
+    return {name: convert(scale_pixel_perfect(surf, block_size)) for name, surf in raw.items()}
