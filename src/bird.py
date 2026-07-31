@@ -14,6 +14,16 @@ ANGLE_FALL_STEP = 3
 IDLE_BOB_AMPLITUDE = 8
 IDLE_BOB_SPEED = 0.08
 
+WING_FRAMES = (0, 1)
+ANGLES = tuple(range(MAX_ANGLE_DOWN, MAX_ANGLE_UP + 1, ANGLE_FALL_STEP))
+"""Os 31 angulos que a abelha pode assumir, e a grade a que qualquer angulo e preso.
+
+Nao e uma escolha de renderizacao: a fisica ja produzia so estes valores. `flap` fixa
+o angulo em `MAX_ANGLE_UP` e a queda o decrementa de `ANGLE_FALL_STEP` em
+`ANGLE_FALL_STEP` ate `MAX_ANGLE_DOWN`, entao o conjunto alcancavel e exatamente esta
+progressao. Torna-la explicita e o que permite pre-computar as 31 x 2 = 62 texturas em
+vez de descobri-las uma a uma durante o jogo (R27.2)."""
+
 
 class Bird:
     def __init__(self, x: float, y: float) -> None:
@@ -71,19 +81,49 @@ class Bird:
         return rect
 
     def draw(self, renderer: render.Renderer, textures: dict[str, pygame.Surface]) -> None:
-        """Desenha o sprite rotacionado do angulo atual.
+        """Consulta a textura do (frame de asa, angulo) atual e desenha (R27.2).
 
-        A rotacao acontece uma vez por combinacao de (frame de asa, angulo) e a
-        imagem fica guardada com o renderizador. Sao 62 combinacoes no total: o
-        angulo so assume os valores da grade de `ANGLE_FALL_STEP` entre
-        `MAX_ANGLE_DOWN` e `MAX_ANGLE_UP`, e ha dois frames de asa. A task 56
-        pre-computa as 62 na inicializacao; aqui elas nascem sob demanda."""
-        angle = round(self.angle)
-        image = renderer.image(
-            ("bee", self.frame, angle),
-            lambda: pygame.transform.rotate(textures[f"bee_{self.frame}"], angle),
-        )
+        Nao ha rotacao aqui: as 62 combinacoes ja foram rotacionadas por
+        `precompute_sprites` na inicializacao, e `quantize` garante que a consulta
+        sempre caia numa delas. `pygame.transform.rotate` aloca uma superficie nova a
+        cada chamada e reamostra o sprite inteiro — barato uma vez, caro sessenta
+        vezes por segundo (R27.3)."""
+        image = _sprite(renderer, textures, self.frame, quantize(self.angle))
         width, height = image.size
         center_x = self.pos.x + self.size / 2
         center_y = self.pos.y + self.size / 2
         renderer.draw(image, (round(center_x - width / 2), round(center_y - height / 2)))
+
+
+def quantize(angle: float) -> int:
+    """Angulo da grade de `ANGLES` mais proximo de `angle`.
+
+    A fisica so produz angulos da grade, entao no jogo esta funcao devolve o proprio
+    valor. Ela existe para que isso deixe de ser uma suposicao: sem ela, um angulo
+    fora da grade — vindo de um estado restaurado, de um ajuste futuro no passo de
+    queda ou de um teste — pediria uma textura que ninguem pre-computou, e a rotacao
+    voltaria para dentro do frame, exatamente onde nao pode estar."""
+    snapped = round(angle / ANGLE_FALL_STEP) * ANGLE_FALL_STEP
+    return min(MAX_ANGLE_UP, max(MAX_ANGLE_DOWN, snapped))
+
+
+def _sprite(
+    renderer: render.Renderer, textures: dict[str, pygame.Surface], frame: int, angle: int
+) -> render.Image:
+    """Sprite rotacionado de um (frame de asa, angulo), construido uma vez."""
+    return renderer.image(
+        ("bee", frame, angle),
+        lambda: pygame.transform.rotate(textures[f"bee_{frame}"], angle),
+    )
+
+
+def precompute_sprites(renderer: render.Renderer, textures: dict[str, pygame.Surface]) -> None:
+    """Rotaciona as 62 combinacoes de (frame de asa, angulo) de uma vez (R27.2).
+
+    Chamada na inicializacao e de novo apos um redimensionamento, que descarta o cache
+    de imagens do renderizador. Sem ela as texturas nasceriam sob demanda — uma por
+    frame durante a primeira queda, que e justamente o momento em que o jogador esta
+    olhando o movimento."""
+    for frame in WING_FRAMES:
+        for angle in ANGLES:
+            _sprite(renderer, textures, frame, angle)

@@ -6,6 +6,7 @@ import pygame
 import pytest
 
 from src import config, viewport
+from src.bird import ANGLES
 from src.game import RESIZE_SETTLE_FRAMES, Game
 from src.input import ACTION_RESIZE, InputManager
 from src.viewport import PLAY_H, PLAY_W
@@ -49,14 +50,19 @@ def test_resize_recomputes_the_canvas_and_keeps_the_play_area():
 
 def test_resize_discards_the_images_keyed_by_canvas_size():
     """Gradiente de ceu e faixas laterais sao chaveados pelo tamanho do canvas: as
-    versoes antigas nunca mais seriam pedidas e ficariam ocupando memoria de video."""
+    versoes antigas nunca mais seriam pedidas e ficariam ocupando memoria de video.
+
+    O que sobra depois sao exatamente as 62 rotacoes da abelha, e elas sobram porque
+    `apply_resize` as reconstroi de proposito (task 56): `forget_images` derruba tudo,
+    inclusive o que nao depende do canvas, e refaze-las ali e o que impede que voltem
+    uma por frame durante a queda seguinte."""
     game = Game()
     game.renderer = FakeRenderer(game.viewport.canvas)
     game.draw()
     assert game.renderer._images
 
     game.apply_resize((1920, 1080))
-    assert game.renderer._images == {}
+    assert set(game.renderer._images) == {("bee", frame, angle) for frame in (0, 1) for angle in ANGLES}
     assert game.renderer.size == (1280, 720)
 
 

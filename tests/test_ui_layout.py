@@ -9,8 +9,9 @@ veria em vez de recalcular a metrica por fora.
 import itertools
 
 import pygame
+import pytest
 
-from src import config, ui
+from src import config, render, ui
 from src.viewport import PLAY_H, PLAY_W
 from tests.fakes import FakeRenderer
 
@@ -62,7 +63,7 @@ def test_game_over_screen_texts_do_not_overlap() -> None:
     _assert_no_overlaps([*rects, ui.mute_icon_rect()])
 
 
-def test_dim_overlay_is_a_fill_and_allocates_no_surface() -> None:
+def test_dim_overlay_is_a_single_fill_over_the_whole_canvas() -> None:
     """O escurecimento cobre o canvas inteiro com uma cor translucida.
 
     Na v2 era uma `Surface` de tela cheia criada a cada frame — a maior fonte de lixo
@@ -70,6 +71,27 @@ def test_dim_overlay_is_a_fill_and_allocates_no_surface() -> None:
     renderer = FakeRenderer((PLAY_W, PLAY_H))
     ui.draw_paused_overlay(renderer)
     assert (ui.OVERLAY_COLOR, pygame.Rect(0, 0, PLAY_W, PLAY_H)) in renderer.fills
+
+
+def test_dim_overlay_allocates_no_surface_per_frame(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A afirmacao acima e sobre a chamada; esta e sobre a memoria, e precisa do
+    renderizador de verdade.
+
+    Num `FakeRenderer` nada alocaria de qualquer forma — o `fill` so anota a cor. Quem
+    de fato precisava de uma superficie e o caminho de superficie, que mistura o alfa
+    a mao, e e `SurfaceRenderer._blend_surface` que a reaproveita entre frames. No
+    caminho de GPU a mistura e do SDL e nao ha superficie nenhuma."""
+    canvas = (PLAY_W, PLAY_H)
+    renderer = render.SurfaceRenderer(canvas, canvas)
+    ui.draw_paused_overlay(renderer)  # primeiro frame: enche os caches
+
+    monkeypatch.setattr(pygame, "Surface", _forbidden_surface)
+    for _ in range(10):
+        ui.draw_paused_overlay(renderer)
+
+
+def _forbidden_surface(*args: object, **kwargs: object) -> object:
+    raise AssertionError("Surface alocada durante o desenho do overlay")
 
 
 def test_mute_icon_is_one_draw_call_per_state() -> None:

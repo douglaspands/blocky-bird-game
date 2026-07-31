@@ -8,7 +8,7 @@ import pygame
 from src import assets, config, perf, render, score, textures, ui, viewport
 from src.bands import SideBands
 from src.biome import BiomeManager
-from src.bird import Bird
+from src.bird import Bird, precompute_sprites
 from src.config import BLOCK, CREDITS, FPS, PIPE_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
@@ -80,6 +80,9 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.textures = textures.generate_all(BLOCK)
+        # as 62 rotacoes da abelha entram no cache do renderizador antes do primeiro
+        # frame, para que nenhuma delas seja construida durante o jogo (R27.2).
+        precompute_sprites(self.renderer, self.textures)
         # cache de superficie por bioma, independente de partida: sobrevive ao reset()
         self.bands = SideBands()
         self.sounds = SoundManager()
@@ -103,7 +106,11 @@ class Game:
         `display.quit()/init()` que a task 48 precisava para contornar o `SCALED`
         desapareceu junto com o `SCALED`. As imagens chaveadas pelo tamanho do canvas
         (gradiente de ceu, faixas laterais) sao descartadas para nao ficarem ocupando
-        memoria de video sem nunca mais serem pedidas."""
+        memoria de video sem nunca mais serem pedidas.
+
+        `forget_images` nao sabe distinguir o que depende do canvas do que nao depende,
+        entao as 62 rotacoes da abelha caem junto e sao refeitas aqui — fora do frame,
+        como na inicializacao."""
         new_viewport = viewport.compute(*size)
         if new_viewport.canvas == self.viewport.canvas:
             return
@@ -111,6 +118,7 @@ class Game:
         config.set_viewport(new_viewport)
         self.renderer.forget_images()
         self.renderer.resize(new_viewport.canvas)
+        precompute_sprites(self.renderer, self.textures)
 
     def _tick_resize(self) -> None:
         """Aplica o redimensionamento pendente quando o arrasto para.
