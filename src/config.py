@@ -3,6 +3,8 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    import pygame
+
     from src.viewport import Viewport
 
 FPS = 60
@@ -58,6 +60,16 @@ def screen_h() -> int:
     return viewport().canvas[1]
 
 
+def play() -> "pygame.Rect":
+    """Area jogavel dentro do canvas: onde a abelha voa, onde as colunas existem e
+    onde a colisao acontece. Sempre 480x720 de mundo, em qualquer tela (R24.1)."""
+    return viewport().play
+
+
 def ground_y() -> int:
-    """Topo do chao em coordenadas jogaveis."""
-    return screen_h() - GROUND_H
+    """Topo do chao, na borda de baixo da area jogavel — nao na do canvas (R24.5).
+
+    O que fica abaixo dele e faixa decorativa de chao (R25.1): `Ground.draw` enche
+    ate a base do canvas, entao a fileira extra e consequencia direta do canvas mais
+    alto, sem regra nova."""
+    return play().bottom - GROUND_H

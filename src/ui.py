@@ -14,20 +14,37 @@ MUTE_ICON_SIZE = 40
 MUTE_ICON_MARGIN = 14
 
 
+HUD_SCORE_MARGIN = 40
+"""Distancia do topo da area jogavel ate o centro da pontuacao, quando nao ha faixa
+de ceu para receber o HUD. E a posicao da v1/v2."""
+
+
 def max_text_w() -> int:
-    """Largura maxima de um texto: o canvas menos 20px de margem de cada lado."""
-    return config.screen_w() - 40
+    """Largura maxima de um texto: a area jogavel menos 20px de margem de cada lado.
+
+    Medida contra a area jogavel, e nao contra o canvas, para que o texto nunca
+    escorra por cima das faixas laterais numa tela larga (R25.2)."""
+    return config.play().width - 40
 
 
 def mute_icon_rect() -> pygame.Rect:
     """Geometria do botao de mudo, no canto superior direito do canvas (R15.4).
 
-    Funcao, e nao constante, porque o canvas so tem largura depois que o display
+    Fica no canto da tela de verdade, e nao no da area jogavel: e o ponto mais
+    alcancavel no celular, e uma faixa decorativa pode receber controle de interface
+    (R25.6). Verticalmente ele mora na faixa de ceu quando ela o comporta (R25.7);
+    se a faixa for curta demais, desce para dentro da area jogavel em vez de ficar
+    metade em cada uma.
+
+    Funcao, e nao constante, porque o canvas so tem dimensao depois que o display
     existe. `input.py` importa daqui para o hit-test, mantendo desenho e posicao do
     botao como uma unica fonte de verdade."""
+    vp = config.viewport()
+    needed = MUTE_ICON_MARGIN + MUTE_ICON_SIZE
+    top = MUTE_ICON_MARGIN if vp.sky_band.height >= needed else vp.play.top + MUTE_ICON_MARGIN
     return pygame.Rect(
-        config.screen_w() - MUTE_ICON_MARGIN - MUTE_ICON_SIZE,
-        MUTE_ICON_MARGIN,
+        vp.width - MUTE_ICON_MARGIN - MUTE_ICON_SIZE,
+        top,
         MUTE_ICON_SIZE,
         MUTE_ICON_SIZE,
     )
@@ -97,10 +114,11 @@ def _dim_overlay(surface: pygame.Surface) -> None:
 
 
 def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
+    play = config.play()
     next_y = _stack(
         surface,
-        config.screen_w() // 2,
-        config.screen_h() // 4,
+        play.centerx,
+        play.top + play.height // 4,
         [
             ("BLOCKY BEE", 12, (255, 220, 60)),
             (CREDITS.upper(), 5, (230, 230, 230)),
@@ -112,14 +130,14 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
     draw_text(
         surface,
         instruction,
-        (config.screen_w() // 2, instruction_y),
+        (play.centerx, instruction_y),
         base_size=9,
         color=GOLD,
     )
     draw_text(
         surface,
         f"RECORDE: {highscore}",
-        (config.screen_w() // 2, config.ground_y() - 24),
+        (play.centerx, config.ground_y() - 24),
         base_size=8,
         color=GOLD,
     )
@@ -146,16 +164,31 @@ def draw_mute_icon(surface: pygame.Surface, muted: bool) -> None:
         pygame.draw.rect(surface, color, (cx + 2 * unit, cy - 3 * unit, unit, 6 * unit))
 
 
+def hud_score_center(base_size: int = 12) -> tuple[int, int]:
+    """Onde a pontuacao do HUD e desenhada.
+
+    Quando existe faixa de ceu e ela comporta o texto, a pontuacao vai para o meio
+    dela, liberando a area de jogo (R25.7). Numa tela 2:3, sem faixa, cai exatamente
+    onde caia na v2."""
+    vp = config.viewport()
+    sky = vp.sky_band
+    text_h = pixelfont.GLYPH_H * _scale_for(base_size) + SHADOW_OFFSET
+    if sky.height >= text_h:
+        return vp.play.centerx, sky.centery
+    return vp.play.centerx, vp.play.top + HUD_SCORE_MARGIN
+
+
 def draw_hud_score(surface: pygame.Surface, score: int) -> None:
-    draw_text(surface, str(score), (config.screen_w() // 2, 40), base_size=12)
+    draw_text(surface, str(score), hud_score_center(), base_size=12)
 
 
 def draw_paused_overlay(surface: pygame.Surface) -> None:
+    play = config.play()
     _dim_overlay(surface)
     _stack(
         surface,
-        config.screen_w() // 2,
-        config.screen_h() // 2 - 24,
+        play.centerx,
+        play.centery - 24,
         [
             ("PAUSADO", 12, (255, 255, 255)),
             ("SETAS: MUDO", 5, (210, 210, 210)),
@@ -164,11 +197,12 @@ def draw_paused_overlay(surface: pygame.Surface) -> None:
 
 
 def draw_game_over_screen(surface: pygame.Surface, score: int, highscore: int) -> None:
+    play = config.play()
     _dim_overlay(surface)
     _stack(
         surface,
-        config.screen_w() // 2,
-        config.screen_h() // 2 - 90,
+        play.centerx,
+        play.centery - 90,
         [
             ("GAME OVER", 12, (220, 60, 50)),
             (f"PONTOS: {score}", 8, (255, 255, 255)),

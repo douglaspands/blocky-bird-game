@@ -4,6 +4,7 @@ import math
 
 import pygame
 
+from src import config
 from src.config import BLOCK, FLAP_IMPULSE, GRAVITY, HITBOX_SCALE, MAX_FALL_SPEED
 
 WING_FRAME_INTERVAL = 6
@@ -33,8 +34,11 @@ class Bird:
         self.vel_y = min(self.vel_y + GRAVITY, MAX_FALL_SPEED)
         self.pos.y += self.vel_y
 
-        if self.pos.y < 0:
-            self.pos.y = 0
+        # o teto fica na borda da AREA JOGAVEL, nao na do canvas: a faixa de ceu e
+        # decorativa e nao pode dar espaco extra para voar (R24.5).
+        ceiling = config.play().top
+        if self.pos.y < ceiling:
+            self.pos.y = ceiling
             self.vel_y = 0
 
         if self.vel_y < 0:

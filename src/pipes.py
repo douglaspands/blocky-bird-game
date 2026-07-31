@@ -28,7 +28,9 @@ class PipePair:
         return pygame.Rect(round(self.x), top, PIPE_W, config.ground_y() - top)
 
     def off_screen(self) -> bool:
-        return self.x + PIPE_W < 0
+        """Descarte na borda esquerda da area jogavel, nao do canvas (R2.4): o que
+        sai dela ja esta atras da faixa decorativa e nao volta a ser visto."""
+        return self.x + PIPE_W < config.play().left
 
     def draw(self, surface: pygame.Surface, textures: dict[str, pygame.Surface]) -> None:
         """Desenha a coluna como pilha de blocos do bioma congelado na criacao (R2.5)."""
@@ -59,7 +61,10 @@ class PipeManager:
         self._spawn(config.screen_w(), gap_size, block_main, block_edge)
 
     def _spawn(self, x: float, gap_size: int, block_main: str, block_edge: str) -> None:
-        gap_y = random.uniform(GAP_MARGIN, config.ground_y() - GAP_MARGIN)
+        # a abertura e sorteada dentro da AREA JOGAVEL: com uma faixa de ceu acima,
+        # `GAP_MARGIN` sozinho deixaria o centro da abertura cair na decoracao, fora
+        # do alcance da abelha (R24.1, R25.1).
+        gap_y = random.uniform(config.play().top + GAP_MARGIN, config.ground_y() - GAP_MARGIN)
         self.pipes.append(PipePair(x, gap_y, gap_size, block_main, block_edge))
 
     def update(self, speed: float, gap_size: int, block_main: str, block_edge: str) -> None:

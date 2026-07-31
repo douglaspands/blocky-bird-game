@@ -138,4 +138,5 @@ class BiomeManager:
 
     def draw_banner(self, surface: pygame.Surface) -> None:
         if self.banner_timer > 0:
-            ui.draw_text(surface, self.current.name.upper(), (config.screen_w() // 2, 110), base_size=16)
+            play = config.play()
+            ui.draw_text(surface, self.current.name.upper(), (play.centerx, play.top + 110), base_size=16)

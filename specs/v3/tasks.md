@@ -309,8 +309,24 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 
   **Não verificável neste ambiente:** tela cheia na resolução nativa em aparelho real (R23.3) — coberto pela task 72.
 
-- [ ] **46. Faixas vertical (céu estendido e chão mais fundo)**
+- [x] **46. Faixas vertical (céu estendido e chão mais fundo)**
   Deslocar o jogo para coordenadas de canvas conforme a seção 32.4: posição inicial da abelha, teto (`bird.py`), `ground_y()`, faixa de sorteio de `gap_y` e descarte de colunas passam a usar `play`. Nenhuma constante de física ou de bioma muda. O HUD de pontuação e o ícone de mudo migram para a faixa de céu quando ela existe. Testes: com um canvas alongado, a abelha não sobe acima de `play.top`, o `gap_y` sorteado fica sempre dentro da área jogável, e o HUD é posicionado na faixa de céu; com canvas 2:3, tudo cai exatamente onde caía na v2 (teste de não-regressão). _(R23.4, R24.1, R24.2, R24.5, R25.1, R25.7)_
+
+  **Implementado conforme a tabela da seção 32.4.** `config.play()` entrou como acessador da área jogável e `ground_y()` passou a ser `play.bottom - GROUND_H` — daí a faixa de chão sai de graça, porque `Ground.draw` já enchia até a base do canvas. Nenhuma constante de física ou de bioma foi tocada.
+
+  **Ajuste 1 — o sorteio de `gap_y` precisou de piso próprio.** A tabela diz "mesma fórmula, com o novo `ground_y()`", mas `GAP_MARGIN` sozinho é um número absoluto de canvas: com faixa de céu de 251px, `uniform(80, ...)` sortearia o centro da abertura dentro da decoração, acima do teto da abelha e portanto impossível de atravessar. O piso passou a ser `play.top + GAP_MARGIN`.
+
+  **Ajuste 2 — telas de estado e banner de bioma também migraram para `play`.** A task nomeia só o HUD e o ícone de mudo, mas PRONTO, PAUSADO, GAME_OVER e o banner estavam ancorados em `screen_h()`. Num canvas de 480×2800 o `screen_h() // 4` da tela inicial cai dentro da faixa de céu, acima da área jogável — o texto sairia do jogo. Todos passaram a `play.centerx` / `play.top`, e num canvas 2:3 os números são idênticos aos da v2. Pelo mesmo motivo `ui.max_text_w()` passou a medir contra a área jogável: contra o canvas, um texto longo teria licença para escorrer por cima das faixas laterais.
+
+  **Ajuste 3 — `decor.py` deixou de derivar a linha do chão da altura da surface.** Colinas, poças de lava e pilares se ancoravam em `surface.get_height() - GROUND_H`, o que na v3 é a base da faixa decorativa: eles afundariam 96px na terra. Agora usam `config.ground_y()`.
+
+  **Decisão — o ícone de mudo fica no canto do canvas, não no da área jogável.** É o ponto mais alcançável no celular, e R25.6 permite explicitamente um controle de interface sobre faixa decorativa. Verticalmente ele mora na faixa de céu quando ela o comporta (R25.7); num celular 16:9, cuja faixa tem só 37px, desce inteiro para a área jogável em vez de ficar metade em cada uma. A pontuação segue a mesma regra, centrada na faixa quando cabe.
+
+  **Mantido de propósito:** as colunas continuam sendo desenhadas a partir do topo do canvas, atravessando a faixa de céu como se viessem de fora da tela (seção 32.5). A colisão não muda, porque a abelha nunca passa de `play.top`.
+
+  **Testes (16 novos, `tests/test_bands.py` e `tests/test_game.py`):** com o canvas do celular 20:9, o teto do voo é `play.top` e não o topo do canvas; a trajetória de queda medida a partir de `play.top` é idêntica nas duas proporções (velocidades batem bit a bit, alturas a menos de epsilon de float — somar o mesmo delta a 200 ou a 451 arredonda diferente, e isso é representação, não física); toda abertura sorteada em 200 frames fica dentro da área jogável, bordas incluídas; a coluna é descartada em `play.left`; o chão enche a faixa decorativa até a base do canvas, verificado por pixel; a pontuação e o ícone de mudo vão para a faixa de céu, caem de volta na área de jogo quando a faixa é curta demais, e num canvas 2:3 ficam exatamente onde ficavam na v2; a abelha nasce no meio da área jogável no caminho Android. O teste de decoração da v2 que afirmava sobre a altura da surface foi reescrito para afirmar sobre a linha do chão da área jogável.
+
+  **Validado:** suíte completa (164 testes) verde; `ruff check`, `ruff format --check` e `ty check` sem violações. Conferência visual em `BLOCKY_CANVAS=480x1067`, em PRONTO e em JOGANDO: céu vazio acima da área jogável, abelha e textos dentro dela, colunas atravessando a faixa de céu, colinas assentadas na linha do chão e terra funda até a base da tela.
 
 - [ ] **47. Faixas laterais — corte transversal do terreno**
   Gerar por bioma uma faixa lateral opaca com camadas de bloco empilhadas e veios de minério, reaproveitando as texturas da seção 10 e os desenhadores de `decor.py`, com a linha do chão alinhada a `ground_y()`. Desenhá-las **depois** das colunas, para ocultar o que ainda não entrou na área jogável. `PipeManager._spawn` passa a criar em `play.right`. Céu, parallax e chão passam a cobrir a largura toda do canvas. Testes: a coluna nasce em `play.right`; nenhum pixel de coluna é visível fora de `play` (verificado pela ordem de desenho registrada no `FakeRenderer`); a faixa é opaca; o tempo entre o nascimento da coluna e a chegada à abelha é igual num canvas 960×720 e num 480×720. _(R24.3, R24.4, R25.2, R25.5)_
@@ -416,9 +432,9 @@ Verificável automaticamente / no desktop:
 - [ ] `specs/v1/` e `specs/v2/` intactas, com o nome antigo preservado (R22.4) — inspeção
 - [x] Canvas lógico com a proporção da tela, área jogável sempre 480×720 (R23.4, R24.1) — `tests/test_viewport.py`
 - [x] Bandas fecham exatamente com o canvas, sem pixel perdido (R23.4) — `tests/test_viewport.py`
-- [ ] Nenhuma constante de física ou de bioma alterada (R24.2) — inspeção + testes de física da v1/v2 ainda verdes
+- [x] Nenhuma constante de física ou de bioma alterada (R24.2) — inspeção + testes de física da v1/v2 ainda verdes, mais `tests/test_bands.py::test_fall_is_identical_in_both_canvases`
 - [ ] Coluna nasce em `play.right` e não aparece fora da área jogável (R24.3, R24.4) — `tests/test_pipes.py`
-- [ ] Teto do voo na borda da área jogável, não do canvas (R24.5) — `tests/test_bird.py`
+- [x] Teto do voo na borda da área jogável, não do canvas (R24.5) — `tests/test_bands.py`
 - [ ] Mobs sempre fora da área jogável, sem efeito em colisão ou pontuação (R25.4, R34.5) — `tests/test_mobs.py`
 - [ ] Toque/clique em faixa decorativa dispara a ação de voar, com o ícone de mudo como única exceção (R25.6, R34.1, R34.4) — `tests/test_input.py`
 - [ ] Mouse e toque no mesmo ponto produzem a mesma ação; coordenada fora do canvas é ignorada (R34.2, R34.3) — `tests/test_input.py`

@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 import pygame
 
-from src.config import GROUND_H
+from src import config
 
 FAR_FACTOR = 0.3
 NEAR_FACTOR = 0.6
@@ -124,7 +124,10 @@ class DecorManager:
         self.near_scrolled += speed * NEAR_FACTOR
 
     def draw(self, surface: pygame.Surface, decor_id: str) -> None:
-        ground_y = surface.get_height() - GROUND_H
+        # a linha do chao vem da area jogavel, nao da base do canvas: colinas, poças
+        # de lava e pilares tem que assentar no chao de verdade, nao afundar na faixa
+        # decorativa de baixo (R25.1).
+        ground_y = config.ground_y()
         far_period, far_drawer = _LAYERS[decor_id][0]
         near_period, near_drawer = _LAYERS[decor_id][1]
         _tile(surface, self.far_scrolled, far_period, ground_y, far_drawer)

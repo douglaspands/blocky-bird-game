@@ -1,6 +1,8 @@
 import pygame
 
+from src import config
 from src.decor import DecorManager
+from src.viewport import compute
 
 
 def test_draw_tiles_across_a_canvas_wider_than_base_area():
@@ -17,11 +19,13 @@ def test_draw_tiles_across_a_canvas_wider_than_base_area():
     dm.draw(surface_nether, "nether")
 
 
-def test_draw_anchors_ground_relative_decor_to_real_surface_height():
-    """Hills/lava/pilares se ancoram no chao (GROUND_H acima da base da surface) —
-    numa surface mais alta que 720 (celular alongado), a decoracao rolante precisa
-    acompanhar a nova posicao do chao, nao a antiga (720 - GROUND_H)."""
+def test_draw_anchors_ground_relative_decor_to_the_play_area():
+    """Hills/lava/pilares assentam na linha do chao da area jogavel, nao na base do
+    canvas — senao afundariam na faixa decorativa de chao de um celular alongado
+    (task 46, R25.1)."""
+    config.set_viewport(compute(1080, 2400))
     dm = DecorManager()
-    tall = pygame.Surface((480, 1067))
+    tall = pygame.Surface(config.viewport().canvas)
+    assert config.ground_y() < tall.get_height() - 96  # ha faixa de chao abaixo
     dm.draw(tall, "overworld")  # nao deve lancar (ex.: y negativo instavel)
     dm.draw(tall, "nether")

@@ -69,7 +69,8 @@ class Game:
         self.reset()
 
     def reset(self) -> None:
-        self.bird = Bird(config.screen_w() // 4, config.screen_h() // 2)
+        play = config.play()
+        self.bird = Bird(play.x + play.width // 4, play.y + play.height // 2)
         self.biome = BiomeManager()
         b = self.biome.current
         self.pipes = PipeManager(b.gap_size, b.block_main, b.block_edge)

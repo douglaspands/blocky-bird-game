@@ -300,6 +300,18 @@ def test_screen_uses_the_computed_canvas():
     assert game.viewport.play.size == (viewport.PLAY_W, viewport.PLAY_H)
 
 
+def test_bird_starts_inside_the_play_area(monkeypatch):
+    """A abelha nasce a um quarto da largura e no meio da ALTURA JOGAVEL — num
+    celular alongado, o canvas jogaria o ponto de partida para dentro da faixa de
+    ceu (R24.1, R25.1)."""
+    monkeypatch.setattr("src.viewport.is_android", lambda: True)
+    monkeypatch.setattr(pygame.display, "get_desktop_sizes", lambda: [(1080, 2400)])
+    game = _make_game()
+    play = game.viewport.play
+    assert (game.bird.pos.x, game.bird.pos.y) == (play.x + play.width // 4, play.y + play.height // 2)
+    assert play.contains(game.bird.rect)
+
+
 def test_android_display_is_fullscreen_at_native_resolution(monkeypatch):
     """No Android o display vai a tela cheia na resolucao nativa (R23.3), e o canvas
     recebe a proporcao do aparelho — o que elimina a barra preta nos quatro lados da
