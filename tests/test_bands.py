@@ -4,7 +4,7 @@ vira ceu, chao e paredes de terra (R23.4, R24.1-R24.5, R25.1, R25.2, R25.5, R25.
 import pygame
 import pytest
 
-from src import config, decor, textures, ui
+from src import config, decor, render, textures, ui
 from src.bands import SideBands
 from src.biome import BIOMES, BiomeManager
 from src.bird import Bird
@@ -13,6 +13,7 @@ from src.game import Game, GameState
 from src.ground import Ground
 from src.pipes import PipeManager
 from src.viewport import PLAY_H, PLAY_W, compute
+from tests.fakes import FakeRenderer
 
 PHONE = (1080, 2400)  # canvas 480x1067: ceu de 251px, chao extra de 96px
 WIDE = (1920, 1080)  # canvas 1280x720: faixas laterais de 400px
@@ -111,12 +112,12 @@ def test_ground_fills_the_decorative_band_below_the_play_area():
     """A fileira extra e consequencia direta do canvas mais alto: `Ground.draw` ja
     enche de `ground_y()` ate a base do canvas (R25.1)."""
     _use(PHONE)
-    surface = pygame.Surface(config.viewport().canvas)
-    surface.fill((0, 0, 0))
-    Ground().draw(surface, textures.generate_all(BLOCK), "dirt", "grass_side")
+    renderer = FakeRenderer(config.viewport().canvas)
+    Ground().draw(renderer, textures.generate_all(BLOCK), "dirt", "grass_side")
     band = config.viewport().ground_band
-    assert surface.get_at((BLOCK, band.centery))[:3] != (0, 0, 0)
-    assert surface.get_at((BLOCK, config.screen_h() - 1))[:3] != (0, 0, 0)
+    rects = [rect for _, rect in renderer.draws]
+    assert any(rect.collidepoint(BLOCK, band.centery) for rect in rects)
+    assert max(rect.bottom for rect in rects) >= config.screen_h()
 
 
 def test_hud_score_moves_into_the_sky_band():
@@ -158,39 +159,42 @@ def test_mute_icon_on_a_2_3_canvas_is_where_it_was_in_v2():
     assert ui.mute_icon_rect() == pygame.Rect(PLAY_W - 14 - 40, 14, 40, 40)
 
 
-def test_state_screens_are_anchored_to_the_play_area(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_state_screens_are_anchored_to_the_play_area() -> None:
     """Ready/pausa/game over acompanham a area jogavel: numa tela muito alongada,
     ancorar no canvas jogaria os textos para dentro da faixa de ceu."""
     play = _use((1080, 2800))
     assert play.top > 0
-    centers: list[tuple[int, int]] = []
-    original = ui.draw_text
 
-    def spy(surf, text, center, base_size=12, color=(255, 255, 255)):
-        centers.append(center)
-        original(surf, text, center, base_size=base_size, color=color)
+    renderer = FakeRenderer(config.viewport().canvas)
+    ui.draw_ready_screen(renderer, 10)
+    ui.draw_paused_overlay(renderer)
+    ui.draw_game_over_screen(renderer, 3, 10)
 
-    monkeypatch.setattr(ui, "draw_text", spy)
-    surface = pygame.Surface(config.viewport().canvas)
-    ui.draw_ready_screen(surface, 10)
-    ui.draw_paused_overlay(surface)
-    ui.draw_game_over_screen(surface, 3, 10)
-
-    assert centers
-    for _, y in centers:
-        assert play.top <= y <= play.bottom
+    assert renderer.texts
+    for _, rect in renderer.texts:
+        assert play.top <= rect.top and rect.bottom <= play.bottom
 
 
 # --- Faixas laterais (task 47) ------------------------------------------------
 
 
+def _surface_renderer() -> render.SurfaceRenderer:
+    """Renderizador de superficie do canvas ativo, para os testes que olham pixels.
+
+    A faixa lateral e opaca por requisito (R24.4) e a emenda com o chao tem que bater
+    material a material: sao afirmacoes sobre a imagem, e nao sobre a sequencia de
+    chamadas, entao aqui o `FakeRenderer` nao serviria. `snapshot()` devolve o canvas
+    logico ja desenhado."""
+    return render.SurfaceRenderer(config.viewport().canvas, config.viewport().canvas)
+
+
 def _drawn_band(screen: tuple[int, int], biome_index: int = 0) -> pygame.Surface:
     """Desenha as faixas laterais sobre um fundo conhecido e devolve o canvas."""
     _use(screen)
-    surface = pygame.Surface(config.viewport().canvas)
-    surface.fill((255, 0, 255))  # magenta: qualquer pixel remanescente denuncia buraco
-    SideBands().draw(surface, textures.generate_all(BLOCK), BIOMES[biome_index])
-    return surface
+    renderer = _surface_renderer()
+    renderer.clear((255, 0, 255))  # magenta: qualquer pixel remanescente denuncia buraco
+    SideBands().draw(renderer, textures.generate_all(BLOCK), BIOMES[biome_index])
+    return renderer.snapshot()
 
 
 def test_pipe_spawns_at_the_play_right_edge():
@@ -257,7 +261,7 @@ def test_side_bands_hide_a_pipe_that_has_not_entered_the_play_area(monkeypatch: 
     game = Game()
     config.set_viewport(compute(*WIDE))
     game.viewport = config.viewport()
-    game.screen = pygame.Surface(game.viewport.canvas)
+    game.renderer = _surface_renderer()
     game.reset()
     game.state = GameState.JOGANDO
 
@@ -269,7 +273,7 @@ def test_side_bands_hide_a_pipe_that_has_not_entered_the_play_area(monkeypatch: 
     def frame(pipes: list) -> pygame.Surface:
         game.pipes.pipes = pipes
         game.draw()
-        return game.screen.copy()
+        return game.renderer.snapshot()
 
     covered, covered_empty = frame([pipe]), frame([])
     assert all(covered.get_at(p) == covered_empty.get_at(p) for p in samples)
@@ -279,16 +283,38 @@ def test_side_bands_hide_a_pipe_that_has_not_entered_the_play_area(monkeypatch: 
     assert any(naked.get_at(p) != naked_empty.get_at(p) for p in samples)
 
 
+def test_the_pipe_under_the_band_is_drawn_before_it():
+    """A mesma garantia pela ordem das chamadas, sem olhar pixel: a coluna que esta
+    sob a faixa e desenhada antes dela, entao a faixa opaca a cobre."""
+    _use(WIDE)
+    renderer = FakeRenderer(config.viewport().canvas)
+    pm = PipeManager(160, "dirt", "grass_side")
+    pm.draw(renderer, textures.generate_all(BLOCK))
+    SideBands().draw(renderer, textures.generate_all(BLOCK), BIOMES[0])
+
+    keys = [key for key, _ in renderer.draws]
+    pipe_rects = [rect for key, rect in renderer.draws if key in ("dirt", "grass_side")]
+    right_band = config.viewport().right_band
+    assert any(right_band.colliderect(rect) for rect in pipe_rects)  # a coluna cai sob a faixa
+
+    last_pipe = max(i for i, key in enumerate(keys) if key in ("dirt", "grass_side"))
+    band_indexes = [i for i, key in enumerate(keys) if isinstance(key, tuple) and key[0] == "band"]
+    assert len(band_indexes) == 2  # uma faixa de cada lado
+    assert min(band_indexes) > last_pipe
+    assert renderer.drawn("band")[1].topleft == right_band.topleft
+
+
 def test_sky_parallax_and_ground_span_the_whole_canvas_width():
     """Ceu, parallax e chao vao de borda a borda mesmo onde a faixa lateral vai
     cobri-los, para nao haver emenda visivel (R25.5)."""
     _use(WIDE)
     canvas_w = config.screen_w()
-    surface = pygame.Surface(config.viewport().canvas)
-    surface.fill((255, 0, 255))
-    BiomeManager().draw_background(surface)
-    decor.DecorManager().draw(surface, "overworld")
-    Ground().draw(surface, textures.generate_all(BLOCK), "dirt", "grass_side")
+    renderer = _surface_renderer()
+    renderer.clear((255, 0, 255))
+    BiomeManager().draw_background(renderer)
+    decor.DecorManager().draw(renderer, "overworld")
+    Ground().draw(renderer, textures.generate_all(BLOCK), "dirt", "grass_side")
+    surface = renderer.snapshot()
     for x in (0, canvas_w // 2, canvas_w - 1):
         assert surface.get_at((x, 10))[:3] != (255, 0, 255)  # ceu
         assert surface.get_at((x, config.ground_y() + 10))[:3] != (255, 0, 255)  # chao

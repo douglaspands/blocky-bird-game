@@ -12,9 +12,7 @@ funcionou, em vez de supor. Ver specs/v3/design.md secao 39.
 import os
 import time
 
-import pygame
-
-from src import pixelfont
+from src import pixelfont, render
 
 ENV_VAR = "BLOCKY_PERF"
 WINDOW_FRAMES = 60
@@ -132,17 +130,22 @@ class FrameProfiler:
         ]
 
 
-def draw_overlay(surface: pygame.Surface, profiler: FrameProfiler) -> None:
+def draw_overlay(renderer: render.Renderer, profiler: FrameProfiler) -> None:
     """Desenha a sobreposicao de diagnostico no canto superior esquerdo (R30.1).
 
-    Usa a fonte bitmap propria (`pixelfont`), que ja tem cache por (texto, escala,
+    Usa a fonte bitmap propria (`pixelfont`), guardada como imagem por (texto, escala,
     cor) — entao so o primeiro frame de cada valor distinto paga a renderizacao dos
     glifos, e o custo da sobreposicao nao mascara o que ela esta medindo.
     """
     y = _OVERLAY_MARGIN
     for line in profiler.lines():
-        shadow = pixelfont.render(line, _OVERLAY_SCALE, _OVERLAY_SHADOW)
-        main = pixelfont.render(line, _OVERLAY_SCALE, _OVERLAY_COLOR)
-        surface.blit(shadow, (_OVERLAY_MARGIN + 1, y + 1))
-        surface.blit(main, (_OVERLAY_MARGIN, y))
+        shadow = _glyphs(renderer, line, _OVERLAY_SHADOW)
+        main = _glyphs(renderer, line, _OVERLAY_COLOR)
+        renderer.draw(shadow, (_OVERLAY_MARGIN + 1, y + 1))
+        renderer.draw(main, (_OVERLAY_MARGIN, y))
         y += pixelfont.GLYPH_H * _OVERLAY_SCALE + _LINE_SPACING
+
+
+def _glyphs(renderer: render.Renderer, line: str, color: tuple[int, int, int]) -> render.Image:
+    """Imagem de uma linha da sobreposicao, guardada com o renderizador."""
+    return renderer.image(("perf", line, color), lambda: pixelfont.render(line, _OVERLAY_SCALE, color))

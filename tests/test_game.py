@@ -1,9 +1,10 @@
 import pygame
 
-from src import config, viewport
+from src import config, render, viewport
 from src import score as score_module
 from src.config import PIPE_W
 from src.game import Game, GameState
+from tests.fakes import FakeRenderer
 
 
 def _make_game():
@@ -289,15 +290,43 @@ def test_flap_in_game_over_resets_to_pronto():
     assert game.score == 0
 
 
-def test_screen_uses_the_computed_canvas():
-    """O display e criado com o canvas logico, nao com a area jogavel: a janela
+def test_renderer_uses_the_computed_canvas():
+    """O renderizador e criado com o canvas logico, nao com a area jogavel: a janela
     padrao do desktop e 960x720, mais larga que os 480x720 de mundo, para as
     faixas laterais aparecerem sem redimensionar nada (R23.7). O `config` passa a
     resolver as dimensoes pelo viewport ativo (task 45)."""
     game = _make_game()
     assert game.viewport.canvas == viewport.DESKTOP_WINDOW
-    assert game.screen.get_size() == (config.screen_w(), config.screen_h())
+    assert game.renderer.size == (config.screen_w(), config.screen_h())
     assert game.viewport.play.size == (viewport.PLAY_W, viewport.PLAY_H)
+
+
+def test_the_game_draws_a_whole_frame_through_the_renderer():
+    """Nenhum modulo de desenho recebe mais uma `Surface`: o frame inteiro sai em
+    chamadas do renderizador, e termina publicado (R26.4)."""
+    game = _make_game()
+    game.renderer = FakeRenderer(game.viewport.canvas)
+    game.draw()
+
+    fake = game.renderer
+    assert fake.calls[-1] == ("present",)
+    assert fake.drawn("sky"), "o gradiente de ceu do bioma"
+    assert fake.drawn("bee"), "a abelha rotacionada"
+    assert fake.drawn("mute_icon"), "o botao de mudo"
+    assert fake.drawn("band"), "as faixas laterais do canvas 960x720"
+
+
+def test_the_side_bands_are_drawn_after_the_pipes():
+    """A ordem e o mecanismo de R24.4: a faixa e opaca e tem que cobrir a coluna que
+    ainda nao entrou na area jogavel (design secao 32.6)."""
+    game = _make_game()
+    game.renderer = FakeRenderer(game.viewport.canvas)
+    game.draw()
+
+    kinds = [key for key, _ in game.renderer.draws]
+    last_pipe = max(i for i, key in enumerate(kinds) if key in ("dirt", "grass_side"))
+    first_band = min(i for i, key in enumerate(kinds) if isinstance(key, tuple) and key[0] == "band")
+    assert first_band > last_pipe
 
 
 def test_bird_starts_inside_the_play_area(monkeypatch):
@@ -317,8 +346,22 @@ def test_android_display_is_fullscreen_at_native_resolution(monkeypatch):
     recebe a proporcao do aparelho — o que elimina a barra preta nos quatro lados da
     v2 (R23.1) sem mexer na area jogavel (R24.1)."""
     monkeypatch.setattr("src.viewport.is_android", lambda: True)
+    monkeypatch.setattr("src.game.is_android", lambda: True)
     monkeypatch.setattr(pygame.display, "get_desktop_sizes", lambda: [(1080, 2400)])
+
+    created: list[tuple] = []
+    original = render.create
+
+    def spy(canvas, window, **kwargs):
+        created.append((canvas, window, kwargs))
+        return original(canvas, window, **kwargs)
+
+    monkeypatch.setattr(render, "create", spy)
     game = _make_game()
+
     assert game.viewport.canvas == (480, 1067)
     assert game.viewport.play.size == (viewport.PLAY_W, viewport.PLAY_H)
-    assert viewport.display_flags() & pygame.FULLSCREEN
+    canvas, window, kwargs = created[0]
+    assert canvas == (480, 1067)
+    assert window == (1080, 2400)  # a janela e a tela nativa do aparelho
+    assert kwargs["fullscreen"] is True

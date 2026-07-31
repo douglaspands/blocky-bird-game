@@ -4,7 +4,7 @@ import math
 
 import pygame
 
-from src import config
+from src import config, render
 from src.config import BLOCK, FLAP_IMPULSE, GRAVITY, HITBOX_SCALE, MAX_FALL_SPEED
 
 WING_FRAME_INTERVAL = 6
@@ -70,8 +70,20 @@ class Bird:
         rect.center = full.center
         return rect
 
-    def draw(self, surface: pygame.Surface, textures: dict[str, pygame.Surface]) -> None:
-        tex = textures[f"bee_{self.frame}"]
-        rotated = pygame.transform.rotate(tex, self.angle)
-        rect = rotated.get_rect(center=(self.pos.x + self.size / 2, self.pos.y + self.size / 2))
-        surface.blit(rotated, rect)
+    def draw(self, renderer: render.Renderer, textures: dict[str, pygame.Surface]) -> None:
+        """Desenha o sprite rotacionado do angulo atual.
+
+        A rotacao acontece uma vez por combinacao de (frame de asa, angulo) e a
+        imagem fica guardada com o renderizador. Sao 62 combinacoes no total: o
+        angulo so assume os valores da grade de `ANGLE_FALL_STEP` entre
+        `MAX_ANGLE_DOWN` e `MAX_ANGLE_UP`, e ha dois frames de asa. A task 56
+        pre-computa as 62 na inicializacao; aqui elas nascem sob demanda."""
+        angle = round(self.angle)
+        image = renderer.image(
+            ("bee", self.frame, angle),
+            lambda: pygame.transform.rotate(textures[f"bee_{self.frame}"], angle),
+        )
+        width, height = image.size
+        center_x = self.pos.x + self.size / 2
+        center_y = self.pos.y + self.size / 2
+        renderer.draw(image, (round(center_x - width / 2), round(center_y - height / 2)))

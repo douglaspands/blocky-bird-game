@@ -2,8 +2,7 @@
 
 import pygame
 
-from src import config, ui
-from src.scale import fit_scale
+from src import config, render, ui
 
 BUTTON_A = 0
 BUTTON_Y = 3
@@ -30,18 +29,9 @@ ACTION_RESIZE = "resize"
 FOCUS_LOST_EVENTS = (pygame.APP_WILLENTERBACKGROUND, pygame.APP_DIDENTERBACKGROUND, pygame.WINDOWFOCUSLOST)
 
 
-def _touch_to_logical(norm_x: float, norm_y: float) -> tuple[float, float]:
-    """Converte coordenada de toque normalizada (0.0-1.0, relativa a janela
-    inteira) para o espaco do canvas logico, desfazendo o letterbox/pillarbox
-    que `pygame.SCALED` aplica automaticamente (R14.3). Mouse ja chega
-    pre-convertido pelo SDL; so toque precisa disso."""
-    win_w, win_h = pygame.display.get_window_size()
-    scale, off_x, off_y = fit_scale(config.screen_w(), config.screen_h(), win_w, win_h)
-    return (norm_x * win_w - off_x) / scale, (norm_y * win_h - off_y) / scale
-
-
 class InputManager:
-    def __init__(self) -> None:
+    def __init__(self, renderer: render.Renderer) -> None:
+        self.renderer = renderer
         pygame.joystick.init()
         self.joysticks: dict[int, pygame.joystick.JoystickType] = {}
         for device_index in range(pygame.joystick.get_count()):
@@ -54,10 +44,18 @@ class InputManager:
     def _remove_joystick(self, instance_id: int) -> None:
         self.joysticks.pop(instance_id, None)
 
+    def _tap(self, actions: set[str], window_x: float, window_y: float) -> None:
+        """Converte um ponto da janela para o canvas e resolve a acao.
+
+        Mouse e toque passam pelo mesmo `to_logical` do renderizador ativo. Na v2 o
+        tratamento era assimetrico — `pygame.SCALED` pre-convertia o mouse e so o
+        toque era convertido a mao —, e a assimetria desapareceu junto com o `SCALED`
+        (design secao 33.4). A task 51 fecha o resto de R34."""
+        self._handle_tap(actions, *self.renderer.to_logical(window_x, window_y))
+
     def _handle_tap(self, actions: set[str], lx: float, ly: float) -> None:
-        """Toque/clique fora do canvas (na barra de letterbox/pillarbox) e
-        ignorado; no icone de mudo alterna mudo; em qualquer outro ponto do
-        canvas, voa (R15.1, R15.4)."""
+        """Toque/clique fora do canvas e ignorado; no icone de mudo alterna
+        mudo; em qualquer outro ponto do canvas, voa (R15.1, R15.4)."""
         if not (0 <= lx <= config.screen_w() and 0 <= ly <= config.screen_h()):
             return
         if ui.mute_icon_rect().collidepoint(lx, ly):
@@ -93,10 +91,12 @@ class InputManager:
                 elif event.key in RIGHT_KEYS:
                     actions.add(ACTION_RIGHT)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # com pygame.SCALED, event.pos ja vem em coordenadas logicas (R9.1)
-                self._handle_tap(actions, *event.pos)
+                # `event.pos` vem em pixels reais da janela
+                self._tap(actions, *event.pos)
             elif event.type == pygame.FINGERDOWN:
-                self._handle_tap(actions, *_touch_to_logical(event.x, event.y))
+                # o toque chega normalizado (0.0-1.0) sobre a janela inteira
+                win_w, win_h = self.renderer.window_size
+                self._tap(actions, event.x * win_w, event.y * win_h)
             elif event.type == pygame.JOYBUTTONDOWN:
                 if event.button == BUTTON_A:
                     actions.add(ACTION_FLAP)

@@ -2,7 +2,7 @@
 
 import pygame
 
-from src import config, pixelfont
+from src import config, pixelfont, render
 from src.config import CREDITS
 
 SHADOW_COLOR = (40, 30, 20)
@@ -70,22 +70,38 @@ def _fit_scale(text: str, scale: int) -> int:
     return scale
 
 
+def _text_image(
+    renderer: render.Renderer, text: str, scale: int, color: tuple[int, int, int]
+) -> render.Image:
+    """Linha de texto ja renderizada, guardada por (texto, escala, cor).
+
+    `pixelfont.render` ja cacheia a superficie; o cache do renderizador evita
+    reenvia-la a cada frame, que e o que importa no caminho de GPU (R27.2)."""
+    return renderer.image(("text", text, scale, color), lambda: pixelfont.render(text, scale, color))
+
+
 def draw_text(
-    surface: pygame.Surface,
+    renderer: render.Renderer,
     text: str,
     center: tuple[int, int],
     base_size: int = 12,
     color: tuple[int, int, int] = (255, 255, 255),
 ) -> None:
     scale = _fit_scale(text, _scale_for(base_size))
-    shadow = pixelfont.render(text, scale, SHADOW_COLOR)
-    main = pixelfont.render(text, scale, color)
-    surface.blit(shadow, shadow.get_rect(center=(center[0] + SHADOW_OFFSET, center[1] + SHADOW_OFFSET)))
-    surface.blit(main, main.get_rect(center=center))
+    shadow = _text_image(renderer, text, scale, SHADOW_COLOR)
+    main = _text_image(renderer, text, scale, color)
+    renderer.draw(shadow, _centered(shadow, center[0] + SHADOW_OFFSET, center[1] + SHADOW_OFFSET))
+    renderer.draw(main, _centered(main, *center))
+
+
+def _centered(image: render.Image, center_x: int, center_y: int) -> tuple[int, int]:
+    """Canto superior esquerdo que centra `image` no ponto dado."""
+    width, height = image.size
+    return center_x - width // 2, center_y - height // 2
 
 
 def _stack(
-    surface: pygame.Surface,
+    renderer: render.Renderer,
     center_x: int,
     top_y: int,
     lines: list[tuple[str, int, tuple[int, int, int]]],
@@ -102,21 +118,23 @@ def _stack(
     for text, base_size, color in lines:
         scale = _fit_scale(text, _scale_for(base_size))
         height = pixelfont.GLYPH_H * scale
-        draw_text(surface, text, (center_x, y + height // 2), base_size=base_size, color=color)
+        draw_text(renderer, text, (center_x, y + height // 2), base_size=base_size, color=color)
         y += height + SHADOW_OFFSET + margin
     return y
 
 
-def _dim_overlay(surface: pygame.Surface) -> None:
-    overlay = pygame.Surface((config.screen_w(), config.screen_h()), pygame.SRCALPHA)
-    overlay.fill(OVERLAY_COLOR)
-    surface.blit(overlay, (0, 0))
+def _dim_overlay(renderer: render.Renderer) -> None:
+    """Escurece o canvas inteiro para as telas de pausa e de fim de jogo.
+
+    Um `fill` com alfa, e nao mais uma `Surface` de tela cheia criada por frame — era
+    a maior fonte de lixo por frame da v2 (design secao 30)."""
+    renderer.fill(OVERLAY_COLOR, pygame.Rect(0, 0, config.screen_w(), config.screen_h()))
 
 
-def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
+def draw_ready_screen(renderer: render.Renderer, highscore: int) -> None:
     play = config.play()
     next_y = _stack(
-        surface,
+        renderer,
         play.centerx,
         play.top + play.height // 4,
         [
@@ -128,14 +146,14 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
     instruction_scale = _fit_scale(instruction, _scale_for(9))
     instruction_y = next_y + 16 + (pixelfont.GLYPH_H * instruction_scale) // 2
     draw_text(
-        surface,
+        renderer,
         instruction,
         (play.centerx, instruction_y),
         base_size=9,
         color=GOLD,
     )
     draw_text(
-        surface,
+        renderer,
         f"RECORDE: {highscore}",
         (play.centerx, config.ground_y() - 24),
         base_size=8,
@@ -143,15 +161,21 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
     )
 
 
-def draw_mute_icon(surface: pygame.Surface, muted: bool) -> None:
-    """Botao de mudo tocavel no canto da tela, estilo voxel (R15.4)."""
-    rect = mute_icon_rect()
+def _paint_mute_icon(muted: bool) -> pygame.Surface:
+    """Pinta o botao de mudo num quadrado de `MUTE_ICON_SIZE`, em coordenadas locais.
+
+    As duas riscas do estado mudo sao diagonais, e o renderizador so preenche
+    retangulos — entao o icone e pintado uma vez por estado e vira imagem. Sao duas no
+    total, exatamente as que a task 56 tambem preve."""
+    size = MUTE_ICON_SIZE
+    surface = pygame.Surface((size, size), pygame.SRCALPHA)
+    rect = pygame.Rect(0, 0, size, size)
     pygame.draw.rect(surface, (20, 16, 10), rect)
     pygame.draw.rect(surface, GOLD, rect, width=2)
 
     color = (220, 70, 60) if muted else (255, 255, 255)
     cx, cy = rect.center
-    unit = rect.width // 8
+    unit = size // 8
     # corpo do alto-falante: bloco quadrado + haste, em retangulos (estetica blocky)
     pygame.draw.rect(surface, color, (cx - 3 * unit, cy - unit, 2 * unit, 2 * unit))
     pygame.draw.rect(surface, color, (cx - unit, cy - 3 * unit, unit, 6 * unit))
@@ -162,6 +186,13 @@ def draw_mute_icon(surface: pygame.Surface, muted: bool) -> None:
     else:
         pygame.draw.rect(surface, color, (cx + unit, cy - 2 * unit, unit, 4 * unit))
         pygame.draw.rect(surface, color, (cx + 2 * unit, cy - 3 * unit, unit, 6 * unit))
+    return surface
+
+
+def draw_mute_icon(renderer: render.Renderer, muted: bool) -> None:
+    """Botao de mudo tocavel no canto da tela, estilo voxel (R15.4)."""
+    image = renderer.image(("mute_icon", muted), lambda: _paint_mute_icon(muted))
+    renderer.draw(image, mute_icon_rect().topleft)
 
 
 def hud_score_center(base_size: int = 12) -> tuple[int, int]:
@@ -178,15 +209,15 @@ def hud_score_center(base_size: int = 12) -> tuple[int, int]:
     return vp.play.centerx, vp.play.top + HUD_SCORE_MARGIN
 
 
-def draw_hud_score(surface: pygame.Surface, score: int) -> None:
-    draw_text(surface, str(score), hud_score_center(), base_size=12)
+def draw_hud_score(renderer: render.Renderer, score: int) -> None:
+    draw_text(renderer, str(score), hud_score_center(), base_size=12)
 
 
-def draw_paused_overlay(surface: pygame.Surface) -> None:
+def draw_paused_overlay(renderer: render.Renderer) -> None:
     play = config.play()
-    _dim_overlay(surface)
+    _dim_overlay(renderer)
     _stack(
-        surface,
+        renderer,
         play.centerx,
         play.centery - 24,
         [
@@ -196,11 +227,11 @@ def draw_paused_overlay(surface: pygame.Surface) -> None:
     )
 
 
-def draw_game_over_screen(surface: pygame.Surface, score: int, highscore: int) -> None:
+def draw_game_over_screen(renderer: render.Renderer, score: int, highscore: int) -> None:
     play = config.play()
-    _dim_overlay(surface)
+    _dim_overlay(renderer)
     _stack(
-        surface,
+        renderer,
         play.centerx,
         play.centery - 90,
         [

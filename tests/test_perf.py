@@ -4,6 +4,7 @@ import pygame
 
 from src import perf, pixelfont
 from src.game import Game
+from tests.fakes import FakeRenderer
 
 
 def test_enabled_desligado_por_padrao(monkeypatch):
@@ -85,21 +86,37 @@ def test_lines_usa_apenas_glifos_existentes():
 
 def test_draw_overlay_desenha_no_canto_superior_esquerdo():
     """A sobreposicao ocupa o canto superior esquerdo, sem cobrir o centro da tela."""
-    surface = pygame.Surface((480, 720))
-    surface.fill((0, 0, 0))
+    renderer = FakeRenderer((480, 720))
     profiler = perf.FrameProfiler()
     profiler.frame(16.0)
 
-    perf.draw_overlay(surface, profiler)
+    perf.draw_overlay(renderer, profiler)
 
-    assert surface.get_at((0, 0))[:3] == (0, 0, 0), "margem preservada"
-    canto = pygame.Rect(0, 0, 160, 80)
-    assert any(
-        surface.get_at((x, y))[:3] != (0, 0, 0)
-        for x in range(canto.left, canto.right, 2)
-        for y in range(canto.top, canto.bottom, 2)
-    ), "nada foi desenhado no canto"
-    assert surface.get_at((240, 400))[:3] == (0, 0, 0), "o centro da tela nao pode ser tocado"
+    rects = renderer.drawn("perf")
+    assert rects, "nada foi desenhado"
+    canto = pygame.Rect(0, 0, 160, 100)
+    assert all(canto.contains(rect) for rect in rects)
+    assert min(rect.left for rect in rects) >= perf._OVERLAY_MARGIN, "margem preservada"
+
+
+def test_draw_overlay_mostra_o_backend_de_render():
+    """O caminho de renderizacao em uso aparece na sobreposicao (R26.5)."""
+    renderer = FakeRenderer((480, 720))
+    profiler = perf.FrameProfiler()
+    profiler.backend = "gpu-accelerated"
+
+    perf.draw_overlay(renderer, profiler)
+
+    linhas = [key[1] for key, _ in renderer.draws if isinstance(key, tuple)]
+    assert "GPU-ACCELERATED" in linhas
+
+
+def test_game_informa_o_backend_ao_profiler(monkeypatch):
+    """Quem sabe qual caminho saiu da cascata e o Game, e ele repassa (R26.5)."""
+    monkeypatch.setenv(perf.ENV_VAR, "1")
+    game = Game()
+    assert game.profiler is not None
+    assert game.profiler.backend == game.renderer.backend
 
 
 def test_game_sem_profiler_por_padrao(monkeypatch):

@@ -4,7 +4,7 @@ import random
 
 import pygame
 
-from src import config
+from src import config, render
 from src.config import BLOCK, GAP_MARGIN, PIPE_SPACING, PIPE_W
 
 
@@ -32,17 +32,17 @@ class PipePair:
         sai dela ja esta atras da faixa decorativa e nao volta a ser visto."""
         return self.x + PIPE_W < config.play().left
 
-    def draw(self, surface: pygame.Surface, textures: dict[str, pygame.Surface]) -> None:
+    def draw(self, renderer: render.Renderer, textures: dict[str, pygame.Surface]) -> None:
         """Desenha a coluna como pilha de blocos do bioma congelado na criacao (R2.5)."""
-        main_tex = textures[self.block_main]
-        edge_tex = textures[self.block_edge]
+        main_img = renderer.image(self.block_main, lambda: textures[self.block_main])
+        edge_img = renderer.image(self.block_edge, lambda: textures[self.block_edge])
         x = round(self.x)
 
         top = self.top_rect
         y = top.bottom - BLOCK
         first = True
         while y > -BLOCK:
-            surface.blit(edge_tex if first else main_tex, (x, y))
+            renderer.draw(edge_img if first else main_img, (x, y))
             y -= BLOCK
             first = False
 
@@ -50,7 +50,7 @@ class PipePair:
         y = bottom.top
         first = True
         while y < bottom.bottom:
-            surface.blit(edge_tex if first else main_tex, (x, y))
+            renderer.draw(edge_img if first else main_img, (x, y))
             y += BLOCK
             first = False
 
@@ -83,6 +83,6 @@ class PipeManager:
 
         self.pipes = [p for p in self.pipes if not p.off_screen()]
 
-    def draw(self, surface: pygame.Surface, textures: dict[str, pygame.Surface]) -> None:
+    def draw(self, renderer: render.Renderer, textures: dict[str, pygame.Surface]) -> None:
         for pipe in self.pipes:
-            pipe.draw(surface, textures)
+            pipe.draw(renderer, textures)

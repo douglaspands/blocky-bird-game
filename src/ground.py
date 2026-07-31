@@ -2,7 +2,7 @@
 
 import pygame
 
-from src import config
+from src import config, render
 from src.config import BLOCK, GROUND_H
 
 
@@ -19,14 +19,14 @@ class Ground:
 
     def draw(
         self,
-        surface: pygame.Surface,
+        renderer: render.Renderer,
         textures: dict[str, pygame.Surface],
         block_main: str,
         block_edge: str,
     ) -> None:
         """Usa sempre as texturas do bioma atual, sem congelamento (R7.3)."""
-        main_tex = textures[block_main]
-        edge_tex = textures[block_edge]
+        main_img = renderer.image(block_main, lambda: textures[block_main])
+        edge_img = renderer.image(block_edge, lambda: textures[block_edge])
         top_y = config.ground_y()
         # icados para locais: sao os limites dos dois lacos de blit, e resolver o
         # viewport a cada iteracao seria trabalho repetido no caminho quente.
@@ -35,9 +35,9 @@ class Ground:
 
         x = round(self.offset) - BLOCK
         while x < canvas_w:
-            surface.blit(edge_tex, (x, top_y))
+            renderer.draw(edge_img, (x, top_y))
             y = top_y + BLOCK
             while y < canvas_h:
-                surface.blit(main_tex, (x, y))
+                renderer.draw(main_img, (x, y))
                 y += BLOCK
             x += BLOCK

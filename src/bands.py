@@ -16,7 +16,7 @@ Ver specs/v3/design.md secao 32.5.
 
 import pygame
 
-from src import config, decor
+from src import config, decor, render
 from src.biome import Biome
 
 DEEP_BLOCK = {"overworld": "stone", "cave": "cobblestone", "nether": "obsidian"}
@@ -32,47 +32,37 @@ ORE_VEIN_PERIOD = 90
 
 
 class SideBands:
-    """Desenha as duas faixas laterais, com as superficies cacheadas por bioma.
+    """Desenha as duas faixas laterais, cada uma como uma unica imagem por bioma.
 
-    O conteudo so muda quando o canvas ou o bioma mudam, entao cada faixa e
-    construida uma vez e reaproveitada — a mesma disciplina de
-    `BiomeManager._ensure_gradients`."""
+    O conteudo so muda quando o canvas ou o bioma mudam, entao cada parede e
+    construida uma vez e guardada com o renderizador, que a chaveia por bioma, lado e
+    tamanho — a mesma disciplina dos gradientes de ceu."""
 
-    def __init__(self) -> None:
-        self._cache: dict[str, tuple[pygame.Surface, pygame.Surface]] = {}
-        self._key: tuple[int, int, int] | None = None
-
-    def draw(self, surface: pygame.Surface, textures: dict[str, pygame.Surface], biome: Biome) -> None:
+    def draw(self, renderer: render.Renderer, textures: dict[str, pygame.Surface], biome: Biome) -> None:
         """Cobre as laterais do canvas. Sem sobra horizontal (tela 2:3), nao faz nada."""
         vp = config.viewport()
         left_rect, right_rect = vp.left_band, vp.right_band
         if left_rect.width == 0 and right_rect.width == 0:
             return
 
-        left, right = self._bands_for(biome, textures)
-        if left_rect.width:
-            surface.blit(left, left_rect.topleft, pygame.Rect(0, 0, left_rect.width, left_rect.height))
-        if right_rect.width:
-            surface.blit(right, right_rect.topleft, pygame.Rect(0, 0, right_rect.width, right_rect.height))
+        # semente diferente por lado: duas paredes identicas em espelho entregariam a
+        # simetria de graca e denunciariam a repeticao.
+        for rect, seed in ((left_rect, 0), (right_rect, 1000)):
+            if not rect.width:
+                continue
+            image = self._band(renderer, textures, biome, seed)
+            renderer.draw(image, rect.topleft, pygame.Rect(0, 0, rect.width, rect.height))
 
-    def _bands_for(
-        self, biome: Biome, textures: dict[str, pygame.Surface]
-    ) -> tuple[pygame.Surface, pygame.Surface]:
+    def _band(
+        self, renderer: render.Renderer, textures: dict[str, pygame.Surface], biome: Biome, seed: int
+    ) -> render.Image:
         vp = config.viewport()
         ground_y = config.ground_y()
-        key = (vp.width, vp.height, ground_y)
-        if self._key != key:
-            self._cache.clear()
-            self._key = key
-        if biome.id not in self._cache:
-            width = max(vp.left_band.width, vp.right_band.width)
-            self._cache[biome.id] = (
-                _build(width, vp.height, ground_y, biome, textures, seed=0),
-                # semente diferente para os veios: duas paredes identicas em espelho
-                # entregariam a simetria de graca e denunciariam a repeticao.
-                _build(width, vp.height, ground_y, biome, textures, seed=1000),
-            )
-        return self._cache[biome.id]
+        width = max(vp.left_band.width, vp.right_band.width)
+        return renderer.image(
+            ("band", biome.id, seed, width, vp.height, ground_y),
+            lambda: _build(width, vp.height, ground_y, biome, textures, seed),
+        )
 
 
 def _build(
@@ -116,7 +106,8 @@ def _build(
     x = ORE_VEIN_PERIOD // 2
     idx = seed
     while x < width:
-        decor.draw_ore_veins(band, x, idx, height)
+        for color, rect in decor.ore_vein_shapes(x, idx, height):
+            pygame.draw.rect(band, color, rect)
         x += ORE_VEIN_PERIOD
         idx += 1
     return band

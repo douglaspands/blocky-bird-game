@@ -5,7 +5,7 @@ from enum import Enum, auto
 
 import pygame
 
-from src import assets, config, perf, score, textures, ui, viewport
+from src import assets, config, perf, render, score, textures, ui, viewport
 from src.bands import SideBands
 from src.biome import BiomeManager
 from src.bird import Bird
@@ -26,10 +26,22 @@ from src.input import (
 from src.particles import ParticleSystem
 from src.pipes import PipeManager
 from src.sounds import SoundManager
+from src.storage import is_android
 
 RESIZE_SETTLE_FRAMES = 12
 """Frames sem novo evento de redimensionamento antes de aplicar o novo canvas —
 ~200ms a 60 FPS, o bastante para o arrasto assentar sem parecer travado."""
+
+
+def _load_icon() -> pygame.Surface | None:
+    """Icone da abelha para a janela/taskbar do desktop (R21.2).
+
+    Sem efeito visivel no Android (sem barra de titulo), mas nao ha custo em tentar.
+    Degradacao graciosa: um asset ausente ou corrompido nunca deve impedir o jogo de
+    abrir (mesma disciplina do audio, R8.4)."""
+    with contextlib.suppress(OSError, pygame.error):
+        return pygame.image.load(str(assets.asset_path("app_icon_512.png")))
+    return None
 
 
 class GameState(Enum):
@@ -52,7 +64,17 @@ class Game:
         # consulta para se posicionar.
         self.viewport = viewport.compute(*viewport.screen_size())
         config.set_viewport(self.viewport)
-        self._open_display()
+        self.renderer = render.create(
+            self.viewport.canvas,
+            viewport.screen_size(),
+            fullscreen=is_android(),
+            title=f"{TITLE} - {CREDITS}",
+            icon=_load_icon(),
+        )
+        # descarta eventos de janela gerados pela criacao do display (ex.: WindowShown,
+        # WindowFocusGained/Lost) para nao serem lidos como acoes do jogador antes do
+        # loop comecar — visto sob SDL_VIDEODRIVER=dummy com SDL 2.32 (pygame-ce).
+        pygame.event.clear()
         self._pending_resize: tuple[int, int] | None = None
         self._resize_idle = 0
         self.clock = pygame.time.Clock()
@@ -61,50 +83,34 @@ class Game:
         # cache de superficie por bioma, independente de partida: sobrevive ao reset()
         self.bands = SideBands()
         self.sounds = SoundManager()
-        self.input = InputManager()
+        self.input = InputManager(self.renderer)
         self.score = 0
         self.highscore = score.load_highscore()
         # None em producao: a instrumentacao so existe com BLOCKY_PERF ligado (R30.2),
         # entao o custo normal e uma comparacao contra None por frame.
         self.profiler = perf.FrameProfiler() if perf.enabled() else None
+        if self.profiler is not None:
+            self.profiler.backend = self.renderer.backend  # R26.5
         self.reset()
-
-    def _open_display(self) -> None:
-        """Cria (ou recria) o display para o viewport ativo."""
-        # icone da abelha na janela/taskbar do desktop (R21.2); sem efeito
-        # visivel no Android (sem barra de titulo), mas nao ha custo em
-        # tentar. Degradacao graciosa: um asset ausente/corrompido nunca
-        # deve impedir o jogo de abrir (mesma disciplina do audio, R8.4).
-        with contextlib.suppress(OSError, pygame.error):
-            pygame.display.set_icon(pygame.image.load(str(assets.asset_path("app_icon_512.png"))))
-        self.screen = pygame.display.set_mode(self.viewport.canvas, viewport.display_flags())
-        pygame.display.set_caption(f"{TITLE} - {CREDITS}")
-        # descarta eventos de janela gerados pela criacao do display (ex.: WindowShown,
-        # WindowFocusGained/Lost) para nao serem lidos como acoes do jogador antes do
-        # loop comecar — visto sob SDL_VIDEODRIVER=dummy com SDL 2.32 (pygame-ce).
-        pygame.event.clear()
 
     def apply_resize(self, size: tuple[int, int]) -> None:
         """Recalcula o canvas e as faixas para uma janela `size` (R23.6).
 
         A area jogavel nao muda: continua sendo a mesma coluna de 480x720 de mundo,
-        so o canvas ao redor e elastico (R24.1). Os caches de faixa e de gradiente se
-        invalidam sozinhos, porque sao chaveados pelo tamanho do canvas.
+        so o canvas ao redor e elastico (R24.1).
 
-        Trocar o canvas logico do `SCALED` exige recriar o display, e recriar sem o
-        `display.quit()/init()` aborta o processo no pygame-ce 2.5.7 — medido tanto
-        no driver do Windows quanto no `dummy`. Quando a camada de render entrar
-        (task 49), isto vira `renderer.logical_size = viewport.canvas` e todo o
-        rodeio desaparece."""
+        Com a camada de render no lugar, trocar o canvas e uma chamada: o
+        `display.quit()/init()` que a task 48 precisava para contornar o `SCALED`
+        desapareceu junto com o `SCALED`. As imagens chaveadas pelo tamanho do canvas
+        (gradiente de ceu, faixas laterais) sao descartadas para nao ficarem ocupando
+        memoria de video sem nunca mais serem pedidas."""
         new_viewport = viewport.compute(*size)
         if new_viewport.canvas == self.viewport.canvas:
             return
         self.viewport = new_viewport
         config.set_viewport(new_viewport)
-        pygame.display.quit()
-        pygame.display.init()
-        self._open_display()
-        viewport.restore_window_size(size)
+        self.renderer.forget_images()
+        self.renderer.resize(new_viewport.canvas)
 
     def _tick_resize(self) -> None:
         """Aplica o redimensionamento pendente quando o arrasto para.
@@ -167,7 +173,7 @@ class Game:
         if quit_requested:
             self.running = False
         if ACTION_RESIZE in actions:
-            self._pending_resize = pygame.display.get_window_size()
+            self._pending_resize = self.renderer.window_size
             self._resize_idle = 0
         self._tick_resize()
         if ACTION_FOCUS_LOST in actions and self.state == GameState.JOGANDO:
@@ -235,32 +241,33 @@ class Game:
 
     def draw(self) -> None:
         b = self.biome.current
-        self.biome.draw_background(self.screen)
-        self.decor.draw(self.screen, b.decor)
-        self.pipes.draw(self.screen, self.textures)
-        self.ground.draw(self.screen, self.textures, b.block_main, b.block_edge)
-        self.bird.draw(self.screen, self.textures)
-        self.particles.draw(self.screen)
+        renderer = self.renderer
+        self.biome.draw_background(renderer)
+        self.decor.draw(renderer, b.decor)
+        self.pipes.draw(renderer, self.textures)
+        self.ground.draw(renderer, self.textures, b.block_main, b.block_edge)
+        self.bird.draw(renderer, self.textures)
+        self.particles.draw(renderer)
         # depois das colunas e da abelha, antes do HUD: a faixa e opaca e esconde a
         # coluna que ainda nao entrou na area jogavel (R24.4, seção 32.6).
-        self.bands.draw(self.screen, self.textures, b)
-        self.biome.draw_banner(self.screen)
-        ui.draw_mute_icon(self.screen, self.sounds.muted)
+        self.bands.draw(renderer, self.textures, b)
+        self.biome.draw_banner(renderer)
+        ui.draw_mute_icon(renderer, self.sounds.muted)
 
         if self.state == GameState.PRONTO:
-            ui.draw_ready_screen(self.screen, self.highscore)
+            ui.draw_ready_screen(renderer, self.highscore)
         elif self.state == GameState.JOGANDO:
-            ui.draw_hud_score(self.screen, self.score)
+            ui.draw_hud_score(renderer, self.score)
         elif self.state == GameState.PAUSADO:
-            ui.draw_hud_score(self.screen, self.score)
-            ui.draw_paused_overlay(self.screen)
+            ui.draw_hud_score(renderer, self.score)
+            ui.draw_paused_overlay(renderer)
         elif self.state == GameState.GAME_OVER:
-            ui.draw_game_over_screen(self.screen, self.score, self.highscore)
+            ui.draw_game_over_screen(renderer, self.score, self.highscore)
 
         if self.profiler is not None:
-            perf.draw_overlay(self.screen, self.profiler)
+            perf.draw_overlay(renderer, self.profiler)
 
-        pygame.display.flip()
+        renderer.present()
 
     def run(self) -> None:
         profiler = self.profiler

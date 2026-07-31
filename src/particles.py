@@ -5,6 +5,8 @@ import random
 
 import pygame
 
+from src import render
+
 GRAVITY = 0.35
 MIN_LIFETIME = 20
 MAX_LIFETIME = 40
@@ -38,10 +40,10 @@ class Particle:
     def alive(self) -> bool:
         return self.lifetime > 0
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, renderer: render.Renderer) -> None:
         rect = pygame.Rect(0, 0, self.size, self.size)
         rect.center = (round(self.pos.x), round(self.pos.y))
-        pygame.draw.rect(surface, self.color, rect)
+        renderer.fill(self.color, rect)
 
 
 class ParticleSystem:
@@ -68,6 +70,6 @@ class ParticleSystem:
             particle.update()
         self.particles = [p for p in self.particles if p.alive]
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, renderer: render.Renderer) -> None:
         for particle in self.particles:
-            particle.draw(surface)
+            particle.draw(renderer)

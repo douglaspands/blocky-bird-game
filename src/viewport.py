@@ -17,7 +17,6 @@ Ver specs/v3/design.md secao 32.
 """
 
 import os
-import warnings
 from dataclasses import dataclass
 
 import pygame
@@ -180,35 +179,3 @@ def lock_portrait_orientation() -> None:
     aparelho e virado (R23.5). Nao sobrescreve um valor ja definido no ambiente, para
     continuar sendo possivel investigar paisagem sem editar codigo."""
     os.environ.setdefault(ENV_ORIENTATION, "Portrait")
-
-
-def restore_window_size(size: tuple[int, int]) -> None:
-    """Devolve a janela ao tamanho que o jogador tinha arrastado.
-
-    Recriar o display para trocar o canvas cria a janela do tamanho do canvas
-    (seção 32.7); sem isto, arrastar uma janela para 1920x1080 a veria encolher para
-    os 1280x720 do canvas. Com `SCALED`, tamanho de janela e tamanho de canvas sao
-    independentes — e o SDL escala um para o outro."""
-    with warnings.catch_warnings():
-        # pygame-ce avisa que misturar `Window` com o desenho via `display` esta
-        # depreciado. Aqui a `Window` e usada so para redimensionar; o desenho segue
-        # em `display` ate a camada de render entrar (task 49).
-        warnings.simplefilter("ignore", DeprecationWarning)
-        window = pygame.Window.from_display_module()  # ty: ignore[deprecated]
-    window.size = size
-
-
-def display_flags() -> int:
-    """Flags do `set_mode`: tela cheia no Android, janela redimensionavel no desktop.
-
-    `FULLSCREEN` com o canvas ja na proporcao do aparelho e o que elimina a barra nos
-    quatro lados da v2 (R23.1, R23.3); `RESIZABLE` mantem o redimensionamento do
-    desktop, que recalcula o viewport (R23.6).
-
-    `SCALED` continua presente como escalador provisorio: ele leva o canvas logico
-    para a tela real com proporcao preservada, papel que passa para
-    `Renderer.logical_size` quando a camada de GPU entrar (task 49, design secao
-    33.2). Ate la e ele que garante R23.1 no aparelho — e, como o canvas tem
-    exatamente a proporcao da tela, a escala e uniforme e nao sobra barra."""
-    base = pygame.FULLSCREEN if is_android() else pygame.RESIZABLE
-    return pygame.SCALED | base

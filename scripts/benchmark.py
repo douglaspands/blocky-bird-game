@@ -45,7 +45,8 @@ CHURN_FRAMES = 60
 """Frames da passada de memoria: `tracemalloc` e caro, entao a amostra e menor."""
 
 _DRAW_CALLS = 0
-_PATCHED_DRAW_FUNCS = ("rect", "line", "polygon", "ellipse", "circle")
+_COUNTED_OPS = ("draw", "fill", "clear")
+"""Operacoes do renderizador que contam como draw call — as que chegam ao SDL."""
 
 
 def percentile(samples: list[float], fraction: float) -> float:
@@ -119,33 +120,21 @@ def _measure_churn_kb(game: Game, tick: Callable[[Game], None], frames: int) -> 
 def _fresh_display() -> None:
     """Reinicia o subsistema de video entre cenarios.
 
-    `pygame.SCALED` exige um renderizador SDL, e o driver `dummy` so permite um por
-    processo (mesma limitacao documentada no `conftest.py` e no design secao 20.2).
-    Sem este reinicio, cada `Game()` novo deixa um renderizador para tras e os
-    cenarios medidos depois ficam progressivamente mais lentos — um artefato de
-    medicao que nao existe no jogo real.
+    Sem este reinicio, cada `Game()` novo deixa uma janela e um renderizador para
+    tras, e os cenarios medidos depois ficam progressivamente mais lentos — um
+    artefato de medicao que nao existe no jogo real.
     """
     pygame.display.quit()
     pygame.display.init()
 
 
-class _CountingSurface(pygame.Surface):
-    """Superficie que conta cada `blit` recebido.
+def _count_draw_calls(game: Game) -> None:
+    """Envolve as operacoes de desenho do renderizador do `game` para conta-las.
 
-    E uma subclasse de `pygame.Surface` de verdade, e nao um proxy, porque
-    `pygame.draw.*` exige uma superficie real como primeiro argumento — um objeto
-    que apenas delegasse quebraria essas chamadas.
+    Desde a task 50 todo desenho passa pelo renderizador, entao contar aqui e contar
+    exatamente o que chega ao SDL — mais fiel que a contagem da v2, que envolvia
+    `Surface.blit` e as funcoes de `pygame.draw` e nao enxergava mais nada.
     """
-
-    def blit(self, *args, **kwargs):  # type: ignore[override]
-        """Conta o blit e delega para a implementacao real."""
-        global _DRAW_CALLS
-        _DRAW_CALLS += 1
-        return super().blit(*args, **kwargs)
-
-
-def _patch_draw_counters() -> None:
-    """Envolve as funcoes de `pygame.draw` usadas pelo jogo para conta-las."""
 
     def wrap(original: Callable[..., object]) -> Callable[..., object]:
         def counted(*args: object, **kwargs: object) -> object:
@@ -155,8 +144,23 @@ def _patch_draw_counters() -> None:
 
         return counted
 
-    for name in _PATCHED_DRAW_FUNCS:
-        setattr(pygame.draw, name, wrap(getattr(pygame.draw, name)))
+    for name in _COUNTED_OPS:
+        setattr(game.renderer, name, wrap(getattr(game.renderer, name)))
+
+
+def _stop_counting(game: Game) -> None:
+    """Desfaz o envolvimento, devolvendo os metodos da classe.
+
+    Nao e higiene opcional: o envolvimento cria um ciclo (renderizador -> atributo ->
+    closure -> metodo ligado -> renderizador), entao o renderizador so seria liberado
+    numa passada do coletor ciclico. Ela viria depois do `display.quit()` do cenario
+    seguinte, e a` destruicao tardia atropelaria a janela nova — o SDL reaproveita os
+    ponteiros. Sintoma medido: o segundo cenario morria com
+    `error: Parameter 'texture' is invalid`. Quebrando o ciclo aqui, o renderizador e
+    liberado por contagem de referencia ainda com o video vivo.
+    """
+    for name in _COUNTED_OPS:
+        game.renderer.__dict__.pop(name, None)
 
 
 class _NoCollisionGame(Game):
@@ -235,26 +239,28 @@ def run_scenario(name: str, frames: int) -> Result:
 
     _fresh_display()
     game, tick = SCENARIOS[name]()
-    game.screen = _CountingSurface(game.screen.get_size(), game.screen.get_flags())
+    _count_draw_calls(game)
+    try:
+        for _ in range(WARMUP_FRAMES):
+            tick(game)
+            game.update()
+            game.draw()
 
-    for _ in range(WARMUP_FRAMES):
-        tick(game)
-        game.update()
-        game.draw()
+        gc.collect()
+        samples: list[float] = []
+        _DRAW_CALLS = 0
 
-    gc.collect()
-    samples: list[float] = []
-    _DRAW_CALLS = 0
+        for _ in range(frames):
+            tick(game)
+            start = time.perf_counter()
+            game.update()
+            game.draw()
+            samples.append((time.perf_counter() - start) * 1000.0)
 
-    for _ in range(frames):
-        tick(game)
-        start = time.perf_counter()
-        game.update()
-        game.draw()
-        samples.append((time.perf_counter() - start) * 1000.0)
-
-    draw_calls = _DRAW_CALLS / frames
-    churn_kb = _measure_churn_kb(game, tick, min(frames, CHURN_FRAMES))
+        draw_calls = _DRAW_CALLS / frames
+        churn_kb = _measure_churn_kb(game, tick, min(frames, CHURN_FRAMES))
+    finally:
+        _stop_counting(game)
 
     return Result(name, percentile(samples, 0.5), percentile(samples, 0.95), draw_calls, churn_kb)
 
@@ -264,8 +270,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark headless do Blocky Bee")
     parser.add_argument("--frames", type=int, default=DEFAULT_FRAMES, help="frames medidos por cenario")
     args = parser.parse_args()
-
-    _patch_draw_counters()
 
     results = [run_scenario(name, args.frames) for name in SCENARIOS]
 

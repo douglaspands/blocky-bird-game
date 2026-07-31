@@ -23,6 +23,7 @@ Ver specs/v3/design.md secao 33.
 
 import logging
 import os
+from collections.abc import Callable
 from typing import Any
 
 import pygame
@@ -85,10 +86,15 @@ class Image:
 class Renderer:
     """Interface de desenho comum aos dois caminhos (R26.4).
 
-    Sete operacoes cobrem o jogo inteiro. A que carrega mais peso e `draw` com `area`
-    opcional: e ela que permite recortar uma faixa de uma strip pre-renderizada, que
-    e o mecanismo do atlas (design secao 34) — no caminho de GPU vira o `srcrect` do
-    `Renderer.blit`, e no de superficie o terceiro argumento de `Surface.blit`.
+    As sete operacoes da seção 33.1 cobrem o desenho inteiro. A que carrega mais peso
+    e `draw` com `area` opcional: e ela que permite recortar uma faixa de uma strip
+    pre-renderizada, que e o mecanismo do atlas (design secao 34) — no caminho de GPU
+    vira o `srcrect` do `Renderer.blit`, e no de superficie o terceiro argumento de
+    `Surface.blit`.
+
+    Ao redor delas ficam as operacoes que existem porque, desde a task 49, e o
+    renderizador que possui a janela: `image`/`forget_images` (o cache de imagens
+    construidas por codigo), `window_size`, `resize` e `snapshot`.
     """
 
     size: tuple[int, int]
@@ -98,8 +104,43 @@ class Renderer:
     backend: str
     """Caminho efetivamente em uso, exposto ao log e a instrumentacao (R26.5)."""
 
+    def __init__(self) -> None:
+        """Prepara o cache de imagens comum aos dois caminhos."""
+        self._images: dict[object, Image] = {}
+
     def make_image(self, surface: pygame.Surface) -> Image:
         """Converte uma `Surface` numa imagem do renderizador ativo."""
+        raise NotImplementedError
+
+    def image(self, key: object, factory: Callable[[], pygame.Surface]) -> Image:
+        """Imagem construida uma vez e guardada com o renderizador (R27.2).
+
+        `factory` so e chamada no primeiro pedido de cada `key`. E por aqui que todo
+        conteudo gerado por codigo — texturas de bloco, glifos de texto, gradientes de
+        ceu, sprites rotacionados da abelha — vira imagem sem que nenhum modulo de
+        desenho precise guardar cache proprio nem saber qual backend esta ativo.
+        """
+        image = self._images.get(key)
+        if image is None:
+            image = self.make_image(factory())
+            self._images[key] = image
+        return image
+
+    def forget_images(self) -> None:
+        """Descarta o cache de imagens.
+
+        Usado no redimensionamento: gradiente de ceu e faixas laterais sao chaveados
+        pelo tamanho do canvas, entao as versoes antigas nunca mais seriam pedidas e
+        ficariam ocupando memoria de video a toa."""
+        self._images.clear()
+
+    @property
+    def window_size(self) -> tuple[int, int]:
+        """Tamanho real da janela em pixels, que nao e o do canvas logico."""
+        raise NotImplementedError
+
+    def resize(self, canvas: tuple[int, int]) -> None:
+        """Troca o canvas logico, acompanhando a janela que o jogador arrastou (R23.6)."""
         raise NotImplementedError
 
     def clear(self, color: Color) -> None:
@@ -129,7 +170,14 @@ class Renderer:
         """Le o canvas de volta como `Surface`. Diagnostico e testes apenas.
 
         No caminho de GPU e uma transferencia de VRAM para RAM, cara demais para o
-        laco principal. Chamar antes de `present()`."""
+        laco principal. Chamar antes de `present()`.
+
+        Limite do caminho de GPU, medido: `Renderer.to_surface` devolve uma superficie
+        do tamanho logico mas copia os pixels *fisicos* do alvo, sem desfazer a escala
+        de `logical_size`. So e fiel quando o canvas tem o tamanho da janela — que e o
+        caso dos testes e do desktop. Com escala diferente de 1 a leitura sai recortada;
+        para conferir um canvas de celular no PC, force a janela com `BLOCKY_CANVAS` ou
+        use o `SurfaceRenderer`, cujo snapshot e sempre o canvas inteiro."""
         raise NotImplementedError
 
 
@@ -195,11 +243,22 @@ class GpuRenderer(Renderer):
         backend: str,
     ) -> None:
         """Assume a posse de uma janela e de um renderizador SDL ja criados."""
+        super().__init__()
         self.window = window
         self.sdl = renderer
         self.sdl.logical_size = canvas
         self.size = canvas
         self.backend = backend
+
+    @property
+    def window_size(self) -> tuple[int, int]:
+        """Tamanho da janela do `_sdl2`, que o SDL mantem atualizado sozinho."""
+        return self.window.size
+
+    def resize(self, canvas: tuple[int, int]) -> None:
+        """Troca o canvas logico. Uma atribuicao, e o SDL reescala na GPU."""
+        self.sdl.logical_size = canvas
+        self.size = canvas
 
     def make_image(self, surface: pygame.Surface) -> Image:
         """Envia a superficie para a GPU uma unica vez (R27.2).
@@ -254,8 +313,9 @@ class SurfaceRenderer(Renderer):
 
     def __init__(self, canvas: tuple[int, int], window: tuple[int, int], *, fullscreen: bool = False) -> None:
         """Cria o display real e o canvas fora da tela onde o jogo desenha."""
-        flags = pygame.FULLSCREEN if fullscreen else pygame.RESIZABLE
-        self.window = pygame.display.set_mode(window, flags)
+        super().__init__()
+        self._flags = pygame.FULLSCREEN if fullscreen else pygame.RESIZABLE
+        self.window = pygame.display.set_mode(window, self._flags)
         self.surface = pygame.Surface(canvas)
         self.size = canvas
         self.backend = BACKEND_SURFACE
@@ -264,6 +324,21 @@ class SurfaceRenderer(Renderer):
         # exatamente o que a v3 esta eliminando (R27.3).
         self._scaled: pygame.Surface | None = None
         self._blend: pygame.Surface | None = None
+
+    @property
+    def window_size(self) -> tuple[int, int]:
+        """Tamanho da janela pelo SDL, e nao pela superficie de display.
+
+        `Surface.get_size()` so acompanha o arrasto no proximo `set_mode`;
+        `display.get_window_size()` ja reflete o tamanho novo."""
+        return pygame.display.get_window_size()
+
+    def resize(self, canvas: tuple[int, int]) -> None:
+        """Recria o canvas fora da tela e reancora o display na janela arrastada."""
+        self.window = pygame.display.set_mode(self.window_size, self._flags)
+        self.surface = pygame.Surface(canvas)
+        self.size = canvas
+        self._scaled = None
 
     def make_image(self, surface: pygame.Surface) -> Image:
         """Converte para o formato do display, com alfa por pixel (R27.4).
@@ -339,6 +414,7 @@ def create(
     *,
     fullscreen: bool = False,
     title: str = "",
+    icon: pygame.Surface | None = None,
 ) -> Renderer:
     """Cria o melhor renderizador disponivel para este aparelho (R26.1, R26.2, R26.3).
 
@@ -346,6 +422,9 @@ def create(
     log o erro de cada queda (R26.5). Nunca levanta excecao: o ultimo nivel e o
     caminho de superficie da v2, que funciona em qualquer lugar onde o pygame
     funcione.
+
+    O `icon` entra por aqui porque cada caminho o define de um jeito — pela `Window`
+    do `_sdl2` ou pelo modulo `display` —, e quem chama nao deve precisar saber qual.
     """
     os.environ.setdefault(ENV_SCALE_QUALITY, "0")
 
@@ -357,10 +436,15 @@ def create(
             except Exception as exc:
                 logger.warning("renderizador %s indisponivel: %s", backend, exc)
                 continue
+            if icon is not None:
+                sdl_window.set_icon(icon)
             return GpuRenderer(sdl_window, sdl_renderer, canvas, backend)
         sdl_window.destroy()
 
     logger.warning("sem renderizador de GPU; caindo para o caminho %s", BACKEND_SURFACE)
+    if icon is not None:
+        pygame.display.set_icon(icon)
+    pygame.display.set_caption(title)
     return SurfaceRenderer(canvas, window, fullscreen=fullscreen)
 
 
