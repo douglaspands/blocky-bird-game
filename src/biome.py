@@ -4,8 +4,7 @@ from dataclasses import dataclass
 
 import pygame
 
-from src import ui
-from src.config import SCREEN_W
+from src import config, ui
 
 FADE_FRAMES = 60  # <= 1s a 60 FPS (R5.4)
 BANNER_FRAMES = 90
@@ -139,4 +138,4 @@ class BiomeManager:
 
     def draw_banner(self, surface: pygame.Surface) -> None:
         if self.banner_timer > 0:
-            ui.draw_text(surface, self.current.name.upper(), (SCREEN_W // 2, 110), base_size=16)
+            ui.draw_text(surface, self.current.name.upper(), (config.screen_w() // 2, 110), base_size=16)

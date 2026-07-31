@@ -292,8 +292,22 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 
 ### Bloco C — Canvas, tela cheia e faixas decorativas
 
-- [ ] **45. `src/viewport.py` — canvas lógico e área jogável**
+- [x] **45. `src/viewport.py` — canvas lógico e área jogável**
   Implementar o cálculo da seção 32.3: `PLAY_W`/`PLAY_H` como constantes de mundo, canvas lógico com a proporção real da tela/janela, `play` centralizado na horizontal, e as bandas (`sky`, `ground`, `left`, `right`) derivadas. `set_mode` passa a `FULLSCREEN` no Android e `960×720 | RESIZABLE` no desktop. `config.SCREEN_W`/`SCREEN_H` deixam de ser constantes de módulo e passam a ser resolvidos pelo `Viewport` ativo, no mesmo padrão de `config.ground_y()`. Variável dev-only `BLOCKY_CANVAS=LxA` para forçar um canvas no desktop. Testes de tabela cobrindo as cinco proporções da seção 32.3 (celular 20:9 e 16:9, desktop 960×720, monitor 16:9, exatamente 2:3), mais os invariantes: a área jogável é sempre 480×720, o canvas nunca é menor que ela, e a soma das bandas fecha exatamente com o canvas (sem pixel perdido em largura ímpar). _(R23.1, R23.2, R23.3, R23.4, R23.7)_
+
+  **Implementado conforme a seção 32.3, com dois ajustes de forma.**
+
+  **Ajuste 1 — `pygame.SCALED` mantido como escalador provisório.** A seção 32.7 mostra o `set_mode` sem `SCALED`, porque na v3 quem leva o canvas lógico para a tela real é `Renderer.logical_size` (seção 33.2). Só que o renderizador chega na task 49: tirar o `SCALED` agora deixaria o Android desenhando um canvas de 480×1067 no canto de uma tela de 1080×2400, sem escala nenhuma — uma regressão viva entre as tasks 45 e 49. Com `SCALED | FULLSCREEN`, R23.1 e R23.3 já valem no aparelho hoje, e a escala é uniforme porque o canvas tem exatamente a proporção da tela. Bônus: `input.py` continua recebendo coordenada lógica do SDL, sem precisar antecipar a task 51. `viewport.display_flags()` documenta que o `SCALED` sai quando o renderizador entrar.
+
+  **Ajuste 2 — funções, não variáveis de módulo.** O design escreve `config.SCREEN_W`/`SCREEN_H` "resolvidos pelo Viewport ativo"; a implementação usa `config.screen_w()`/`screen_h()`. Uma variável de módulo reatribuída não resolveria o problema real: seis módulos faziam `from src.config import SCREEN_W`, o que congela o valor no import — antes de o display existir. A forma de função é a única que garante leitura do viewport corrente, e é literalmente o padrão de `config.ground_y()` que o design cita. Pelo mesmo motivo `ui.MAX_TEXT_W` e `ui.MUTE_ICON_RECT` viraram `ui.max_text_w()` e `ui.mute_icon_rect()`. No `Ground.draw` os limites dos dois laços de blit são içados para locais, para não resolver o viewport por iteração.
+
+  **Observado:** com o canvas de 960×720 no desktop, o `benchmark.py` sobe de 3,3–4,1 ms de p50 (baseline da v2, medido a 480×720) para 6,2–11,4 ms, e de ~96 para 110–126 draw calls por frame — chão e parallax passam a cobrir o dobro de largura, tudo ainda em CPU. É a conta esperada, e é exatamente a que o caminho de GPU (bloco D) e o atlas (bloco E) existem para pagar; os números finais entram na task 73.
+
+  **Testes (41 novos, `tests/test_viewport.py`):** a tabela das cinco proporções da seção 32.3, mais os invariantes por proporção (área jogável sempre 480×720, canvas nunca menor que ela, proporção do canvas igual à da tela, bandas fechando exatamente com o canvas nos dois eixos), o pixel ímpar indo para a banda direita, a sobra vertical enchendo o chão antes do céu, o `BLOCKY_CANVAS` com valores válidos e malformados, e a idempotência de `compute` sobre a própria saída — que é o que sustenta forçar o canvas pelo tamanho de tela. Em `tests/test_game.py`, o teste de resolução fixa da v2 deu lugar a dois: o display criado com o canvas calculado e o caminho Android (tela cheia, canvas 480×1067 a partir de 1080×2400, área jogável intacta). `conftest.py` ganhou `_reset_viewport`, porque o `Game` define o viewport globalmente e ele vazaria de um teste para o outro.
+
+  **Validado:** suíte completa (148 testes) verde; `ruff check`, `ruff format --check` e `ty check` sem violações. Conferência visual por frame renderizado em 960×720 e em `BLOCKY_CANVAS=480x1067`: a cena preenche o canvas inteiro nos dois casos, sem barra preta em lado nenhum. Como esperado nesta task, a área jogável ainda não está isolada dentro do canvas — abelha, chão e colunas seguem ancorados no canvas, e é a task 46 (faixas verticais) e a 47 (faixas laterais) que os movem para `play`.
+
+  **Não verificável neste ambiente:** tela cheia na resolução nativa em aparelho real (R23.3) — coberto pela task 72.
 
 - [ ] **46. Faixas vertical (céu estendido e chão mais fundo)**
   Deslocar o jogo para coordenadas de canvas conforme a seção 32.4: posição inicial da abelha, teto (`bird.py`), `ground_y()`, faixa de sorteio de `gap_y` e descarte de colunas passam a usar `play`. Nenhuma constante de física ou de bioma muda. O HUD de pontuação e o ícone de mudo migram para a faixa de céu quando ela existe. Testes: com um canvas alongado, a abelha não sobe acima de `play.top`, o `gap_y` sorteado fica sempre dentro da área jogável, e o HUD é posicionado na faixa de céu; com canvas 2:3, tudo cai exatamente onde caía na v2 (teste de não-regressão). _(R23.4, R24.1, R24.2, R24.5, R25.1, R25.7)_
@@ -400,8 +414,8 @@ Verificável automaticamente / no desktop:
 - [ ] Nome "Blocky Bee" em título, tela inicial, `.spec` do PyInstaller, `buildozer.spec` e artefatos de release (R22.1) — teste de `TITLE` e inspeção dos arquivos de build
 - [ ] `package.name = blockybee` e INI bem formado (R22.2) — validação via `configparser`
 - [ ] `specs/v1/` e `specs/v2/` intactas, com o nome antigo preservado (R22.4) — inspeção
-- [ ] Canvas lógico com a proporção da tela, área jogável sempre 480×720 (R23.4, R24.1) — `tests/test_viewport.py`
-- [ ] Bandas fecham exatamente com o canvas, sem pixel perdido (R23.4) — `tests/test_viewport.py`
+- [x] Canvas lógico com a proporção da tela, área jogável sempre 480×720 (R23.4, R24.1) — `tests/test_viewport.py`
+- [x] Bandas fecham exatamente com o canvas, sem pixel perdido (R23.4) — `tests/test_viewport.py`
 - [ ] Nenhuma constante de física ou de bioma alterada (R24.2) — inspeção + testes de física da v1/v2 ainda verdes
 - [ ] Coluna nasce em `play.right` e não aparece fora da área jogável (R24.3, R24.4) — `tests/test_pipes.py`
 - [ ] Teto do voo na borda da área jogável, não do canvas (R24.5) — `tests/test_bird.py`

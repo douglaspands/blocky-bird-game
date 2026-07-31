@@ -26,6 +26,16 @@ def _isolate_cwd(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_viewport():
+    """Game define o viewport ativo globalmente ao criar o display (960x720 no
+    desktop). Sem este reset, o canvas de um teste vazaria para o proximo — os
+    testes de unidade assumem o canvas 2:3, identico a area jogavel."""
+    from src import config, viewport
+
+    config.set_viewport(viewport.compute(viewport.PLAY_W, viewport.PLAY_H))
+
+
+@pytest.fixture(autouse=True)
 def _reset_display():
     """pygame.SCALED exige um renderer SDL, e o driver dummy so permite um por
     processo — sem isso, o 2o+ set_mode(SCALED) do processo falha com

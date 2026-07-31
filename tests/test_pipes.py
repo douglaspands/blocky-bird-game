@@ -1,17 +1,17 @@
-from src.config import GAP_MARGIN, GROUND_H, PIPE_SPACING, PIPE_W, SCREEN_H, SCREEN_W
+from src.config import GAP_MARGIN, GROUND_H, PIPE_SPACING, PIPE_W, screen_h, screen_w
 from src.pipes import PipeManager
 
 
 def test_initial_spawn_is_at_right_edge():
     pm = PipeManager(160, "dirt", "grass_side")
     assert len(pm.pipes) == 1
-    assert pm.pipes[0].x == SCREEN_W
+    assert pm.pipes[0].x == screen_w()
 
 
 def test_gap_is_within_safe_margins():
     pm = PipeManager(160, "dirt", "grass_side")
     pipe = pm.pipes[0]
-    assert GAP_MARGIN <= pipe.gap_y <= SCREEN_H - GROUND_H - GAP_MARGIN
+    assert GAP_MARGIN <= pipe.gap_y <= screen_h() - GROUND_H - GAP_MARGIN
 
 
 def test_new_pipe_freezes_current_gap_size_and_textures():

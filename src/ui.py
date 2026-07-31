@@ -3,19 +3,34 @@
 import pygame
 
 from src import config, pixelfont
-from src.config import CREDITS, SCREEN_W
+from src.config import CREDITS
 
 SHADOW_COLOR = (40, 30, 20)
 SHADOW_OFFSET = 3
 OVERLAY_COLOR = (0, 0, 0, 140)
 GOLD = (255, 215, 60)
-MAX_TEXT_W = SCREEN_W - 40  # margem de 20px de cada lado
 
 MUTE_ICON_SIZE = 40
 MUTE_ICON_MARGIN = 14
-MUTE_ICON_RECT = pygame.Rect(
-    SCREEN_W - MUTE_ICON_MARGIN - MUTE_ICON_SIZE, MUTE_ICON_MARGIN, MUTE_ICON_SIZE, MUTE_ICON_SIZE
-)
+
+
+def max_text_w() -> int:
+    """Largura maxima de um texto: o canvas menos 20px de margem de cada lado."""
+    return config.screen_w() - 40
+
+
+def mute_icon_rect() -> pygame.Rect:
+    """Geometria do botao de mudo, no canto superior direito do canvas (R15.4).
+
+    Funcao, e nao constante, porque o canvas so tem largura depois que o display
+    existe. `input.py` importa daqui para o hit-test, mantendo desenho e posicao do
+    botao como uma unica fonte de verdade."""
+    return pygame.Rect(
+        config.screen_w() - MUTE_ICON_MARGIN - MUTE_ICON_SIZE,
+        MUTE_ICON_MARGIN,
+        MUTE_ICON_SIZE,
+        MUTE_ICON_SIZE,
+    )
 
 
 def _scale_for(base_size: int) -> int:
@@ -32,7 +47,8 @@ def _fit_scale(text: str, scale: int) -> int:
     mais larga que a SysFont usada na v1, entao alguns textos longos estourariam a tela
     sem este ajuste)."""
     n = len(text)
-    while scale > 1 and _text_width(n, scale) > MAX_TEXT_W:
+    limit = max_text_w()
+    while scale > 1 and _text_width(n, scale) > limit:
         scale -= 1
     return scale
 
@@ -75,7 +91,7 @@ def _stack(
 
 
 def _dim_overlay(surface: pygame.Surface) -> None:
-    overlay = pygame.Surface((SCREEN_W, config.SCREEN_H), pygame.SRCALPHA)
+    overlay = pygame.Surface((config.screen_w(), config.screen_h()), pygame.SRCALPHA)
     overlay.fill(OVERLAY_COLOR)
     surface.blit(overlay, (0, 0))
 
@@ -83,8 +99,8 @@ def _dim_overlay(surface: pygame.Surface) -> None:
 def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
     next_y = _stack(
         surface,
-        SCREEN_W // 2,
-        config.SCREEN_H // 4,
+        config.screen_w() // 2,
+        config.screen_h() // 4,
         [
             ("BLOCKY BEE", 12, (255, 220, 60)),
             (CREDITS.upper(), 5, (230, 230, 230)),
@@ -96,14 +112,14 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
     draw_text(
         surface,
         instruction,
-        (SCREEN_W // 2, instruction_y),
+        (config.screen_w() // 2, instruction_y),
         base_size=9,
         color=GOLD,
     )
     draw_text(
         surface,
         f"RECORDE: {highscore}",
-        (SCREEN_W // 2, config.ground_y() - 24),
+        (config.screen_w() // 2, config.ground_y() - 24),
         base_size=8,
         color=GOLD,
     )
@@ -111,7 +127,7 @@ def draw_ready_screen(surface: pygame.Surface, highscore: int) -> None:
 
 def draw_mute_icon(surface: pygame.Surface, muted: bool) -> None:
     """Botao de mudo tocavel no canto da tela, estilo voxel (R15.4)."""
-    rect = MUTE_ICON_RECT
+    rect = mute_icon_rect()
     pygame.draw.rect(surface, (20, 16, 10), rect)
     pygame.draw.rect(surface, GOLD, rect, width=2)
 
@@ -131,15 +147,15 @@ def draw_mute_icon(surface: pygame.Surface, muted: bool) -> None:
 
 
 def draw_hud_score(surface: pygame.Surface, score: int) -> None:
-    draw_text(surface, str(score), (SCREEN_W // 2, 40), base_size=12)
+    draw_text(surface, str(score), (config.screen_w() // 2, 40), base_size=12)
 
 
 def draw_paused_overlay(surface: pygame.Surface) -> None:
     _dim_overlay(surface)
     _stack(
         surface,
-        SCREEN_W // 2,
-        config.SCREEN_H // 2 - 24,
+        config.screen_w() // 2,
+        config.screen_h() // 2 - 24,
         [
             ("PAUSADO", 12, (255, 255, 255)),
             ("SETAS: MUDO", 5, (210, 210, 210)),
@@ -151,8 +167,8 @@ def draw_game_over_screen(surface: pygame.Surface, score: int, highscore: int) -
     _dim_overlay(surface)
     _stack(
         surface,
-        SCREEN_W // 2,
-        config.SCREEN_H // 2 - 90,
+        config.screen_w() // 2,
+        config.screen_h() // 2 - 90,
         [
             ("GAME OVER", 12, (220, 60, 50)),
             (f"PONTOS: {score}", 8, (255, 255, 255)),

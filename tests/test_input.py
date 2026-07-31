@@ -22,7 +22,7 @@ def test_finger_tap_in_game_area_flaps():
 def test_finger_tap_on_mute_icon_mutes_not_flaps():
     im = _make_input()
     win_w, win_h = pygame.display.get_window_size()
-    rect = ui.MUTE_ICON_RECT
+    rect = ui.mute_icon_rect()
     nx, ny = rect.centerx / win_w, rect.centery / win_h
     pygame.event.post(pygame.event.Event(pygame.FINGERDOWN, x=nx, y=ny, touch_id=1, finger_id=1))
     actions, _ = im.poll()
@@ -33,7 +33,7 @@ def test_mouse_click_on_mute_icon_mutes_not_flaps():
     """Mesma logica que o toque: no desktop, clicar no icone nao deve voar (evita
     disparar flap junto quando um toque real gera tambem um MOUSEBUTTONDOWN sintetico)."""
     im = _make_input()
-    rect = ui.MUTE_ICON_RECT
+    rect = ui.mute_icon_rect()
     pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=rect.center))
     actions, _ = im.poll()
     assert actions == {ACTION_MUTE}

@@ -5,10 +5,10 @@ import itertools
 import pygame
 import pytest
 
-from src import pixelfont, ui
-from src.config import GROUND_H, SCREEN_H, SCREEN_W
+from src import config, pixelfont, ui
+from src.viewport import PLAY_H, PLAY_W
 
-GROUND_Y = SCREEN_H - GROUND_H
+GROUND_Y = PLAY_H - config.GROUND_H
 
 
 def _rects_for_screen(monkeypatch: pytest.MonkeyPatch, draw_fn, *args) -> list[pygame.Rect]:
@@ -28,7 +28,7 @@ def _rects_for_screen(monkeypatch: pytest.MonkeyPatch, draw_fn, *args) -> list[p
         rects.append(rect)
 
     monkeypatch.setattr(ui, "draw_text", spy)
-    surface = pygame.Surface((SCREEN_W, SCREEN_H))
+    surface = pygame.Surface((PLAY_W, PLAY_H))
     draw_fn(surface, *args)
     return rects
 
@@ -36,7 +36,7 @@ def _rects_for_screen(monkeypatch: pytest.MonkeyPatch, draw_fn, *args) -> list[p
 def _assert_texts_in_bounds(rects: list[pygame.Rect]) -> None:
     for r in rects:
         assert r.left >= 20
-        assert r.right <= SCREEN_W - 20
+        assert r.right <= PLAY_W - 20
         assert r.bottom <= GROUND_Y
 
 
@@ -48,22 +48,22 @@ def _assert_no_overlaps(rects: list[pygame.Rect]) -> None:
 def test_ready_screen_texts_do_not_overlap(monkeypatch: pytest.MonkeyPatch) -> None:
     rects = _rects_for_screen(monkeypatch, ui.draw_ready_screen, 999999)
     _assert_texts_in_bounds(rects)
-    _assert_no_overlaps([*rects, ui.MUTE_ICON_RECT])
+    _assert_no_overlaps([*rects, ui.mute_icon_rect()])
 
 
 def test_hud_score_text_in_bounds(monkeypatch: pytest.MonkeyPatch) -> None:
     rects = _rects_for_screen(monkeypatch, ui.draw_hud_score, 999999)
     _assert_texts_in_bounds(rects)
-    _assert_no_overlaps([*rects, ui.MUTE_ICON_RECT])
+    _assert_no_overlaps([*rects, ui.mute_icon_rect()])
 
 
 def test_paused_overlay_texts_do_not_overlap(monkeypatch: pytest.MonkeyPatch) -> None:
     rects = _rects_for_screen(monkeypatch, ui.draw_paused_overlay)
     _assert_texts_in_bounds(rects)
-    _assert_no_overlaps([*rects, ui.MUTE_ICON_RECT])
+    _assert_no_overlaps([*rects, ui.mute_icon_rect()])
 
 
 def test_game_over_screen_texts_do_not_overlap(monkeypatch: pytest.MonkeyPatch) -> None:
     rects = _rects_for_screen(monkeypatch, ui.draw_game_over_screen, 999999, 999999)
     _assert_texts_in_bounds(rects)
-    _assert_no_overlaps([*rects, ui.MUTE_ICON_RECT])
+    _assert_no_overlaps([*rects, ui.mute_icon_rect()])

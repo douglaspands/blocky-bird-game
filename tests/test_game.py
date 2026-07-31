@@ -1,6 +1,6 @@
 import pygame
 
-from src import config
+from src import config, viewport
 from src import score as score_module
 from src.config import PIPE_W
 from src.game import Game, GameState
@@ -111,7 +111,7 @@ def test_tap_on_mute_icon_toggles_mute_without_side_effects():
 
     game = _make_game()
     assert game.sounds.muted is False
-    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=ui.MUTE_ICON_RECT.center))
+    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=ui.mute_icon_rect().center))
     game.handle_events()
     assert game.sounds.muted is True
     assert game.state == GameState.PRONTO  # nao voou, nao iniciou a partida
@@ -289,13 +289,24 @@ def test_flap_in_game_over_resets_to_pronto():
     assert game.score == 0
 
 
-def test_screen_uses_fixed_logical_resolution_via_scaled(monkeypatch):
-    """`pygame.SCALED` mantem `game.screen` sempre na resolucao logica fixa
-    480x720 (calibracao da task 12), com o SDL cuidando do letterbox para a
-    tela real por baixo dos panos — nao ha mais nenhum ramo de codigo que
-    dimensione a janela por plataforma (task 41, reverte o zoom/corte por
-    aparelho da task 40). Testado tambem com `storage.is_android()` mockado
-    para True, confirmando que o comportamento independe da plataforma."""
-    monkeypatch.setattr("src.storage.is_android", lambda: True)
+def test_screen_uses_the_computed_canvas():
+    """O display e criado com o canvas logico, nao com a area jogavel: a janela
+    padrao do desktop e 960x720, mais larga que os 480x720 de mundo, para as
+    faixas laterais aparecerem sem redimensionar nada (R23.7). O `config` passa a
+    resolver as dimensoes pelo viewport ativo (task 45)."""
     game = _make_game()
-    assert game.screen.get_size() == (config.SCREEN_W, config.SCREEN_H)
+    assert game.viewport.canvas == viewport.DESKTOP_WINDOW
+    assert game.screen.get_size() == (config.screen_w(), config.screen_h())
+    assert game.viewport.play.size == (viewport.PLAY_W, viewport.PLAY_H)
+
+
+def test_android_display_is_fullscreen_at_native_resolution(monkeypatch):
+    """No Android o display vai a tela cheia na resolucao nativa (R23.3), e o canvas
+    recebe a proporcao do aparelho — o que elimina a barra preta nos quatro lados da
+    v2 (R23.1) sem mexer na area jogavel (R24.1)."""
+    monkeypatch.setattr("src.viewport.is_android", lambda: True)
+    monkeypatch.setattr(pygame.display, "get_desktop_sizes", lambda: [(1080, 2400)])
+    game = _make_game()
+    assert game.viewport.canvas == (480, 1067)
+    assert game.viewport.play.size == (viewport.PLAY_W, viewport.PLAY_H)
+    assert viewport.display_flags() & pygame.FULLSCREEN

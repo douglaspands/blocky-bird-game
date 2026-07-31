@@ -5,7 +5,7 @@ import random
 import pygame
 
 from src import config
-from src.config import BLOCK, GAP_MARGIN, PIPE_SPACING, PIPE_W, SCREEN_W
+from src.config import BLOCK, GAP_MARGIN, PIPE_SPACING, PIPE_W
 
 
 class PipePair:
@@ -56,7 +56,7 @@ class PipePair:
 class PipeManager:
     def __init__(self, gap_size: int, block_main: str, block_edge: str) -> None:
         self.pipes: list[PipePair] = []
-        self._spawn(SCREEN_W, gap_size, block_main, block_edge)
+        self._spawn(config.screen_w(), gap_size, block_main, block_edge)
 
     def _spawn(self, x: float, gap_size: int, block_main: str, block_edge: str) -> None:
         gap_y = random.uniform(GAP_MARGIN, config.ground_y() - GAP_MARGIN)
@@ -70,7 +70,7 @@ class PipeManager:
         for pipe in self.pipes:
             pipe.x -= speed
 
-        if self.pipes[-1].x <= SCREEN_W - PIPE_SPACING:
+        if self.pipes[-1].x <= config.screen_w() - PIPE_SPACING:
             self._spawn(self.pipes[-1].x + PIPE_SPACING, gap_size, block_main, block_edge)
 
         self.pipes = [p for p in self.pipes if not p.off_screen()]

@@ -5,10 +5,10 @@ from enum import Enum, auto
 
 import pygame
 
-from src import assets, perf, score, textures, ui
+from src import assets, config, perf, score, textures, ui, viewport
 from src.biome import BiomeManager
 from src.bird import Bird
-from src.config import BLOCK, CREDITS, FPS, PIPE_W, SCREEN_H, SCREEN_W, TITLE
+from src.config import BLOCK, CREDITS, FPS, PIPE_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
 from src.input import (
@@ -42,15 +42,15 @@ class Game:
         # deve impedir o jogo de abrir (mesma disciplina do audio, R8.4).
         with contextlib.suppress(OSError, pygame.error):
             pygame.display.set_icon(pygame.image.load(str(assets.asset_path("app_icon_512.png"))))
-        # SCALED: SDL renderiza numa surface logica fixa 480x720 e escala para a
-        # janela/tela real mantendo a proporcao do JOGO, com letterbox automatico
-        # (barra no topo/base ou nas laterais, conforme o aparelho) e sem cortar
-        # nada da imagem (R9.1, R14.3). Combinado com `orientation = portrait` no
-        # buildozer.spec (o app nunca roda em paisagem no Android — task 41, ver
-        # design.md secao 20.1.5), a tela real fica sempre mais estreita/alongada
-        # que a base 2:3, entao a barra que sobra e sempre letterbox (topo/base),
-        # nunca pillarbox (laterais).
-        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.SCALED | pygame.RESIZABLE)
+        # O canvas logico recebe a proporcao REAL da tela (Android) ou da janela
+        # (desktop), com a area jogavel de 480x720 posicionada dentro dele — o que
+        # sobra vira faixa decorativa, nunca barra preta (R23.1, R23.4). Como a
+        # proporcao bate, a escala do SDL e uniforme e preenche a tela inteira sem
+        # cortar nada (R23.2). O viewport vai para o `config` porque todo o jogo o
+        # consulta para se posicionar.
+        self.viewport = viewport.compute(*viewport.screen_size())
+        config.set_viewport(self.viewport)
+        self.screen = pygame.display.set_mode(self.viewport.canvas, viewport.display_flags())
         # descarta eventos de janela gerados pela criacao do display (ex.: WindowShown,
         # WindowFocusGained/Lost) para nao serem lidos como acoes do jogador antes do
         # loop comecar — visto sob SDL_VIDEODRIVER=dummy com SDL 2.32 (pygame-ce).
@@ -69,7 +69,7 @@ class Game:
         self.reset()
 
     def reset(self) -> None:
-        self.bird = Bird(SCREEN_W // 4, SCREEN_H // 2)
+        self.bird = Bird(config.screen_w() // 4, config.screen_h() // 2)
         self.biome = BiomeManager()
         b = self.biome.current
         self.pipes = PipeManager(b.gap_size, b.block_main, b.block_edge)

@@ -179,7 +179,7 @@ def _make_game() -> Game:
 
 def _keep_flying(game: Game) -> None:
     """Mantem a abelha no ar, para que a cena medida seja a de uma partida em curso."""
-    if game.bird.pos.y > config.SCREEN_H * 0.6:
+    if game.bird.pos.y > config.screen_h() * 0.6:
         game.bird.flap()
 
 

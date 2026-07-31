@@ -2,8 +2,7 @@
 
 import pygame
 
-from src import ui
-from src.config import SCREEN_H, SCREEN_W
+from src import config, ui
 from src.scale import fit_scale
 
 BUTTON_A = 0
@@ -32,11 +31,11 @@ FOCUS_LOST_EVENTS = (pygame.APP_WILLENTERBACKGROUND, pygame.APP_DIDENTERBACKGROU
 
 def _touch_to_logical(norm_x: float, norm_y: float) -> tuple[float, float]:
     """Converte coordenada de toque normalizada (0.0-1.0, relativa a janela
-    inteira) para o espaco logico fixo 480x720, desfazendo o letterbox/
-    pillarbox que `pygame.SCALED` aplica automaticamente (R14.3). Mouse ja
-    chega pre-convertido pelo SDL; so toque precisa disso."""
+    inteira) para o espaco do canvas logico, desfazendo o letterbox/pillarbox
+    que `pygame.SCALED` aplica automaticamente (R14.3). Mouse ja chega
+    pre-convertido pelo SDL; so toque precisa disso."""
     win_w, win_h = pygame.display.get_window_size()
-    scale, off_x, off_y = fit_scale(SCREEN_W, SCREEN_H, win_w, win_h)
+    scale, off_x, off_y = fit_scale(config.screen_w(), config.screen_h(), win_w, win_h)
     return (norm_x * win_w - off_x) / scale, (norm_y * win_h - off_y) / scale
 
 
@@ -55,12 +54,12 @@ class InputManager:
         self.joysticks.pop(instance_id, None)
 
     def _handle_tap(self, actions: set[str], lx: float, ly: float) -> None:
-        """Toque/clique fora da area logica (na barra de letterbox/pillarbox) e
-        ignorado; no icone de mudo alterna mudo; em qualquer outro ponto da
-        area de jogo, voa (R15.1, R15.4)."""
-        if not (0 <= lx <= SCREEN_W and 0 <= ly <= SCREEN_H):
+        """Toque/clique fora do canvas (na barra de letterbox/pillarbox) e
+        ignorado; no icone de mudo alterna mudo; em qualquer outro ponto do
+        canvas, voa (R15.1, R15.4)."""
+        if not (0 <= lx <= config.screen_w() and 0 <= ly <= config.screen_h()):
             return
-        if ui.MUTE_ICON_RECT.collidepoint(lx, ly):
+        if ui.mute_icon_rect().collidepoint(lx, ly):
             actions.add(ACTION_MUTE)
         else:
             actions.add(ACTION_FLAP)
