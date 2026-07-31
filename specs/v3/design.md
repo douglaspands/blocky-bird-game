@@ -1007,13 +1007,12 @@ Sete operações cobrem o jogo inteiro. `draw` com `area` opcional é o que perm
 Construído sobre `pygame._sdl2.video`, disponível no pygame-ce 2.5.7 já usado pelo projeto e pela receita local do p4a (seção 24.1):
 
 ```python
-pygame.display.set_mode(...)                    # cria a janela (seção 32.7)
-window = Window.from_display_module()
+window = Window(TITLE, size=..., fullscreen=..., resizable=...)   # seção 32.7
 renderer = Renderer(window, accelerated=1, vsync=True)
 renderer.logical_size = viewport.canvas
 ```
 
-`Window.from_display_module()` é a ponte suportada entre o módulo `display` e a API `_sdl2`: a janela continua sendo a do `set_mode`, então todo o tratamento de eventos, ciclo de vida e orientação da v2 segue valendo sem mudança.
+> **Corrigido na task 49.** O plano original criava a janela com `pygame.display.set_mode(...)` e a recuperava com `Window.from_display_module()`. Não funciona: depois do `set_mode` a janela já tem uma `Surface` associada e `SDL_CreateRenderer` recusa com `Surface already associated with window` — medido nos drivers `windows` e `dummy`, em todas as combinações de `accelerated`. No caminho de GPU a janela é criada pelo próprio `_sdl2`, e o módulo `display` deixa de ser o dono dela: título, ícone e tamanho saem de `Window.title` / `Window.set_icon` / `Window.size`, e `Renderer.present()` substitui `display.flip()`. Eventos, ciclo de vida e orientação seguem valendo sem mudança, porque a fila de eventos do SDL é global e não pertence à janela.
 
 - `make_image` → `Texture.from_surface(renderer, surface)`. Todo conteúdo continua sendo **gerado por código em Surfaces** na inicialização (R7.1) e enviado uma vez para a GPU.
 - `draw` → `renderer.blit(texture, dstrect, srcrect)`.
@@ -1038,7 +1037,11 @@ Cada queda de nível é registrada em log com o erro que a causou, e o nível ef
 
 ### 33.4 `SurfaceRenderer`
 
-Mantido não só como rede de segurança: é também o que mantém a suíte de testes simples. `make_image` devolve um invólucro sobre `surface.convert_alpha()`, `draw` chama `Surface.blit`, `fill` chama `pygame.draw.rect`. Sob `SDL_VIDEODRIVER=dummy` os dois caminhos funcionam, então os testes podem exercitar ambos.
+Mantido não só como rede de segurança: é também o que mantém a suíte de testes simples. `make_image` devolve um invólucro sobre `surface.convert_alpha()`, `draw` chama `Surface.blit`, `fill` chama `Surface.fill`. Sob `SDL_VIDEODRIVER=dummy` os dois caminhos funcionam, então os testes podem exercitar ambos.
+
+O desenho vai para um canvas fora da tela e `present()` o escala para a janela com `pygame.transform.scale` (vizinho mais próximo, mesmo critério do hint do caminho de GPU), com barras nas sobras.
+
+> **Corrigido na task 49.** O plano original usava `pygame.SCALED` para essa escala. Com ele o SDL entrega o mouse já em coordenada lógica e o toque não, e `to_logical` significaria coisas diferentes conforme o backend ativo — exatamente a assimetria que a seção 32.8 e a task 51 existem para desfazer (R34.1). Escalando à mão, `to_logical` converte pixel real de janela → canvas da mesma forma nos dois caminhos.
 
 ### 33.5 Impacto nos testes
 
