@@ -324,7 +324,9 @@ def test_the_side_bands_are_drawn_after_the_pipes():
     game.draw()
 
     kinds = [key for key, _ in game.renderer.draws]
-    last_pipe = max(i for i, key in enumerate(kinds) if key in ("dirt", "grass_side"))
+    is_pipe = [isinstance(key, tuple) and key[0] in ("pipe_top", "pipe_bottom") for key in kinds]
+    assert any(is_pipe), "ancora: ha coluna nesta tela para a faixa cobrir"
+    last_pipe = max(i for i, pipe in enumerate(is_pipe) if pipe)
     first_band = min(i for i, key in enumerate(kinds) if isinstance(key, tuple) and key[0] == "band")
     assert first_band > last_pipe
 

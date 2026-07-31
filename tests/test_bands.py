@@ -283,6 +283,11 @@ def test_side_bands_hide_a_pipe_that_has_not_entered_the_play_area(monkeypatch: 
     assert any(naked.get_at(p) != naked_empty.get_at(p) for p in samples)
 
 
+def _is_pipe(key: object) -> bool:
+    """Reconhece um desenho de coluna pela chave da faixa pre-renderizada (task 54)."""
+    return isinstance(key, tuple) and key[0] in ("pipe_top", "pipe_bottom")
+
+
 def test_the_pipe_under_the_band_is_drawn_before_it():
     """A mesma garantia pela ordem das chamadas, sem olhar pixel: a coluna que esta
     sob a faixa e desenhada antes dela, entao a faixa opaca a cobre."""
@@ -293,11 +298,11 @@ def test_the_pipe_under_the_band_is_drawn_before_it():
     SideBands().draw(renderer, textures.generate_all(BLOCK), BIOMES[0])
 
     keys = [key for key, _ in renderer.draws]
-    pipe_rects = [rect for key, rect in renderer.draws if key in ("dirt", "grass_side")]
+    pipe_rects = renderer.drawn("pipe_top") + renderer.drawn("pipe_bottom")
     right_band = config.viewport().right_band
     assert any(right_band.colliderect(rect) for rect in pipe_rects)  # a coluna cai sob a faixa
 
-    last_pipe = max(i for i, key in enumerate(keys) if key in ("dirt", "grass_side"))
+    last_pipe = max(i for i, key in enumerate(keys) if _is_pipe(key))
     band_indexes = [i for i, key in enumerate(keys) if isinstance(key, tuple) and key[0] == "band"]
     assert len(band_indexes) == 2  # uma faixa de cada lado
     assert min(band_indexes) > last_pipe
