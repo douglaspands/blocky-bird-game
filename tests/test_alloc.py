@@ -12,13 +12,14 @@ A contagem sai de uma subclasse de `pygame.Rect` posta no lugar do proprio
 que nenhum deles precise saber que esta sendo medido.
 """
 
+import gc
 import random
 from typing import ClassVar
 
 import pygame
 import pytest
 
-from src import config, ui
+from src import config, perf, ui
 from src.bird import Bird
 from src.config import BLOCK, GROUND_H, HITBOX_SCALE, PIPE_W
 from src.game import Game, GameState
@@ -494,6 +495,91 @@ def test_fit_scale_reacts_to_a_narrower_play_area(monkeypatch: pytest.MonkeyPatc
     wide = ui._fit_scale(text, 6)
     monkeypatch.setattr(ui, "max_text_w", lambda: 40)
     assert ui._fit_scale(text, 6) < wide
+
+
+# --- coletor de lixo (task 59, R27.3) ----------------------------------------------
+
+
+def test_tune_gc_freezes_what_already_exists() -> None:
+    """A geracao permanente sai do zero: e nela que vao parar as texturas, os atlas e
+    as tabelas de glifos, que vivem da inicializacao ate o fim."""
+    assert gc.get_freeze_count() == 0, "ancora: a suite desfaz o congelamento entre testes"
+    perf.tune_gc()
+    assert gc.get_freeze_count() > 0
+
+
+def test_tune_gc_raises_every_threshold_above_the_default() -> None:
+    """Varredura muito mais rara, nas tres geracoes."""
+    default = gc.get_threshold()
+    perf.tune_gc()
+    assert gc.get_threshold() == perf.GC_THRESHOLD
+    assert all(new > old for new, old in zip(perf.GC_THRESHOLD, default, strict=True))
+
+
+def test_tune_gc_does_not_disable_the_collector() -> None:
+    """A decisao registrada na secao 36 do design: `gc.disable()` acabaria com as
+    pausas e trocaria por vazamento. Um ciclo criado depois do ajuste continua sendo
+    recolhido — e e isso que "elevar o limiar em vez de desligar" significa."""
+    perf.tune_gc()
+    assert gc.isenabled()
+
+    cycle: list[object] = []
+    cycle.append(cycle)
+    watched = _Watched()
+    cycle.append(watched)
+    del cycle, watched
+
+    gc.collect()
+    assert _Watched.collected, "o ciclo criado apos o ajuste continua alcancavel pelo coletor"
+
+
+class _Watched:
+    """Objeto que registra a propria destruicao, para provar que o ciclo foi recolhido."""
+
+    collected = False
+
+    def __del__(self) -> None:
+        """Marca a classe quando a instancia e finalmente destruida."""
+        _Watched.collected = True
+
+
+def test_the_game_tunes_the_collector_when_it_finishes_starting_up() -> None:
+    """O ajuste vem no fim de `__init__`, e nao no comeco: e o que o jogo constroi ali
+    — texturas, sprites pre-computados, faixas — que precisa sair da varredura.
+
+    `gc.get_objects()` nao enxerga a geracao permanente, entao "o dicionario de texturas
+    sumiu da lista" e exatamente "o dicionario de texturas foi congelado". Congelar
+    antes de construi-lo deixaria os dois visiveis e mataria este teste."""
+    frozen_before = gc.get_freeze_count()
+    game = Game()
+
+    assert gc.get_threshold() == perf.GC_THRESHOLD
+    assert gc.get_freeze_count() > frozen_before
+    tracked = gc.get_objects()
+    assert not any(obj is game.textures for obj in tracked), "as texturas ficaram fora do congelamento"
+    assert not any(obj is game.pipes.pipes for obj in tracked), "e a cena montada no reset() tambem"
+
+
+def test_the_game_tunes_the_collector_exactly_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Uma chamada, nao duas: `gc.collect()` sobre um jogo inteiro nao e barato, e
+    congelar em duas etapas nao congela nada a mais do que congelar no fim."""
+    calls = [0]
+    monkeypatch.setattr(perf, "tune_gc", lambda: calls.__setitem__(0, calls[0] + 1))
+    Game()
+    assert calls[0] == 1
+
+
+def test_the_game_survives_a_whole_round_with_the_collector_tuned() -> None:
+    """Limiar alto nao pode virar acumulo: uma partida inteira nao deve encher a
+    geracao 0 alem do que o proprio limiar permite."""
+    game = Game()
+    game.renderer = FakeRenderer(game.viewport.canvas)
+    game.state = GameState.JOGANDO
+    for _ in range(300):
+        _autopilot(game)
+        game.update()
+        game.draw()
+    assert gc.get_count()[0] < perf.GC_THRESHOLD[0]
 
 
 def test_the_block_size_is_the_hitbox_reference() -> None:

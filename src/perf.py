@@ -9,6 +9,7 @@ por `scripts/benchmark.py` (no CI) sao o que prova que cada task de otimizacao d
 funcionou, em vez de supor. Ver specs/v3/design.md secao 39.
 """
 
+import gc
 import os
 import time
 
@@ -17,6 +18,14 @@ from src import pixelfont, render
 ENV_VAR = "BLOCKY_PERF"
 WINDOW_FRAMES = 60
 """Tamanho da janela da media movel: ~1 segundo a 60 FPS."""
+
+GC_THRESHOLD = (50_000, 50, 50)
+"""Limiares do coletor ciclico depois de `tune_gc()`, contra os (700, 10, 10) padrao.
+
+Setenta vezes mais alocacoes liquidas de contentor entre varreduras da geracao 0. Com
+a disciplina de alocacao da task 58 no lugar, o laco em regime permanente produz um
+saldo liquido proximo de zero, entao o limiar alto adia a varredura para muito alem da
+duracao de uma partida."""
 
 _OVERLAY_MARGIN = 6
 _OVERLAY_SCALE = 2
@@ -28,6 +37,32 @@ _LINE_SPACING = 2
 def enabled() -> bool:
     """Indica se a instrumentacao foi ligada por variavel de ambiente (R30.2)."""
     return os.environ.get(ENV_VAR, "") not in ("", "0")
+
+
+def tune_gc() -> None:
+    """Tira o coletor ciclico do caminho do frame (R27.3). Chamar ao fim da inicializacao.
+
+    Sao tres passos, nessa ordem:
+
+    1. `gc.collect()` — recolhe o lixo da propria inicializacao antes de congelar, para
+       nao congelar justamente o que deveria ser jogado fora.
+    2. `gc.freeze()` — move tudo que sobrou para a geracao permanente, que o coletor nao
+       percorre. Quase todo o jogo e construido aqui e vive ate o fim (texturas, atlas,
+       glifos, definicoes de bioma), entao isso remove de uma vez a maior parte do
+       trabalho de qualquer varredura futura.
+    3. `gc.set_threshold(*GC_THRESHOLD)` — o que ainda for varrido, sera muito mais raro.
+
+    `gc.disable()` foi descartado de proposito: acabaria com as pausas, mas qualquer
+    ciclo criado em tempo de execucao vazaria pelo resto da sessao. Elevar o limiar
+    mantem a rede de seguranca e adia a varredura para alem de uma partida inteira
+    (design secao 36).
+
+    Efeito colateral que importa em teste: o congelamento e permanente e global. Quem
+    chama isto fora do jogo (a suite, por criar `Game` centenas de vezes) precisa
+    desfaze-lo com `gc.unfreeze()` e devolver os limiares."""
+    gc.collect()
+    gc.freeze()
+    gc.set_threshold(*GC_THRESHOLD)
 
 
 class _MovingAverage:

@@ -97,6 +97,9 @@ class Game:
         if self.profiler is not None:
             self.profiler.backend = self.renderer.backend  # R26.5
         self.reset()
+        # por ultimo: tudo que o jogo constroi uma vez ja existe, e e exatamente isso
+        # que sai da varredura do coletor daqui em diante (R27.3).
+        perf.tune_gc()
 
     def apply_resize(self, size: tuple[int, int]) -> None:
         """Recalcula o canvas e as faixas para uma janela `size` (R23.6).

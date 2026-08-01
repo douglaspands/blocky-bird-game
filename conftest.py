@@ -1,3 +1,4 @@
+import gc
 import os
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -36,10 +37,32 @@ def _reset_viewport():
 
 
 @pytest.fixture(autouse=True)
+def _reset_gc():
+    """Desfaz o `perf.tune_gc()` que todo `Game()` executa (task 59).
+
+    `gc.freeze()` e permanente e global: sem este reset, cada um dos ~150 `Game()` da
+    suite mandaria para a geracao permanente tudo que estivesse vivo naquele instante —
+    inclusive o lixo ciclico dos testes anteriores, que entao nunca mais seria
+    recolhido. O jogo quer exatamente esse efeito (constroi tudo uma vez e vive ate o
+    fim); um processo de teste que cria e joga fora centenas de jogos, nao."""
+    default_threshold = gc.get_threshold()
+    yield
+    gc.unfreeze()
+    gc.set_threshold(*default_threshold)
+
+
+@pytest.fixture(autouse=True)
 def _reset_display():
     """pygame.SCALED exige um renderer SDL, e o driver dummy so permite um por
     processo — sem isso, o 2o+ set_mode(SCALED) do processo falha com
     'failed to create renderer' (varios testes criam Game() cada um; ver
     design.md secao 20.2)."""
+    # antes de trocar o display: um renderizador de GPU orfao de um teste anterior so e
+    # destruido numa passada do coletor ciclico, e se ela cair *depois* do
+    # `display.init()` abaixo, o `Window.__del__` dele derruba a janela nova — o SDL
+    # reaproveita os ponteiros. Recolher aqui destroi cada um ainda com o seu proprio
+    # display vivo. Mesmo cuidado que `scripts/benchmark.py::_stop_counting` documenta;
+    # passou a importar quando `Game.__init__` ganhou o `gc.collect()` de `tune_gc()`.
+    gc.collect()
     pygame.display.quit()
     pygame.display.init()
