@@ -17,6 +17,9 @@ MAX_SIZE = 8
 
 
 class Particle:
+    __slots__ = ("color", "lifetime", "pos", "rect", "size", "vel")
+    """Sem `__dict__` por instancia: sao 16 por explosao, todas iguais em forma (R27.3)."""
+
     def __init__(
         self,
         pos: tuple[float, float],
@@ -30,20 +33,28 @@ class Particle:
         self.lifetime = lifetime
         self.size = size
         self.color = color
+        self.rect = pygame.Rect(0, 0, size, size)
+        """Retangulo de desenho persistente, pelo mesmo motivo da hitbox da abelha:
+        `draw` roda uma vez por particula por frame, e eram 16 `Rect` novos por frame
+        na tela de GAME_OVER (R27.3)."""
+        self._sync_rect()
 
     def update(self) -> None:
         self.vel.y += GRAVITY
         self.pos += self.vel
         self.lifetime -= 1
+        self._sync_rect()
+
+    def _sync_rect(self) -> None:
+        self.rect.centerx = round(self.pos.x)
+        self.rect.centery = round(self.pos.y)
 
     @property
     def alive(self) -> bool:
         return self.lifetime > 0
 
     def draw(self, renderer: render.Renderer) -> None:
-        rect = pygame.Rect(0, 0, self.size, self.size)
-        rect.center = (round(self.pos.x), round(self.pos.y))
-        renderer.fill(self.color, rect)
+        renderer.fill(self.color, self.rect)
 
 
 class ParticleSystem:
@@ -68,7 +79,14 @@ class ParticleSystem:
     def update(self) -> None:
         for particle in self.particles:
             particle.update()
-        self.particles = [p for p in self.particles if p.alive]
+        # remocao no lugar, como em `PipeManager.update`: sem particula em cena o laco
+        # nao toca em nada, e a lista vazia sobrevive de frame a frame (R27.3).
+        index = 0
+        while index < len(self.particles):
+            if self.particles[index].alive:
+                index += 1
+            else:
+                del self.particles[index]
 
     def draw(self, renderer: render.Renderer) -> None:
         for particle in self.particles:

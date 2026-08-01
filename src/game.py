@@ -122,6 +122,12 @@ class Game:
         self.renderer.resize(new_viewport.canvas)
         precompute_sprites(self.renderer, self.textures)
         mobs.precompute(self.renderer)
+        # os retangulos de colisao viraram persistentes na task 58, e dois deles
+        # dependem da linha do chao — que acabou de mudar de lugar. Sem isto, os frames
+        # entre o redimensionamento e o proximo passo de simulacao (PRONTO, PAUSADO,
+        # GAME_OVER nao simulam) desenhariam a coluna com a altura do canvas antigo.
+        self.pipes.sync_rects()
+        self.ground.sync_rect()
 
     def _tick_resize(self) -> None:
         """Aplica o redimensionamento pendente quando o arrasto para.

@@ -9,6 +9,10 @@ from src.config import BLOCK, GAP_MARGIN, PIPE_SPACING, PIPE_W
 
 
 class PipePair:
+    __slots__ = ("block_edge", "block_main", "bottom_rect", "gap_size", "gap_y", "scored", "top_rect", "x")
+    """Sem `__dict__` por instancia: ha varias colunas vivas a cada instante e todas
+    tem exatamente estes campos (R27.3)."""
+
     def __init__(self, x: float, gap_y: float, gap_size: int, block_main: str, block_edge: str) -> None:
         self.x = x
         self.gap_y = gap_y
@@ -16,16 +20,31 @@ class PipePair:
         self.block_main = block_main
         self.block_edge = block_edge
         self.scored = False
+        self.top_rect = pygame.Rect(0, 0, PIPE_W, 0)
+        """Metade de cima da coluna, do topo do canvas ate a beirada da abertura."""
+        self.bottom_rect = pygame.Rect(0, 0, PIPE_W, 0)
+        """Metade de baixo, da outra beirada da abertura ate a linha do chao.
 
-    @property
-    def top_rect(self) -> pygame.Rect:
-        bottom = round(self.gap_y - self.gap_size / 2)
-        return pygame.Rect(round(self.x), 0, PIPE_W, bottom)
+        Os dois sao atributos persistentes, e nao `property`: um frame de jogo os le
+        quatro vezes por coluna — duas na colisao e duas no desenho — e cada leitura
+        construia um `pygame.Rect` novo (R27.3). Quem move a coluna ou troca o canvas
+        de baixo dela precisa chamar `sync_rects`."""
+        self.sync_rects()
 
-    @property
-    def bottom_rect(self) -> pygame.Rect:
+    def sync_rects(self) -> None:
+        """Reposiciona as duas metades para o `x` atual e para a linha do chao atual.
+
+        Depende de `config.ground_y()`, que muda quando a janela e redimensionada — por
+        isso `Game.apply_resize` chama isto, e nao so o passo de simulacao: entre o
+        redimensionamento e o proximo `update` ha frames desenhados (PRONTO, PAUSADO,
+        GAME_OVER) que usariam a altura antiga."""
+        x = round(self.x)
+        self.top_rect.x = x
+        self.top_rect.height = round(self.gap_y - self.gap_size / 2)
         top = round(self.gap_y + self.gap_size / 2)
-        return pygame.Rect(round(self.x), top, PIPE_W, config.ground_y() - top)
+        self.bottom_rect.x = x
+        self.bottom_rect.y = top
+        self.bottom_rect.height = config.ground_y() - top
 
     def off_screen(self) -> bool:
         """Descarte na borda esquerda da area jogavel, nao do canvas (R2.4): o que
@@ -121,11 +140,27 @@ class PipeManager:
         """
         for pipe in self.pipes:
             pipe.x -= speed
+            pipe.sync_rects()
 
         if self.pipes[-1].x <= config.play().right - PIPE_SPACING:
             self._spawn(self.pipes[-1].x + PIPE_SPACING, gap_size, block_main, block_edge)
 
-        self.pipes = [p for p in self.pipes if not p.off_screen()]
+        # remocao no lugar: a compreensao de lista que estava aqui construia uma lista
+        # nova a cada frame para descartar uma coluna a cada ~90 (R27.3).
+        index = 0
+        while index < len(self.pipes):
+            if self.pipes[index].off_screen():
+                del self.pipes[index]
+            else:
+                index += 1
+
+    def sync_rects(self) -> None:
+        """Reposiciona os retangulos de todas as colunas (R23.6).
+
+        Chamado no redimensionamento, que muda a linha do chao sob colunas que nao se
+        moveram."""
+        for pipe in self.pipes:
+            pipe.sync_rects()
 
     def draw(self, renderer: render.Renderer, textures: dict[str, pygame.Surface]) -> None:
         """Desenha so as colunas que caem dentro do canvas (R27.7)."""

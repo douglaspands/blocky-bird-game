@@ -279,6 +279,7 @@ def test_a_mob_over_the_bird_does_not_collide():
     assert drawn
     game.bird.pos.x = drawn[0][1].centerx
     game.bird.pos.y = drawn[0][1].centery
+    game.bird.sync_rect()  # a hitbox e persistente desde a task 58: mover `pos` na mao pede o sync
     assert game.bird.rect.colliderect(drawn[0][1])  # sobrepostos de fato
     assert game._collision_texture() is None
 

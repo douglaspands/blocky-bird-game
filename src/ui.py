@@ -59,15 +59,33 @@ def _text_width(n_chars: int, scale: int) -> int:
     return scale * (pixelfont.GLYPH_W * n_chars + pixelfont.SPACING * max(n_chars - 1, 0))
 
 
+_FIT_SCALE_CACHE: dict[tuple[int, int, int], int] = {}
+"""Resultados de `_fit_scale`, por (numero de caracteres, escala pedida, limite).
+
+Pequeno e limitado por construcao: a escala so depende do *comprimento* do texto, nao
+do texto — a fonte e monoespacada —, entao a pontuacao subindo de 0 a 999 usa tres
+entradas, e nao mil."""
+
+
 def _fit_scale(text: str, scale: int) -> int:
     """Reduz a escala ate o texto caber em MAX_TEXT_W (a fonte bitmap e proporcionalmente
     mais larga que a SysFont usada na v1, entao alguns textos longos estourariam a tela
-    sem este ajuste)."""
-    n = len(text)
+    sem este ajuste).
+
+    O laco de medicao roda uma vez por combinacao e nunca mais: `draw_text` e `_stack`
+    chamam esta funcao para cada linha de cada frame, sempre com os mesmos argumentos
+    (R27.3). O limite entra na chave porque `max_text_w()` e derivado do viewport — hoje
+    ele nao muda no redimensionamento (a area jogavel e fixa), e amarra-lo a chave e o
+    que garante que continue correto se um dia mudar."""
     limit = max_text_w()
-    while scale > 1 and _text_width(n, scale) > limit:
-        scale -= 1
-    return scale
+    key = (len(text), scale, limit)
+    fitted = _FIT_SCALE_CACHE.get(key)
+    if fitted is None:
+        fitted = scale
+        while fitted > 1 and _text_width(key[0], fitted) > limit:
+            fitted -= 1
+        _FIT_SCALE_CACHE[key] = fitted
+    return fitted
 
 
 def _text_image(

@@ -9,13 +9,22 @@ from src.config import BLOCK, GROUND_H
 class Ground:
     def __init__(self) -> None:
         self.offset = 0.0
+        self.rect = pygame.Rect(0, config.ground_y(), config.screen_w(), GROUND_H)
+        """Faixa de colisao do chao, construida uma vez e movida no lugar (R27.3)."""
 
     def update(self, speed: float) -> None:
         self.offset = (self.offset - speed) % BLOCK
 
-    @property
-    def rect(self) -> pygame.Rect:
-        return pygame.Rect(0, config.ground_y(), config.screen_w(), GROUND_H)
+    def sync_rect(self) -> None:
+        """Reancora a faixa de colisao na linha do chao e na largura do canvas atuais.
+
+        Nao e chamada no passo de simulacao, ao contrario das irmas em `Bird` e
+        `PipePair`: a geometria do chao nao depende de nada que role durante a partida,
+        so do canvas. Quem chama e `Game.apply_resize`. Um `sync_rect()` dentro de
+        `update` seria codigo que nenhum teste consegue justificar — foi escrito,
+        sobreviveu a rodada de mutacao por ser inerte, e saiu."""
+        self.rect.y = config.ground_y()
+        self.rect.width = config.screen_w()
 
     def draw(
         self,
