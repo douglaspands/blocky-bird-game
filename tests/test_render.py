@@ -136,7 +136,7 @@ def test_backend_of_the_real_environment_is_one_of_the_three(new_renderer) -> No
     assert renderer.size == CANVAS
 
 
-# --- hint de escala (R26.7) -----------------------------------------------------
+# --- hints do SDL (R26.7, design secao 40) --------------------------------------
 
 
 def test_nearest_neighbour_scaling_is_requested(monkeypatch: pytest.MonkeyPatch, new_renderer) -> None:
@@ -153,6 +153,46 @@ def test_scale_quality_hint_does_not_override_the_environment(
     monkeypatch.setenv(render.ENV_SCALE_QUALITY, "1")
     new_renderer()
     assert os.environ[render.ENV_SCALE_QUALITY] == "1"
+
+
+def test_draw_call_batching_is_requested(monkeypatch: pytest.MonkeyPatch, new_renderer) -> None:
+    """Agrupa desenhos consecutivos de mesma textura numa submissao so ao driver."""
+    monkeypatch.delenv(render.ENV_RENDER_BATCHING, raising=False)
+    new_renderer()
+    assert os.environ[render.ENV_RENDER_BATCHING] == "1"
+
+
+def test_batching_hint_does_not_override_the_environment(
+    monkeypatch: pytest.MonkeyPatch, new_renderer
+) -> None:
+    """Desligar o agrupamento para isolar um problema de driver nao deve exigir
+    editar codigo — mesma regra do hint de escala."""
+    monkeypatch.setenv(render.ENV_RENDER_BATCHING, "0")
+    new_renderer()
+    assert os.environ[render.ENV_RENDER_BATCHING] == "0"
+
+
+def test_the_hints_are_set_before_the_renderer_exists(monkeypatch: pytest.MonkeyPatch) -> None:
+    """O SDL le os dois hints na criacao do renderizador: defini-los depois nao teria
+    efeito nenhum, e o teste que so olha o ambiente no fim nao veria a diferenca."""
+    monkeypatch.delenv(render.ENV_SCALE_QUALITY, raising=False)
+    monkeypatch.delenv(render.ENV_RENDER_BATCHING, raising=False)
+    seen: list[tuple[str | None, str | None]] = []
+
+    real = render.video.Renderer
+
+    def spy(window, **kwargs):
+        seen.append((os.environ.get(render.ENV_SCALE_QUALITY), os.environ.get(render.ENV_RENDER_BATCHING)))
+        return real(window, **kwargs)
+
+    monkeypatch.setattr(render.video, "Renderer", spy)
+    renderer = render.create(CANVAS, WINDOW)
+    try:
+        assert seen, "ancora: o caminho de GPU foi mesmo tentado neste ambiente"
+        assert seen[0] == ("0", "1")
+    finally:
+        if isinstance(renderer, render.GpuRenderer):
+            renderer.window.destroy()
 
 
 # --- equivalencia entre os dois backends (R26.4) --------------------------------

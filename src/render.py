@@ -43,6 +43,15 @@ ENV_SCALE_QUALITY = "SDL_RENDER_SCALE_QUALITY"
 `0` e vizinho mais proximo: simultaneamente o mais barato e o unico correto para
 arte em pixel, porque filtragem linear borraria a estetica voxel do jogo (R26.7)."""
 
+ENV_RENDER_BATCHING = "SDL_RENDER_BATCHING"
+"""Nome de ambiente do hint `SDL_HINT_RENDER_BATCHING`.
+
+`1` agrupa desenhos consecutivos que compartilham textura e modo de mistura numa so
+submissao ao driver. E o que transforma os muitos `blit` de um frame — o chao
+ladrilhado, as colunas, os glifos do HUD — em poucas chamadas de verdade (design
+secao 40). Lido pelo SDL na criacao do renderizador, entao tem que estar no ambiente
+antes dela."""
+
 BACKEND_ACCELERATED = "gpu-accelerated"
 BACKEND_SOFTWARE = "gpu-software"
 BACKEND_SURFACE = "surface"
@@ -430,8 +439,14 @@ def create(
 
     O `icon` entra por aqui porque cada caminho o define de um jeito — pela `Window`
     do `_sdl2` ou pelo modulo `display` —, e quem chama nao deve precisar saber qual.
+
+    Os dois hints do SDL sao definidos aqui, e nao no `Game`, porque e aqui que o
+    renderizador nasce — o SDL le os dois na criacao dele, e um hint definido depois
+    nao tem efeito nenhum. `setdefault` nos dois: investigar outro valor continua
+    sendo questao de exportar a variavel, sem editar codigo.
     """
     os.environ.setdefault(ENV_SCALE_QUALITY, "0")
+    os.environ.setdefault(ENV_RENDER_BATCHING, "1")
 
     sdl_window = _open_sdl_window(window, fullscreen=fullscreen, title=title)
     if sdl_window is not None:

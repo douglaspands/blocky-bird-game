@@ -249,7 +249,7 @@ class DecorManager:
         self.far_scrolled += speed * FAR_FACTOR
         self.near_scrolled += speed * NEAR_FACTOR
 
-    def draw(self, renderer: render.Renderer, decor_id: str) -> None:
+    def draw(self, renderer: render.Renderer, decor_id: str, *, far: bool = True, near: bool = True) -> None:
         """Duas faixas pre-renderizadas, ate quatro desenhos por frame (R27.2, R27.3).
 
         A v2 refazia as duas camadas a cada frame: uma dezena de ladrilhos, cada um
@@ -257,13 +257,22 @@ class DecorManager:
         sortear de novo a mesma forma que o indice ja determinava. Aqui o sorteio
         acontece uma vez, na construcao da faixa, e o frame vira um ou dois recortes
         por camada.
+
+        `far` e `near` desligam cada camada por nivel de qualidade (R29.2). Quem decide
+        e o `Game`, com a tabela de `quality.py`: este modulo nao conhece niveis, so
+        recebe o que desenhar — a mesma disciplina de mao unica que mantem `mobs.py`
+        sem dependencia de jogo (R25.4). A deriva continua sendo atualizada em
+        `update()` mesmo com a camada desligada, para que voltar ao nivel de cima nao
+        produza um salto no cenario.
         """
         # a linha do chao vem da area jogavel, nao da base do canvas: colinas, poças
         # de lava e pilares tem que assentar no chao de verdade, nao afundar na faixa
         # decorativa de baixo (R25.1).
         ground_y = config.ground_y()
-        self._layer(renderer, decor_id, 0, self.far_scrolled, ground_y)
-        self._layer(renderer, decor_id, 1, self.near_scrolled, ground_y)
+        if far:
+            self._layer(renderer, decor_id, 0, self.far_scrolled, ground_y)
+        if near:
+            self._layer(renderer, decor_id, 1, self.near_scrolled, ground_y)
 
     def _layer(
         self, renderer: render.Renderer, decor_id: str, layer: int, scrolled: float, ground_y: int

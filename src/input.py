@@ -28,6 +28,44 @@ ACTION_RESIZE = "resize"
 # como fallback nas plataformas que nao emitem os eventos de app do SDL.
 FOCUS_LOST_EVENTS = (pygame.APP_WILLENTERBACKGROUND, pygame.APP_DIDENTERBACKGROUND, pygame.WINDOWFOCUSLOST)
 
+CONSUMED_EVENTS = (
+    pygame.QUIT,
+    *FOCUS_LOST_EVENTS,
+    pygame.WINDOWRESIZED,
+    pygame.KEYDOWN,
+    pygame.MOUSEBUTTONDOWN,
+    pygame.FINGERDOWN,
+    pygame.JOYBUTTONDOWN,
+    pygame.JOYDEVICEADDED,
+    pygame.JOYDEVICEREMOVED,
+)
+"""Todo tipo de evento que `poll` reconhece — e, por `configure_event_filter`, todo
+tipo que chega a existir como objeto Python.
+
+E a mesma lista para as duas coisas de proposito: um tipo tratado no `poll` mas
+esquecido aqui seria filtrado antes de chegar la, e o bug apareceria como uma acao
+que simplesmente parou de funcionar."""
+
+
+def configure_event_filter() -> None:
+    """Deixa entrar na fila so o que o jogo consome (R27.6). Chamar apos `pygame.init()`.
+
+    Lista de permissao, e nao de bloqueio: bloquear nominalmente `FINGERMOTION` e
+    `MOUSEMOTION` resolveria o caso conhecido de hoje e deixaria o de amanha passar.
+
+    O caso que motiva a regra e o `FINGERMOTION`. Enquanto o dedo esta na tela, o
+    Android o emite na taxa de amostragem do digitalizador — 120 a 240 Hz em aparelhos
+    correntes —, e cada evento vira um objeto Python que e criado, percorrido no laco
+    de `poll` e descartado, tres a quatro vezes por frame, para nao virar acao nenhuma.
+    `MOUSEMOTION` tem o mesmo perfil no desktop. Sao alocacoes por frame no caminho
+    quente, que e o que a secao 36 do design esta eliminando (R27.3).
+
+    Bloquear e mais forte que ignorar: o SDL descarta o evento antes de ele virar
+    objeto — `pygame.event.post` de um tipo bloqueado sequer entra na fila.
+    """
+    pygame.event.set_blocked(None)  # None = todos
+    pygame.event.set_allowed(CONSUMED_EVENTS)
+
 
 class InputManager:
     def __init__(self, renderer: render.Renderer) -> None:

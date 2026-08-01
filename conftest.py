@@ -52,6 +52,18 @@ def _reset_gc():
 
 
 @pytest.fixture(autouse=True)
+def _reset_event_filter():
+    """Desfaz o `input.configure_event_filter()` que todo `Game()` executa (task 61).
+
+    O filtro e global e permanente, como o `gc.freeze()` acima: sem este reset, o
+    primeiro `Game()` da suite passaria a bloquear eventos para todos os testes
+    seguintes — inclusive um teste futuro que precise postar um tipo que o jogo nao
+    consome, que falharia por um motivo sem relacao nenhuma com ele."""
+    yield
+    pygame.event.set_allowed(None)
+
+
+@pytest.fixture(autouse=True)
 def _reset_display():
     """pygame.SCALED exige um renderer SDL, e o driver dummy so permite um por
     processo — sem isso, o 2o+ set_mode(SCALED) do processo falha com

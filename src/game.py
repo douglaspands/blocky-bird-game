@@ -5,7 +5,7 @@ from enum import Enum, auto
 
 import pygame
 
-from src import assets, config, mobs, perf, render, score, textures, ui, viewport
+from src import assets, config, mobs, perf, quality, render, score, sounds, textures, ui, viewport
 from src.bands import SideBands
 from src.biome import BiomeManager
 from src.bird import Bird, precompute_sprites
@@ -22,15 +22,38 @@ from src.input import (
     ACTION_RESIZE,
     ACTION_RIGHT,
     InputManager,
+    configure_event_filter,
 )
 from src.particles import ParticleSystem
 from src.pipes import PipeManager
-from src.sounds import SoundManager
 from src.storage import is_android
 
 RESIZE_SETTLE_FRAMES = 12
 """Frames sem novo evento de redimensionamento antes de aplicar o novo canvas —
 ~200ms a 60 FPS, o bastante para o arrasto assentar sem parecer travado."""
+
+STEP_MS = 1000 / FPS
+"""Duracao de um passo de simulacao, em milissegundos (R28.1).
+
+`update()` continua sendo exatamente o que era: um passo logico de 1/60 s, com as
+mesmas constantes de fisica. O que mudou foi quem decide quantos deles rodam por
+frame — o tempo real, e nao mais o desenho."""
+
+MAX_FRAME_MS = 250.0
+"""Teto do tempo real que um unico frame pode acumular (R28.3).
+
+Uma pausa longa — o app em segundo plano, o sistema travando — devolveria um delta de
+segundos, e sem este corte ele viraria uma rajada de passos que faria o jogo *pular*
+para frente. R16.1 ja pausa o jogo ao ir para segundo plano; isto e a segunda linha de
+defesa, para o que nao vem acompanhado de evento nenhum."""
+
+MAX_STEPS = 5
+"""Teto de passos de simulacao por frame (R28.2).
+
+Impede a espiral da morte: se um passo passar a custar mais que `STEP_MS`, cada frame
+pediria mais passos do que consegue rodar, e a divida cresceria sem fim ate o jogo
+parar de responder. Chegando ao teto, o atraso restante e descartado — perde-se tempo
+de jogo, que e o preco de continuar respondendo."""
 
 
 def _load_icon() -> pygame.Surface | None:
@@ -53,9 +76,15 @@ class GameState(Enum):
 
 class Game:
     def __init__(self) -> None:
-        # antes do init: o SDL le o hint de orientacao ao criar o subsistema de video
+        # antes do init: o SDL le o hint de orientacao ao criar o subsistema de video,
+        # e o `pygame.init()` ja sobe o mixer com os parametros que `pre_init` deixou —
+        # e uma vez so, em vez das duas da v2 (R27.6, design secao 40).
         viewport.lock_portrait_orientation()
+        sounds.pre_init()
         pygame.init()
+        # logo apos o init, antes de qualquer evento existir: o que o jogo nao consome
+        # nao chega nem a virar objeto Python (R27.6).
+        configure_event_filter()
         # O canvas logico recebe a proporcao REAL da tela (Android) ou da janela
         # (desktop), com a area jogavel de 480x720 posicionada dentro dele — o que
         # sobra vira faixa decorativa, nunca barra preta (R23.1, R23.4). Como a
@@ -78,6 +107,13 @@ class Game:
         self._pending_resize: tuple[int, int] | None = None
         self._resize_idle = 0
         self.clock = pygame.time.Clock()
+        self.accumulator = 0.0
+        """Tempo real ja decorrido e ainda nao simulado, em milissegundos (R28.1).
+
+        E o que faz o resto de um frame nao ser jogado fora: a 60 FPS o relogio do
+        pygame devolve inteiros alternando entre 16 e 17 ms, e descartar a diferenca
+        para `STEP_MS` (16,67) faria o jogo correr devagar num aparelho que nao perdeu
+        um quadro sequer."""
         self.running = True
         self.textures = textures.generate_all(BLOCK)
         # as 62 rotacoes da abelha e os 18 sprites de mob entram no cache do
@@ -87,12 +123,15 @@ class Game:
         mobs.precompute(self.renderer)
         # cache de superficie por bioma, independente de partida: sobrevive ao reset()
         self.bands = SideBands()
-        self.sounds = SoundManager()
+        self.sounds = sounds.SoundManager()
         self.input = InputManager(self.renderer)
         self.score = 0
         self.highscore = score.load_highscore()
         self._highscore_dirty = False
         """Recorde superado e ainda nao gravado (R27.5). Ver `_flush_highscore`."""
+        # o nivel detectado na sessao anterior volta ja aplicado: os primeiros segundos
+        # ruins de um aparelho fraco acontecem uma vez, e nao toda vez (R29.5).
+        self.quality = quality.Quality(quality.load_level())
         # None em producao: a instrumentacao so existe com BLOCKY_PERF ligado (R30.2),
         # entao o custo normal e uma comparacao contra None por frame.
         self.profiler = perf.FrameProfiler() if perf.enabled() else None
@@ -204,7 +243,7 @@ class Game:
             # o recorde da partida em curso vai para o disco (R27.5, R16.4). Fora do
             # `if` de estado de proposito — o recorde pode estar sujo em GAME_OVER que
             # falhou em gravar, e gravar de novo custa nada quando nao ha nada sujo.
-            self._flush_highscore()
+            self._flush_to_disk()
             if self.state == GameState.JOGANDO:
                 # o app foi para segundo plano (ou perdeu foco no desktop): pausa e
                 # nunca retoma sozinho, mesmo quando volta ao primeiro plano (R16.1,
@@ -261,6 +300,25 @@ class Game:
             score.save_highscore(self.highscore)
             self._highscore_dirty = False
 
+    def _flush_quality(self) -> None:
+        """Grava o nivel de qualidade detectado, se ele mudou (R29.5).
+
+        Sai do frame pelo mesmo motivo do recorde: a troca de nivel acontece justamente
+        no aparelho que ja esta com dificuldade, e escrever em disco ali seria uma
+        chamada de sistema sincrona no pior momento possivel (R27.5)."""
+        if self.quality.dirty:
+            quality.save_level(self.quality.level)
+            self.quality.dirty = False
+
+    def _flush_to_disk(self) -> None:
+        """Descarrega tudo que esta pendente de gravacao.
+
+        Os dois arquivos sao gravados nos mesmos tres momentos — fim de partida, ida
+        para segundo plano e saida do laco — porque a razao e a mesma: sao os unicos
+        instantes em que ninguem esta jogando."""
+        self._flush_highscore()
+        self._flush_quality()
+
     def update(self) -> None:
         if self.state == GameState.PRONTO:
             self.bird.update_idle()
@@ -279,10 +337,12 @@ class Game:
             hit_texture = self._collision_texture()
             if hit_texture is not None:
                 self.state = GameState.GAME_OVER
-                self.particles.burst(self.bird.rect.center, self.textures[hit_texture])
+                self.particles.burst(
+                    self.bird.rect.center, self.textures[hit_texture], self.quality.settings.particles
+                )
                 self.sounds.play("hit")
                 # fim da partida: e aqui que o recorde da rodada vai para o disco (R27.5)
-                self._flush_highscore()
+                self._flush_to_disk()
         # PAUSADO: fisica, obstaculos, biomas e particulas ficam congelados (R3.3, R6.3).
         if self.state != GameState.PAUSADO:
             self.particles.update()
@@ -290,9 +350,13 @@ class Game:
     def draw(self) -> None:
         b = self.biome.current
         renderer = self.renderer
+        # o que cai fora nos niveis mais baixos e sempre decoracao — nunca coluna,
+        # chao, abelha ou HUD, que sao o jogo (R29.2, R29.3).
+        level = self.quality.settings
         self.biome.draw_background(renderer)
-        self.decor.draw(renderer, b.decor)
-        self.mobs.draw_sky(renderer, b.id)
+        self.decor.draw(renderer, b.decor, far=level.far_parallax, near=level.near_parallax)
+        if level.mobs:
+            self.mobs.draw_sky(renderer, b.id)
         self.pipes.draw(renderer, self.textures)
         self.ground.draw(renderer, self.textures, b.block_main, b.block_edge)
         self.bird.draw(renderer, self.textures)
@@ -301,7 +365,8 @@ class Game:
         # coluna que ainda nao entrou na area jogavel (R24.4, seção 32.6).
         self.bands.draw(renderer, self.textures, b)
         # depois das faixas, que sao opacas: o mob vive NA parede, nao atras dela.
-        self.mobs.draw_sides(renderer, b.id)
+        if level.mobs:
+            self.mobs.draw_sides(renderer, b.id)
         self.biome.draw_banner(renderer)
         ui.draw_mute_icon(renderer, self.sounds.muted)
 
@@ -320,22 +385,56 @@ class Game:
 
         renderer.present()
 
+    def simulate(self, frame_ms: float) -> int:
+        """Roda os passos fixos que `frame_ms` de tempo real comprou (R28.1-R28.3).
+
+        Devolve quantos rodaram. A conta e a mesma de qualquer acumulador: o tempo
+        decorrido entra, os passos inteiros saem, e o resto fica para o frame seguinte.
+        Tres detalhes e que sao o requisito:
+
+        - o delta e **cortado antes** de virar passos (R28.3), entao uma pausa de dois
+          segundos vira 250 ms de jogo e nao dois segundos de avanco instantaneo;
+        - o numero de passos tem teto (R28.2), entao um aparelho onde o passo custa
+          mais que 1/60 s desiste de recuperar em vez de afundar;
+        - batido o teto, o acumulador **zera**. Sem isso a divida ficaria guardada e o
+          frame seguinte comecaria ja devendo, o que e a mesma espiral, so que mais
+          lenta.
+
+        O que nao muda e o principal: `update()` continua sendo um passo de 1/60 s. A
+        60 FPS este laco roda exatamente um por frame, e o jogo e o mesmo da v2 ate no
+        pixel (R28.4).
+        """
+        self.accumulator += min(frame_ms, MAX_FRAME_MS)
+        steps = 0
+        while self.accumulator >= STEP_MS and steps < MAX_STEPS:
+            self.update()
+            self.accumulator -= STEP_MS
+            steps += 1
+        if steps == MAX_STEPS:
+            self.accumulator = 0.0
+        return steps
+
     def run(self) -> None:
         profiler = self.profiler
         while self.running:
-            frame_ms = self.clock.tick(FPS)
+            # o teto de quadros vem do nivel de qualidade: cai para 30 no BAIXO, e a
+            # simulacao continua a 60 passos logicos por segundo (R29.2, seção 38).
+            frame_ms = self.clock.tick(self.quality.render_fps)
+            # so JOGANDO alimenta a medicao: as telas paradas desenham outra coisa e
+            # nao dizem nada sobre o desempenho da partida (R29.1).
+            self.quality.frame(frame_ms, self.state == GameState.JOGANDO)
             self.handle_events()
             if profiler is None:
-                self.update()
+                self.simulate(frame_ms)
                 self.draw()
             else:
                 profiler.frame(frame_ms)
                 profiler.begin()
-                self.update()
+                self.simulate(frame_ms)
                 profiler.end_update()
                 self.draw()
                 profiler.end_draw()
         # saida ordenada (fechar a janela, BACK fora de JOGANDO): um recorde batido numa
         # partida que o jogador abandonou sem colidir nao pode se perder aqui (R4.3).
-        self._flush_highscore()
+        self._flush_to_disk()
         pygame.quit()

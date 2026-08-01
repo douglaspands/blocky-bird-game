@@ -1,9 +1,12 @@
-import pygame
+import random
 
-from src import config, render, viewport
+import pygame
+import pytest
+
+from src import config, perf, render, viewport
 from src import score as score_module
-from src.config import PIPE_W
-from src.game import Game, GameState
+from src.config import BLOCK, FPS, PIPE_W
+from src.game import MAX_FRAME_MS, MAX_STEPS, STEP_MS, Game, GameState
 from tests.fakes import FakeRenderer
 
 
@@ -181,9 +184,11 @@ def test_bare_tv_remote_reaches_every_state():
     game.handle_events()
     assert game.state == GameState.JOGANDO
 
-    # forca fim de jogo para testar GAME_OVER -> PRONTO
-    game.bird.pos.x = game.pipes.pipes[0].x
-    game.bird.pos.y = 0
+    # forca fim de jogo para testar GAME_OVER -> PRONTO. Contra o CHAO, e nao contra a
+    # coluna: a abertura e sorteada, e uma que caia bem no alto deixa a metade de cima
+    # com altura quase zero — a abelha em y=0 passaria sem colidir, e o teste
+    # dependeria do sorteio (e, portanto, da ordem da suite).
+    game.bird.pos.y = config.ground_y() + BLOCK
     game.bird.vel_y = 0
     game.update()
     assert game.state == GameState.GAME_OVER
@@ -418,6 +423,261 @@ def test_leaving_the_loop_writes_a_record_from_an_abandoned_round(monkeypatch):
 
     assert written == [1]
     assert score_module.load_highscore() == 1
+
+
+# --- timestep fixo (task 63, R28) -------------------------------------------------
+
+
+def _count_steps(game: Game, monkeypatch) -> list[int]:
+    """Troca `update` por um contador que ainda simula: conta sem mudar o que roda."""
+    steps: list[int] = []
+    original = game.update
+
+    def counted() -> None:
+        steps.append(1)
+        original()
+
+    monkeypatch.setattr(game, "update", counted)
+    return steps
+
+
+def test_a_sixty_fps_frame_advances_exactly_one_step(monkeypatch):
+    """O caso normal, e o que mantem o jogo identico ao da v2 (R28.1, R28.4)."""
+    game = _make_game()
+    steps = _count_steps(game, monkeypatch)
+
+    assert game.simulate(STEP_MS) == 1
+    assert len(steps) == 1
+
+
+def test_a_thirty_fps_frame_advances_two_steps():
+    """O jogo nao fica em camera lenta num aparelho que so entrega metade dos quadros:
+    o frame dura o dobro, e ele compra dois passos (R28.2)."""
+    game = _make_game()
+
+    assert game.simulate(1000 / 30) == 2
+
+
+def test_the_remainder_of_a_frame_is_carried_and_not_thrown_away(monkeypatch):
+    """`Clock.tick` devolve inteiros: a 60 FPS reais alternam 16 e 17 ms, e nenhum dos
+    dois e um passo exato de 16,67. Descartar a sobra faria o jogo correr devagar num
+    aparelho que nao perdeu quadro nenhum — o acumulador e o que impede isso."""
+    game = _make_game()
+    steps = _count_steps(game, monkeypatch)
+
+    assert game.simulate(16) == 0, "16 ms nao chegam a um passo de 16,67"
+    assert game.simulate(16) == 1, "mas os 32 ms dos dois frames sim: o primeiro nao se perdeu"
+
+    for _ in range(58):
+        game.simulate(16)
+
+    # 60 frames de 16 ms sao 960 ms de tempo real, que compram 57 passos e sobram 10 ms
+    assert len(steps) == int(960 / STEP_MS)
+    assert game.accumulator == pytest.approx(960 - 57 * STEP_MS)
+
+
+def test_a_long_stall_is_clamped_instead_of_becoming_a_leap():
+    """Um app que volta do segundo plano devolve um delta de segundos. Sem o corte, o
+    jogo *pularia* para frente — a abelha atravessaria a tela entre dois quadros
+    (R28.3)."""
+    game = _make_game()
+
+    assert game.simulate(5000) == MAX_STEPS
+    assert game.accumulator == 0.0
+
+
+def test_a_stall_leaves_no_debt_for_the_next_frame():
+    """Guardar o atraso irrecuperavel seria a mesma espiral, so que mais lenta: o
+    frame seguinte comecaria ja devendo e pediria o teto de novo, indefinidamente."""
+    game = _make_game()
+    game.simulate(5000)
+
+    assert game.simulate(STEP_MS) == 1, "o frame seguinte volta ao ritmo normal"
+
+
+# o menor valor da lista e 84 ms, e nao os 83,33 exatos de `MAX_STEPS * STEP_MS`: na
+# igualdade a soma de cinco decrementos de 16,666... cai um ulp abaixo do quinto passo
+# e o teto nao e batido. Nao e defeito — e a fronteira em ponto flutuante, e afirmar
+# sobre ela seria afirmar sobre o arredondamento, nao sobre o requisito.
+@pytest.mark.parametrize("frame_ms", [84.0, 100.0, MAX_FRAME_MS, 1000.0, 60_000.0])
+def test_no_frame_duration_can_advance_more_than_the_ceiling(frame_ms):
+    """A propriedade que R28.3 realmente pede, dita sobre qualquer duracao: nenhum
+    frame, por mais longo que seja, faz o jogo pular. Um minuto parado avanca o mesmo
+    que 83 ms."""
+    game = _make_game()
+
+    assert game.simulate(frame_ms) == MAX_STEPS
+    assert game.accumulator == 0.0
+
+
+def test_the_two_defences_are_consistent_and_the_inner_one_binds_first():
+    """R28.3 pede o corte do tempo decorrido; R28.2 pede o teto de passos. Hoje o teto
+    morde primeiro — 5 passos sao 83 ms, bem abaixo dos 250 ms do corte —, e portanto e
+    ele que cumpre os dois: batido o teto, o atraso restante e descartado de qualquer
+    forma. O corte de tempo e a rede que passa a valer se o teto subir, e este teste e
+    o que avisa quando isso acontecer, em vez de deixar as duas constantes se
+    contradizerem em silencio."""
+    assert MAX_STEPS * STEP_MS < MAX_FRAME_MS
+
+
+def test_the_number_of_steps_per_frame_has_a_ceiling():
+    """R28.2: se um passo passar a custar mais que 1/60 s, cada frame pediria mais
+    passos do que consegue rodar. O teto e o que faz o jogo continuar respondendo."""
+    game = _make_game()
+
+    for _ in range(10):
+        assert game.simulate(MAX_FRAME_MS) == MAX_STEPS
+
+
+def _snapshot(game: Game) -> tuple:
+    """Estado observavel de uma partida: fisica, obstaculos, animacao e progressao.
+
+    R28.4 fala das tres coisas — fisica, temporizadores de animacao e progressao de
+    biomas —, entao as tres entram aqui. Comparar so a posicao da abelha deixaria
+    passar um laco que rodasse o numero certo de passos com a animacao fora de fase.
+    """
+    return (
+        game.state,
+        game.bird.pos.x,
+        game.bird.pos.y,
+        game.bird.vel_y,
+        game.bird.angle,
+        game.bird.frame,
+        game.bird.rect.topleft,
+        tuple((pipe.x, pipe.gap_y, pipe.scored) for pipe in game.pipes.pipes),
+        game.score,
+        game.biome.current.id,
+        game.biome.fade_timer,
+        game.biome.banner_timer,
+        game.ground.offset,
+        game.decor.far_scrolled,
+        game.decor.near_scrolled,
+        game.mobs.scrolled,
+        game.mobs.frame,
+        len(game.particles.particles),
+    )
+
+
+def _autopilot(game: Game) -> None:
+    """Voa quando a abelha esta abaixo da abertura da proxima coluna.
+
+    Um roteiro cego (flapar a cada N passos) morreria na primeira coluna e a partida
+    acabaria antes de exercitar spawn, pontuacao e troca de bioma. Este e uma funcao do
+    estado, entao os dois lacos so tomam a mesma decisao enquanto estiverem mesmo no
+    mesmo estado — se um divergir, o roteiro diverge junto e a comparacao final
+    denuncia."""
+    if game.state != GameState.JOGANDO:
+        return
+    ahead = [pipe for pipe in game.pipes.pipes if pipe.x + PIPE_W >= game.bird.pos.x]
+    target = ahead[0].gap_y if ahead else config.play().centery
+    if game.bird.pos.y > target:
+        game.bird.flap()
+
+
+def _scripted_round(game: Game, steps: int, advance) -> None:
+    """Mesma partida roteirizada nos dois lacos, jogada pelo mesmo piloto automatico."""
+    game._flap_action()
+    for _ in range(steps):
+        _autopilot(game)
+        advance()
+
+
+@pytest.fixture
+def seeded():
+    """Devolve o sorteio global ao estado anterior no fim do teste.
+
+    Semear `random` e global e permanente. Sem esta devolucao, todo teste posterior
+    passaria a receber a mesma sequencia de aberturas de coluna — o que e pior do que
+    parece: um teste que depende de onde a abertura caiu passaria ou falharia conforme
+    a *ordem* da suite."""
+    state = random.getstate()
+    yield
+    random.setstate(state)
+
+
+def test_sixty_fps_reproduces_the_v2_frame_loop_exactly(seeded):
+    """R28.4, o requisito que justifica `update()` nao ter mudado uma linha: a 60 FPS
+    o laco novo tem que produzir o mesmo jogo que o antigo, e nao um parecido.
+
+    As duas partidas nascem da mesma semente porque a abertura da coluna e sorteada
+    (`pipes._spawn`); sem isso a comparacao seria entre dois cenarios diferentes. E a
+    semente e reposta antes de cada partida, e nao so antes de cada `Game()`: as
+    colunas que nascem *durante* a partida tambem saem do sorteio global."""
+    random.seed(20260801)
+    stepped = _make_game()
+    random.seed(20260801)
+    per_frame = _make_game()
+
+    assert _snapshot(stepped) == _snapshot(per_frame), "ancora: as duas partidas comecam iguais"
+
+    random.seed(20260802)
+    _scripted_round(stepped, 2000, lambda: stepped.simulate(STEP_MS))
+    random.seed(20260802)
+    _scripted_round(per_frame, 2000, per_frame.update)
+
+    assert _snapshot(stepped) == _snapshot(per_frame)
+    # ancoras: a partida foi longa o bastante para exercitar as tres coisas que R28.4
+    # nomeia — fisica, animacao e progressao de bioma —, e nao so os primeiros frames
+    assert stepped.state == GameState.JOGANDO
+    assert stepped.score >= 10
+    assert stepped.biome.current.id == "cave"
+
+
+def _run_frames(game: Game, frames, monkeypatch) -> list[int]:
+    """Roda `run()` por exatamente `len(frames)` frames, com o relogio ditado aqui.
+
+    Devolve o FPS pedido a cada `tick`, que e como se verifica que o laco continua
+    limitando a taxa de desenho."""
+    monkeypatch.setattr(pygame, "quit", lambda: None)
+    remaining = list(frames)
+    requested: list[int] = []
+
+    class _ScriptedClock:
+        """Relogio ditado pelo teste. Substitui o objeto inteiro, e nao so o `tick`:
+        os atributos de `pygame.time.Clock` sao somente leitura."""
+
+        def tick(self, fps: int = 0) -> float:
+            requested.append(fps)
+            frame_ms = remaining.pop(0)
+            if not remaining:
+                game.running = False
+            return frame_ms
+
+    monkeypatch.setattr(game, "clock", _ScriptedClock())
+    game.renderer = FakeRenderer(game.viewport.canvas)
+    game.run()
+    return requested
+
+
+def test_the_loop_simulates_from_the_clock_and_draws_once_per_frame(monkeypatch):
+    """A separacao que a task inteira existe para fazer: quatro passos de simulacao em
+    dois quadros desenhados. E o `tick` continua governando a taxa de desenho."""
+    game = _make_game()
+    steps = _count_steps(game, monkeypatch)
+    draws: list[int] = []
+    monkeypatch.setattr(game, "draw", lambda: draws.append(1))
+
+    requested = _run_frames(game, [1000 / 30, 1000 / 30], monkeypatch)
+
+    assert len(steps) == 4
+    assert len(draws) == 2
+    assert requested == [FPS, FPS]
+
+
+def test_the_profiler_measures_the_simulation_and_not_a_single_update(monkeypatch):
+    """Com a sobreposicao ligada, o tempo de `update` reportado tem que ser o do frame
+    inteiro — dois passos num frame de 30 FPS custam o dobro de um, e e isso que o
+    jogador sente."""
+    monkeypatch.setenv(perf.ENV_VAR, "1")
+    game = _make_game()
+    assert game.profiler is not None
+    steps = _count_steps(game, monkeypatch)
+    monkeypatch.setattr(game, "draw", lambda: None)
+
+    _run_frames(game, [1000 / 30, 1000 / 30], monkeypatch)
+
+    assert len(steps) == 4
+    assert game.profiler.update_ms > 0
 
 
 def test_flap_in_game_over_resets_to_pronto():

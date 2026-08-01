@@ -3,7 +3,16 @@ import pytest
 
 from src import config, ui
 from src.game import Game, GameState
-from src.input import ACTION_BACK, ACTION_FLAP, ACTION_LEFT, ACTION_MUTE, ACTION_RIGHT, InputManager
+from src.input import (
+    ACTION_BACK,
+    ACTION_FLAP,
+    ACTION_LEFT,
+    ACTION_MUTE,
+    ACTION_RIGHT,
+    CONSUMED_EVENTS,
+    InputManager,
+    configure_event_filter,
+)
 from src.viewport import PLAY_H, PLAY_W, compute
 from tests.fakes import FakeRenderer
 
@@ -156,6 +165,72 @@ def test_tap_on_the_mute_icon_inside_the_sky_band_still_mutes():
     assert config.viewport().sky_band.contains(rect)
 
     assert _tap_at(im, rect.center) == {ACTION_MUTE}
+
+
+MOTION_EVENTS = (pygame.FINGERMOTION, pygame.MOUSEMOTION)
+"""Os dois eventos continuos que motivam o filtro: um por dedo na tela, outro por
+pixel de mouse, ambos a taxas muito acima do frame."""
+
+NEVER_CONSUMED = (
+    pygame.KEYUP,
+    pygame.MOUSEBUTTONUP,
+    pygame.FINGERUP,
+    pygame.JOYAXISMOTION,
+    pygame.JOYBUTTONUP,
+    pygame.TEXTINPUT,
+    pygame.WINDOWENTER,
+    pygame.AUDIODEVICEADDED,
+)
+"""Uma amostra do que `poll` nunca leu e que a lista de permissao mantem fora."""
+
+
+def test_the_continuous_motion_events_are_blocked():
+    """O coracao de R27.6: `FINGERMOTION` chega a 240 Hz enquanto o dedo esta na tela,
+    e cada um viraria um objeto Python percorrido pelo `poll` para nao virar acao
+    nenhuma."""
+    configure_event_filter()
+    for event_type in MOTION_EVENTS:
+        assert pygame.event.get_blocked(event_type), pygame.event.event_name(event_type)
+
+
+def test_every_event_the_game_consumes_stays_allowed():
+    """O outro lado do filtro, e o que impede que ele silencie o jogo."""
+    configure_event_filter()
+    for event_type in CONSUMED_EVENTS:
+        assert not pygame.event.get_blocked(event_type), pygame.event.event_name(event_type)
+
+
+def test_the_filter_is_a_list_of_what_passes_not_of_what_is_barred():
+    """Bloquear nominalmente os dois eventos de movimento resolveria o caso conhecido
+    e deixaria passar o proximo. A lista de permissao barra tudo que ninguem leu."""
+    configure_event_filter()
+    assert not set(MOTION_EVENTS) & set(CONSUMED_EVENTS)
+    for event_type in NEVER_CONSUMED:
+        assert pygame.event.get_blocked(event_type), pygame.event.event_name(event_type)
+
+
+def test_a_blocked_event_never_becomes_a_python_object():
+    """Bloquear e mais forte que ignorar no `poll`: o evento nem entra na fila, entao
+    o custo que R27.6 quer eliminar — criar, percorrer e descartar — nao chega a
+    existir. `post` devolvendo False e o proprio SDL dizendo que o descartou."""
+    im = _make_input()
+    configure_event_filter()
+
+    motion = pygame.event.Event(pygame.FINGERMOTION, x=0.5, y=0.5, touch_id=1, finger_id=1)
+    assert pygame.event.post(motion) is False
+    assert im.poll() == (set(), False)
+
+    # ancora: o mesmo ponto, como toque, continua voando — o filtro nao matou a entrada
+    pygame.event.post(pygame.event.Event(pygame.FINGERDOWN, x=0.5, y=0.5, touch_id=1, finger_id=1))
+    assert im.poll()[0] == {ACTION_FLAP}
+
+
+def test_the_game_installs_the_filter_on_startup():
+    """De ponta a ponta: quem liga o filtro e a inicializacao do jogo, e nao um
+    chamador hipotetico."""
+    Game()
+    assert pygame.event.get_blocked(pygame.FINGERMOTION)
+    assert not pygame.event.get_blocked(pygame.FINGERDOWN)
 
 
 def test_tap_on_a_band_starts_and_restarts_the_match():

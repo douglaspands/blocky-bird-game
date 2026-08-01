@@ -7,11 +7,18 @@ source.dir = .
 source.include_exts = py,png
 source.exclude_dirs = tests,specs,.venv,dist,build,.git,.github,__pycache__,p4a-recipes,android,scripts,.pytest_cache
 
-version = 0.2.0
+version = 0.3.0
 requirements = python3,pygame-ce,android
 
 orientation = portrait
 fullscreen = 1
+
+# cor da tela de abertura: o topo do gradiente de ceu do Overworld
+# (src/biome.py, sky_top = (135, 206, 235)), que e o primeiro pixel que o jogador ve.
+# Sem esta chave o buildozer usa preto, e a espera entre tocar no icone e o primeiro
+# frame aparece como uma tela apagada — com ela, aparece como o proprio jogo abrindo.
+# Nao acelera nada: encurta a percepcao, nao o tempo (design secao 40).
+android.presplash_color = #87CEEB
 
 # receita local do pygame-ce: a oficial nao esta mergeada no p4a upstream
 # (ver p4a-recipes/pygame-ce/__init__.py e design.md secao 24.1)
@@ -45,7 +52,11 @@ icon.adaptive_background.filename = assets/android_icon_background.png
 android.api = 34
 android.minapi = 21
 android.ndk_api = 21
-android.archs = armeabi-v7a, arm64-v8a, x86_64
+# sem x86_64: essa ABI so serve a emulador, e o pacote e unico — as tres iam juntas
+# para todo aparelho, engordando o APK e o tempo de build sem que nenhum celular real
+# usasse a terceira. Aparelho nenhum fica de fora: o Android escolhe a melhor ABI
+# entre as embarcadas, e todo aparelho corrente e arm64-v8a ou armeabi-v7a.
+android.archs = armeabi-v7a, arm64-v8a
 android.allow_backup = True
 
 [buildozer]

@@ -1166,7 +1166,9 @@ O que se desliga é sempre decorativo, em ordem crescente de importância visual
 
 **Histerese (R29.4).** A queda de nível exige a média abaixo do limiar pela janela inteira; a subida exige uma margem folgada e uma janela mais longa. Sem isso, um aparelho no limite alternaria entre dois níveis a cada poucos segundos, que é pior visualmente do que ficar no nível mais baixo.
 
-**Persistência (R29.5, R29.6).** O nível detectado é gravado ao lado do recorde, via `storage.save_dir()` (seção 23), e reaplicado na abertura seguinte — assim os primeiros segundos ruins acontecem uma vez, não toda vez. Arquivo ausente ou corrompido ⇒ nível ALTO e redetecção, mesma disciplina de `score.load_highscore()`.
+**Persistência (R29.5, R29.6).** O nível detectado é gravado ao lado do recorde, via `storage.save_dir()` (seção 23), e reaplicado na abertura seguinte — assim os primeiros segundos ruins acontecem uma vez, não toda vez. Arquivo ausente ou corrompido ⇒ nível ALTO e redetecção, mesma disciplina de `score.load_highscore()`. A gravação sai do quadro pelo mesmo caminho do recorde (seção 30, task 60): a troca de nível marca `dirty`, e o disco é tocado no fim da partida, na ida para segundo plano ou na saída do laço — R27.5 vale para este arquivo também, e aqui pesa mais, porque a troca de nível acontece justamente no aparelho que já está com dificuldade.
+
+**Os números.** Janela de queda de 120 quadros (~2 s) contra limiar de 50 FPS; janela de subida de 300 (~5 s) contra 58 FPS. O nível grava-se pelo **nome** (`{"level": "MEDIO"}`) e não pelo inteiro do `IntEnum`: inserir um nível no meio da enumeração, um dia, reinterpretaria em silêncio o arquivo de quem já jogava.
 
 ## 39. Instrumentação e benchmark (`src/perf.py`, `scripts/benchmark.py`) — R30
 
@@ -1192,9 +1194,9 @@ Os números entram na tabela da seção 30, antes e depois, para que cada otimiz
 
 **Mixer.** A v2 deixava `pygame.init()` subir o mixer com os parâmetros padrão e, em seguida, `SoundManager.__init__` o reinicializava com os parâmetros certos (seção 11). Passa a usar `pygame.mixer.pre_init(...)` **antes** de `pygame.init()`, então o mixer nasce já com a frequência e o tamanho de buffer corretos, e a inicialização acontece uma vez só.
 
-**`buildozer.spec`.** `android.archs` perde `x86_64` — que só serve a emulador e engorda o APK, hoje um pacote único de 62 MB com três ABIs. `android.presplash_color` encurta a percepção da tela preta de boot. `version` vai para `0.3.0`.
+**`buildozer.spec`.** `android.archs` perde `x86_64` — que só serve a emulador e engorda o APK, hoje um pacote único de 62 MB com três ABIs. `android.presplash_color` encurta a percepção da tela preta de boot; o valor é `#87CEEB`, o `sky_top` do Overworld (`biome.py`), de modo que a espera entre o toque no ícone e o primeiro frame apareça como o próprio jogo abrindo e não como uma tela apagada. `version` vai para `0.3.0`.
 
-> Registro honesto: **nada disso melhora FPS.** O aparelho já seleciona a melhor ABI disponível entre as embarcadas, então remover `x86_64` reduz tamanho de artefato e tempo de build, não desempenho em execução. Está documentado aqui para que a expectativa não se forme errado a partir da lista de mudanças.
+> Registro honesto: **nada disso melhora FPS.** O aparelho já seleciona a melhor ABI disponível entre as embarcadas, então remover `x86_64` reduz tamanho de artefato e tempo de build, não desempenho em execução. Está documentado aqui para que a expectativa não se forme errado a partir da lista de mudanças. E a redução em si só pode ser *medida* num build real — o número entra na task 73, junto dos demais.
 
 ## 41. Docstrings e site de documentação (R31)
 

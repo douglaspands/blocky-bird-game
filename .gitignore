@@ -15,6 +15,9 @@ wheels/
 
 # Save local do jogo
 highscore.json
+# Nivel de qualidade detectado no aparelho (task 64, R29.5): e medicao local,
+# nao configuracao do projeto — o nivel de uma maquina nao diz nada sobre outra.
+quality.json
 
 # Cache de build do Buildozer/Android (task 27-29)
 .buildozer/
