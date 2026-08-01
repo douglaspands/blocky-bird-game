@@ -5,7 +5,7 @@ from enum import Enum, auto
 
 import pygame
 
-from src import assets, config, perf, render, score, textures, ui, viewport
+from src import assets, config, mobs, perf, render, score, textures, ui, viewport
 from src.bands import SideBands
 from src.biome import BiomeManager
 from src.bird import Bird, precompute_sprites
@@ -80,9 +80,11 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.textures = textures.generate_all(BLOCK)
-        # as 62 rotacoes da abelha entram no cache do renderizador antes do primeiro
-        # frame, para que nenhuma delas seja construida durante o jogo (R27.2).
+        # as 62 rotacoes da abelha e os 18 sprites de mob entram no cache do
+        # renderizador antes do primeiro frame, para que nenhum deles seja construido
+        # durante o jogo (R27.2).
         precompute_sprites(self.renderer, self.textures)
+        mobs.precompute(self.renderer)
         # cache de superficie por bioma, independente de partida: sobrevive ao reset()
         self.bands = SideBands()
         self.sounds = SoundManager()
@@ -109,8 +111,8 @@ class Game:
         memoria de video sem nunca mais serem pedidas.
 
         `forget_images` nao sabe distinguir o que depende do canvas do que nao depende,
-        entao as 62 rotacoes da abelha caem junto e sao refeitas aqui — fora do frame,
-        como na inicializacao."""
+        entao as 62 rotacoes da abelha e os 18 sprites de mob caem junto e sao refeitos
+        aqui — fora do frame, como na inicializacao."""
         new_viewport = viewport.compute(*size)
         if new_viewport.canvas == self.viewport.canvas:
             return
@@ -119,6 +121,7 @@ class Game:
         self.renderer.forget_images()
         self.renderer.resize(new_viewport.canvas)
         precompute_sprites(self.renderer, self.textures)
+        mobs.precompute(self.renderer)
 
     def _tick_resize(self) -> None:
         """Aplica o redimensionamento pendente quando o arrasto para.
@@ -140,6 +143,7 @@ class Game:
         self.pipes = PipeManager(b.gap_size, b.block_main, b.block_edge)
         self.ground = Ground()
         self.decor = DecorManager()
+        self.mobs = mobs.MobField()
         self.particles = ParticleSystem()
         self.score = 0
         self.state = GameState.PRONTO
@@ -228,12 +232,15 @@ class Game:
     def update(self) -> None:
         if self.state == GameState.PRONTO:
             self.bird.update_idle()
+            # sem deriva, so o idle: o cenario respira na tela inicial sem sair do lugar
+            self.mobs.update(0.0)
         elif self.state == GameState.JOGANDO:
             b = self.biome.current
             self.bird.update()
             self.pipes.update(b.speed, b.gap_size, b.block_main, b.block_edge)
             self.ground.update(b.speed)
             self.decor.update(b.speed)
+            self.mobs.update(b.speed)
             self._update_score()
             if self.biome.update(self.score):
                 self.sounds.play("portal")
@@ -252,6 +259,7 @@ class Game:
         renderer = self.renderer
         self.biome.draw_background(renderer)
         self.decor.draw(renderer, b.decor)
+        self.mobs.draw_sky(renderer, b.id)
         self.pipes.draw(renderer, self.textures)
         self.ground.draw(renderer, self.textures, b.block_main, b.block_edge)
         self.bird.draw(renderer, self.textures)
@@ -259,6 +267,8 @@ class Game:
         # depois das colunas e da abelha, antes do HUD: a faixa e opaca e esconde a
         # coluna que ainda nao entrou na area jogavel (R24.4, seção 32.6).
         self.bands.draw(renderer, self.textures, b)
+        # depois das faixas, que sao opacas: o mob vive NA parede, nao atras dela.
+        self.mobs.draw_sides(renderer, b.id)
         self.biome.draw_banner(renderer)
         ui.draw_mute_icon(renderer, self.sounds.muted)
 

@@ -5,7 +5,7 @@ import os
 import pygame
 import pytest
 
-from src import config, viewport
+from src import config, mobs, textures, viewport
 from src.bird import ANGLES
 from src.game import RESIZE_SETTLE_FRAMES, Game
 from src.input import ACTION_RESIZE, InputManager
@@ -52,17 +52,19 @@ def test_resize_discards_the_images_keyed_by_canvas_size():
     """Gradiente de ceu e faixas laterais sao chaveados pelo tamanho do canvas: as
     versoes antigas nunca mais seriam pedidas e ficariam ocupando memoria de video.
 
-    O que sobra depois sao exatamente as 62 rotacoes da abelha, e elas sobram porque
-    `apply_resize` as reconstroi de proposito (task 56): `forget_images` derruba tudo,
-    inclusive o que nao depende do canvas, e refaze-las ali e o que impede que voltem
-    uma por frame durante a queda seguinte."""
+    O que sobra depois sao exatamente as 62 rotacoes da abelha e os 18 sprites de mob,
+    e eles sobram porque `apply_resize` os reconstroi de proposito (tasks 56 e 57):
+    `forget_images` derruba tudo, inclusive o que nao depende do canvas, e refaze-los
+    ali e o que impede que voltem um por frame durante o jogo."""
     game = Game()
     game.renderer = FakeRenderer(game.viewport.canvas)
     game.draw()
     assert game.renderer._images
 
     game.apply_resize((1920, 1080))
-    assert set(game.renderer._images) == {("bee", frame, angle) for frame in (0, 1) for angle in ANGLES}
+    bees = {("bee", frame, angle) for frame in (0, 1) for angle in ANGLES}
+    mob_sprites = {("mob", kind, frame) for kind in textures.MOB_MAKERS for frame in mobs.IDLE_FRAMES}
+    assert set(game.renderer._images) == bees | mob_sprites
     assert game.renderer.size == (1280, 720)
 
 
