@@ -12,7 +12,7 @@ wheels = [
 ]
 
 [[package]]
-name = "blocky-bird"
+name = "blocky-bee"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

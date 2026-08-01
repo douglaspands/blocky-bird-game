@@ -1,7 +1,7 @@
 [project]
-name = "blocky-bird"
+name = "blocky-bee"
 version = "0.1.0"
-description = "Add your description here"
+description = "Flappy Bird com tematica Minecraft em Python/Pygame — graficos e sons gerados por codigo, sem assets externos"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
