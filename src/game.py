@@ -91,6 +91,8 @@ class Game:
         self.input = InputManager(self.renderer)
         self.score = 0
         self.highscore = score.load_highscore()
+        self._highscore_dirty = False
+        """Recorde superado e ainda nao gravado (R27.5). Ver `_flush_highscore`."""
         # None em producao: a instrumentacao so existe com BLOCKY_PERF ligado (R30.2),
         # entao o custo normal e uma comparacao contra None por frame.
         self.profiler = perf.FrameProfiler() if perf.enabled() else None
@@ -197,11 +199,17 @@ class Game:
             self._pending_resize = self.renderer.window_size
             self._resize_idle = 0
         self._tick_resize()
-        if ACTION_FOCUS_LOST in actions and self.state == GameState.JOGANDO:
-            # o app foi para segundo plano (ou perdeu foco no desktop): pausa e
-            # nunca retoma sozinho, mesmo quando volta ao primeiro plano (R16.1,
-            # R16.2) — so um flap/pause explicito do jogador despausa.
-            self._toggle_pause()
+        if ACTION_FOCUS_LOST in actions:
+            # ultimo instante garantido antes de o Android poder encerrar o app: e onde
+            # o recorde da partida em curso vai para o disco (R27.5, R16.4). Fora do
+            # `if` de estado de proposito — o recorde pode estar sujo em GAME_OVER que
+            # falhou em gravar, e gravar de novo custa nada quando nao ha nada sujo.
+            self._flush_highscore()
+            if self.state == GameState.JOGANDO:
+                # o app foi para segundo plano (ou perdeu foco no desktop): pausa e
+                # nunca retoma sozinho, mesmo quando volta ao primeiro plano (R16.1,
+                # R16.2) — so um flap/pause explicito do jogador despausa.
+                self._toggle_pause()
         if ACTION_BACK in actions:
             self._back_action()
         if ACTION_FLAP in actions:
@@ -225,10 +233,12 @@ class Game:
         return None
 
     def _update_score(self) -> None:
-        """+1 por coluna ultrapassada, uma unica vez por coluna (R4.1). Grava o
-        recorde no instante em que e superado, nao so no GAME_OVER — um
-        encerramento abrupto do app pelo Android nao perde o recorde ja
-        alcancado (R4.3, R16.4)."""
+        """+1 por coluna ultrapassada, uma unica vez por coluna (R4.1).
+
+        Superar o recorde marca-o como sujo em vez de gravar em disco: escrita de
+        arquivo dentro do frame de JOGANDO e uma chamada de sistema sincrona, com uma
+        cauda de latencia que nao depende do jogo (R27.5). Quem grava e
+        `_flush_highscore`."""
         for pipe in self.pipes.pipes:
             if not pipe.scored and pipe.x + PIPE_W < self.bird.pos.x:
                 pipe.scored = True
@@ -236,7 +246,20 @@ class Game:
                 self.sounds.play("score")
                 if self.score > self.highscore:
                     self.highscore = self.score
-                    score.save_highscore(self.highscore)
+                    self._highscore_dirty = True
+
+    def _flush_highscore(self) -> None:
+        """Grava o recorde em disco, se houver um novo desde a ultima gravacao (R27.5).
+
+        Chamado nos tres momentos em que o frame nao esta em jogo: o fim da partida, a
+        ida para segundo plano e o encerramento do laco. A garantia que motivou a
+        gravacao incremental da v2 continua de pe (R4.3, R16.4) porque o Android *avisa*
+        antes de encerrar — `APP_WILLENTERBACKGROUND` chega primeiro, e e nele que a
+        gravacao passa a acontecer. O que se perde e o caso de o processo morrer sem
+        nenhum aviso, que nem a v2 cobria."""
+        if self._highscore_dirty:
+            score.save_highscore(self.highscore)
+            self._highscore_dirty = False
 
     def update(self) -> None:
         if self.state == GameState.PRONTO:
@@ -258,7 +281,8 @@ class Game:
                 self.state = GameState.GAME_OVER
                 self.particles.burst(self.bird.rect.center, self.textures[hit_texture])
                 self.sounds.play("hit")
-                # recorde ja foi gravado incrementalmente em _update_score() se superado
+                # fim da partida: e aqui que o recorde da rodada vai para o disco (R27.5)
+                self._flush_highscore()
         # PAUSADO: fisica, obstaculos, biomas e particulas ficam congelados (R3.3, R6.3).
         if self.state != GameState.PAUSADO:
             self.particles.update()
@@ -311,4 +335,7 @@ class Game:
                 profiler.end_update()
                 self.draw()
                 profiler.end_draw()
+        # saida ordenada (fechar a janela, BACK fora de JOGANDO): um recorde batido numa
+        # partida que o jogador abandonou sem colidir nao pode se perder aqui (R4.3).
+        self._flush_highscore()
         pygame.quit()

@@ -237,28 +237,6 @@ def test_app_background_events_also_pause():
     assert game.state == GameState.PAUSADO
 
 
-def test_highscore_saved_incrementally_mid_round():
-    """O recorde deve ser gravado no instante em que e superado, nao so no
-    GAME_OVER — um encerramento abrupto do app (Android) nao pode perder o
-    recorde ja alcancado em uma partida ainda em curso (R4.3, R16.4)."""
-    game = _make_game()
-    game._flap_action()
-    assert game.highscore == 0
-
-    pipe = game.pipes.pipes[0]
-    game.bird.pos.x = pipe.x + PIPE_W + 1
-    game.bird.pos.y = pipe.gap_y
-    game.bird.vel_y = 0
-
-    game.update()
-    assert game.score == 1
-    assert game.highscore == 1
-    assert game.state == GameState.JOGANDO  # a rodada ainda nao terminou
-
-    # ja deve estar em disco, nao so na memoria do objeto Game
-    assert score_module.load_highscore() == 1
-
-
 def test_highscore_not_saved_again_below_record():
     game = _make_game()
     game._flap_action()
@@ -274,6 +252,172 @@ def test_highscore_not_saved_again_below_record():
     assert game.score == 4
     assert game.highscore == 50
     assert score_module.load_highscore() == 0  # nada foi gravado
+
+
+# --- persistencia do recorde fora do frame (task 60, R27.5) ------------------------
+
+
+def _writes(monkeypatch) -> list[int]:
+    """Registra cada gravacao em disco do recorde, deixando-a acontecer de verdade.
+
+    Espionar `score.save_highscore` — e nao so olhar o arquivo — e o que separa "nao
+    gravou" de "gravou o mesmo valor duas vezes": R27.5 e sobre a *chamada de sistema*
+    dentro do frame, nao sobre o conteudo do arquivo.
+    """
+    written: list[int] = []
+    original = score_module.save_highscore
+
+    def spy(highscore: int, path=None) -> None:
+        written.append(highscore)
+        original(highscore, path)
+
+    monkeypatch.setattr(score_module, "save_highscore", spy)
+    return written
+
+
+def _beat_the_record(game: Game) -> None:
+    """Poe a abelha logo depois da primeira coluna e roda um frame: +1 ponto."""
+    pipe = game.pipes.pipes[0]
+    game.bird.pos.x = pipe.x + PIPE_W + 1
+    game.bird.pos.y = pipe.gap_y
+    game.bird.vel_y = 0
+    game.update()
+
+
+def _crash(game: Game) -> None:
+    """Deixa a abelha cair ate bater no chao, levando a partida ao GAME_OVER."""
+    frames = 0
+    while game.state == GameState.JOGANDO and frames < 2000:
+        game.update()
+        frames += 1
+    assert game.state == GameState.GAME_OVER
+
+
+def test_beating_the_record_while_playing_does_not_touch_the_disk(monkeypatch):
+    """O coracao de R27.5: gravar arquivo e chamada de sistema sincrona, e a cauda de
+    latencia dela nao depende do jogo. Em JOGANDO ela sai do frame."""
+    written = _writes(monkeypatch)
+    game = _make_game()
+    game._flap_action()
+
+    _beat_the_record(game)
+
+    assert game.score == 1
+    assert game.highscore == 1  # o recorde ja subiu na memoria
+    assert written == []  # mas nada foi para o disco
+    assert score_module.load_highscore() == 0
+
+
+def test_no_disk_write_happens_during_a_whole_played_round(monkeypatch):
+    """A mesma regra ao longo de uma partida inteira, e nao so no frame que pontua:
+    R27.5 proibe escrita em disco *enquanto* o estado e JOGANDO."""
+    written = _writes(monkeypatch)
+    game = _make_game()
+    game._flap_action()
+    for _ in range(6):
+        _beat_the_record(game)
+        game.pipes.pipes[0].scored = False  # forca a proxima passagem a pontuar de novo
+
+    assert game.score >= 6, "ancora: a partida pontuou de verdade"
+    assert game.state == GameState.JOGANDO
+    assert written == []
+
+
+def test_reaching_game_over_writes_the_record(monkeypatch):
+    """O fim da partida e o primeiro dos dois momentos em que a gravacao acontece."""
+    written = _writes(monkeypatch)
+    game = _make_game()
+    game._flap_action()
+    _beat_the_record(game)
+    assert written == []  # ancora: ate aqui nada tinha sido gravado
+
+    _crash(game)
+
+    assert written == [game.highscore]
+    assert score_module.load_highscore() == game.highscore
+
+
+def test_going_to_the_background_writes_a_pending_record(monkeypatch):
+    """O segundo momento, e o que preserva a garantia de R4.3/R16.4: o Android avisa
+    antes de encerrar, e o aviso chega como `APP_WILLENTERBACKGROUND`."""
+    written = _writes(monkeypatch)
+    game = _make_game()
+    game._flap_action()
+    _beat_the_record(game)
+    assert written == []
+
+    pygame.event.post(pygame.event.Event(pygame.APP_WILLENTERBACKGROUND))
+    game.handle_events()
+
+    assert written == [1]
+    assert score_module.load_highscore() == 1
+    assert game.state == GameState.PAUSADO  # e continua pausando, como antes (R16.1)
+
+
+def test_going_to_the_background_while_paused_still_writes(monkeypatch):
+    """A gravacao nao pode ficar pendurada no estado JOGANDO: quem pausou depois de
+    bater o recorde e so entao trocou de app perderia o recorde."""
+    written = _writes(monkeypatch)
+    game = _make_game()
+    game._flap_action()
+    _beat_the_record(game)
+    game._toggle_pause()
+    assert game.state == GameState.PAUSADO
+
+    pygame.event.post(pygame.event.Event(pygame.APP_WILLENTERBACKGROUND))
+    game.handle_events()
+
+    assert written == [1]
+
+
+def test_going_to_the_background_without_a_new_record_writes_nothing(monkeypatch):
+    """Sem recorde novo nao ha o que gravar — nem na ida para segundo plano."""
+    written = _writes(monkeypatch)
+    game = _make_game()
+    game.highscore = 50
+    game._flap_action()
+    _beat_the_record(game)
+    assert game.score == 1  # abaixo do recorde: nada ficou pendente
+
+    pygame.event.post(pygame.event.Event(pygame.APP_WILLENTERBACKGROUND))
+    game.handle_events()
+
+    assert written == []
+
+
+def test_the_record_is_written_once_and_not_again(monkeypatch):
+    """Depois do GAME_OVER a marca de pendente cai: ir para segundo plano em seguida
+    nao repete a gravacao."""
+    written = _writes(monkeypatch)
+    game = _make_game()
+    game._flap_action()
+    _beat_the_record(game)
+    _crash(game)
+    assert len(written) == 1
+
+    pygame.event.post(pygame.event.Event(pygame.APP_WILLENTERBACKGROUND))
+    game.handle_events()
+
+    assert len(written) == 1
+
+
+def test_leaving_the_loop_writes_a_record_from_an_abandoned_round(monkeypatch):
+    """Fechar a janela (ou sair com BACK) durante uma partida em que o recorde caiu:
+    sem esta gravacao, o recorde iria embora com o processo."""
+    written = _writes(monkeypatch)
+    # `run()` encerra o pygame ao sair, e a suite compartilha uma unica sessao entre
+    # todos os testes: sem este duble, o encerramento aqui derrubaria os subsistemas
+    # dos testes seguintes.
+    monkeypatch.setattr(pygame, "quit", lambda: None)
+    game = _make_game()
+    game._flap_action()
+    _beat_the_record(game)
+    game.running = False
+
+    game.run()  # o laco nao roda nenhum frame; so a saida
+
+    assert written == [1]
+    assert score_module.load_highscore() == 1
 
 
 def test_flap_in_game_over_resets_to_pronto():

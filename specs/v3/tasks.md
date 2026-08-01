@@ -574,8 +574,26 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 
   **Conferido por mutação** (`tune_gc` sem `freeze`, sem `set_threshold`, com `gc.disable()` acrescentado; `Game.__init__` sem chamar `tune_gc`, chamando antes do `reset()`, e chamando duas vezes): **6 de 6 mortas**.
 
-- [ ] **60. Persistência do recorde fora do frame**
+- [x] **60. Persistência do recorde fora do frame**
   `_update_score` passa a marcar o recorde como sujo em vez de gravar em disco; a gravação acontece em GAME_OVER e em `APP_WILLENTERBACKGROUND`. Preserva a garantia de R4.3/R16.4 que motivou o desenho original. Testes: bater o recorde em JOGANDO não escreve em disco; chegar a GAME_OVER escreve; ir para segundo plano com recorde sujo escreve; ir para segundo plano sem recorde novo não escreve. _(R27.5, R4.3, R16.4)_
+
+  **R4.3 e R27.5 se contradizem no texto, e a task escolheu R27.5.** R4.3 diz "sem esperar o fim da partida"; R27.5 diz "no fim da partida ou quando o aplicativo vai para segundo plano". Não é ambiguidade a resolver, é uma revogação: R27.5 é o requisito novo da v3 e existe justamente para desfazer a decisão de R4.3, preservando a *garantia* que a motivou em vez do mecanismo. R16.4 ainda credita a garantia à "gravação incremental de R4.3" e ficou desatualizado no texto; o requisito em si (o recorde sobrevive ao encerramento pelo sistema) continua valendo, pelo caminho novo. Registrado aqui porque os três textos vão para a matriz de rastreabilidade na task 67.
+
+  **O que sustenta a garantia é o aviso, não a pressa.** O Android emite `APP_WILLENTERBACKGROUND` antes de poder encerrar o app, e é nesse aviso que a gravação passa a acontecer. O caso que se perde — processo morto sem aviso nenhum, entre a superação do recorde e o próximo evento — a v2 também não cobria: ela gravava no instante da superação, mas o ponto seguinte já estava igualmente exposto até a gravação seguinte.
+
+  **`ACTION_FOCUS_LOST` é um superconjunto de `APP_WILLENTERBACKGROUND`, e isso é bom.** `input.py` mapeia `APP_WILLENTERBACKGROUND`, `APP_DIDENTERBACKGROUND` e `WINDOWFOCUSLOST` para a mesma ação desde a v2. Usá-la significa que um alt-tab no desktop também descarrega o recorde — mais oportunidades de gravar, nenhuma delas dentro do frame de JOGANDO, que é o que R27.5 proíbe.
+
+  **Um terceiro ponto de gravação, além dos dois que a task pede.** Sair do laço (fechar a janela, ou BACK fora de JOGANDO) grava o que estiver pendente. Sem ele, quem batesse o recorde e abandonasse a partida sem colidir perderia o recorde no caminho mais banal que existe no desktop — e nem GAME_OVER nem segundo plano teriam acontecido. É uma linha no fim de `run()`, com teste.
+
+  **A chamada fica fora do `if` de estado, e há teste para isso.** O `_flush_highscore` de `handle_events` roda antes da verificação `state == JOGANDO` que decide a pausa. Prendê-lo ao estado parece inofensivo — quem tem recorde sujo estava jogando — mas quebra o caso de pausar depois de bater o recorde e só então trocar de app. A mutação que o prende ao estado morre nesse teste.
+
+  **Um teste da v2 foi invertido, não removido.** `test_highscore_saved_incrementally_mid_round` afirmava exatamente o que R27.5 agora proíbe. No lugar dele entrou `test_beating_the_record_while_playing_does_not_touch_the_disk`, que afirma o contrário sobre o mesmo cenário.
+
+  **Testes (em `tests/test_game.py` — 8 novos, 1 invertido).** Bater o recorde em JOGANDO não escreve; uma partida inteira com seis pontuações não escreve nenhuma vez; GAME_OVER escreve; segundo plano com recorde pendente escreve e continua pausando (R16.1); segundo plano estando PAUSADO também escreve; segundo plano sem recorde novo não escreve nada; a gravação não se repete depois de já ter acontecido; e a saída do laço grava a partida abandonada. A espionagem é sobre `score.save_highscore` — e não sobre o conteúdo do arquivo — porque R27.5 é sobre a *chamada de sistema* dentro do frame, não sobre o que ficou gravado: só assim "não gravou" se distingue de "gravou o mesmo valor duas vezes".
+
+  **Conferido por mutação** (gravação de volta dentro de `_update_score`; sem gravação no GAME_OVER; sem gravação ao ir para segundo plano; gravação presa ao estado JOGANDO; gravação incondicional, ignorando a marca de pendente; marca de pendente nunca limpa; sem gravação ao sair do laço): **7 de 7 mortas**.
+
+  **E no renderizador acelerado de verdade** (fora do `dummy`): a sequência inteira conferida numa partida real — pontuou 1, recorde subiu para 1 na memória, marca suja, **0 no disco durante JOGANDO**, e 1 no disco depois do GAME_OVER.
 
 ### Bloco G — SDL e empacotamento
 
