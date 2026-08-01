@@ -9,9 +9,23 @@ wheels/
 # Virtual environments
 .venv
 
+# Cache de ferramentas de lint/teste
+.pytest_cache/
+.ruff_cache/
+
 # Save local do jogo
 highscore.json
 
 # Cache de build do Buildozer/Android (task 27-29)
 .buildozer/
 bin/
+
+# Configuracao local do Claude Code (maquina/usuario especifico)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
