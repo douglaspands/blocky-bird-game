@@ -132,6 +132,9 @@ class Game:
         self.sounds = sounds.SoundManager()
         self.input = InputManager(self.renderer)
         self.score = 0
+        self.last_score: int | None = None
+        """Pontuacao da partida anterior nesta execucao, so em memoria (R36.3). `None`
+        ate a primeira transicao GAME_OVER -> PRONTO; nunca gravado em disco."""
         self.highscore = score.load_highscore()
         self._highscore_dirty = False
         """Recorde superado e ainda nao gravado (R27.5). Ver `_flush_highscore`."""
@@ -222,6 +225,7 @@ class Game:
             # isso, quem pausa via BACK (task 23) ficaria sem como voltar.
             self.state = GameState.JOGANDO
         elif self.state == GameState.GAME_OVER:
+            self.last_score = self.score
             self.reset()
 
     def _toggle_pause(self) -> None:
@@ -373,10 +377,11 @@ class Game:
         level = self.quality.settings
         self.biome.draw_background(renderer)
         self.decor.draw(renderer, b.decor, far=level.far_parallax, near=level.near_parallax)
-        if level.mobs:
-            self.mobs.draw_sky(renderer, b.id)
         self.pipes.draw(renderer, self.textures)
         self.ground.draw(renderer, self.textures, b.block_main, b.block_edge)
+        # depois do chao: o mob vive sobre a terra estendida, nao antes dela.
+        if level.mobs:
+            self.mobs.draw_ground(renderer, b.id)
         self.bird.draw(renderer, self.textures)
         self.particles.draw(renderer)
         # depois das colunas e da abelha, antes do HUD: a faixa e opaca e esconde a
@@ -389,7 +394,7 @@ class Game:
         ui.draw_mute_icon(renderer, self.sounds.muted)
 
         if self.state == GameState.PRONTO:
-            ui.draw_ready_screen(renderer, self.highscore)
+            ui.draw_ready_screen(renderer, self.highscore, self.last_score)
         elif self.state == GameState.JOGANDO:
             ui.draw_hud_score(renderer, self.score)
         elif self.state == GameState.PAUSADO:

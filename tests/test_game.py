@@ -52,6 +52,46 @@ def test_collision_with_ground_ends_round():
     assert len(game.particles.particles) > 0
 
 
+def test_starts_with_no_last_score():
+    """Primeira vez: nenhuma partida terminou ainda nesta execucao (R36.2)."""
+    game = _make_game()
+    assert game.last_score is None
+
+
+def _play_to_game_over(game) -> None:
+    game._flap_action()
+    frames = 0
+    while game.state == GameState.JOGANDO and frames < 2000:
+        game.update()
+        frames += 1
+    assert game.state == GameState.GAME_OVER
+
+
+def test_last_score_is_captured_when_returning_from_game_over():
+    """A pontuacao da partida que acabou vira `last_score` so quando o jogador volta
+    para PRONTO, e o `reset()` dessa transicao nao apaga o valor gravado (R36.1)."""
+    game = _make_game()
+    _play_to_game_over(game)
+    finished_score = game.score
+
+    game._flap_action()  # GAME_OVER -> PRONTO
+
+    assert game.state == GameState.PRONTO
+    assert game.last_score == finished_score
+    assert game.score == 0  # a partida nova comeca zerada, como sempre
+
+
+def test_last_score_does_not_survive_a_fresh_game_instance():
+    """R36.3: e memoria de sessao — uma nova instancia (o analogo mais proximo de um
+    reinicio do aplicativo neste ambiente) comeca sem nenhuma partida anterior."""
+    game = _make_game()
+    _play_to_game_over(game)
+    game._flap_action()  # GAME_OVER -> PRONTO
+    assert game.last_score is not None
+
+    assert _make_game().last_score is None
+
+
 def test_pause_toggle_freezes_physics():
     game = _make_game()
     game._flap_action()

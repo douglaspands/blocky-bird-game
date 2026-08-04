@@ -856,6 +856,26 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 
   **Suíte completa (533 testes, +3 desta task), `ruff check`/`ruff format --check`/`ty check` sem violações, `uv run pre-commit run --all-files` limpo (10 hooks), `uv run mkdocs build --strict` limpo.**
 
+### Bloco L — Mudança de escopo pós-lançamento
+
+- [x] **80. Inverter prioridade céu/chão na sobra vertical e mover os mobs para o chão**
+  Reportada queda de FPS só no Android, atribuída à qualidade adaptativa (task 64) caindo de nível com frequência. `src/viewport.py`: `MAX_GROUND_EXTRA` vira `MAX_SKY_EXTRA` (mesmo valor, 2 blocos) e `compute()` inverte as duas linhas — agora é o céu que tem teto pequeno e o chão que absorve o resto da sobra vertical sem limite. `src/mobs.py`: `draw_sky` vira `draw_ground`, usando `viewport.ground_band` em vez de `sky_band`. `src/game.py`: a chamada de mobs em `Game.draw` migra para depois de `Ground.draw` (o mob fica sobre a textura do chão, não antes dela). `src/ui.py` não muda — `mute_icon_rect`/`hud_score_center` já lidavam com faixa de céu pequena ou ausente, que é exatamente o caminho hoje exercitado pela janela desktop padrão (2:3 exato). _(R25.1)_
+
+  **Hipótese confirmada por medição, não só por inspeção.** O suspeito era o próprio céu: numa tela 20:9 (`BLOCKY_CANVAS=1080x2400`), a faixa de céu chegava a 251px — gradiente do tamanho do canvas, duas camadas de parallax e um campo inteiro de mobs, tudo decoração que a task 64 desliga primeiro quando o FPS cai. Comparado `uv run python scripts/benchmark.py --frames 300` com `SDL_VIDEODRIVER=dummy` antes e depois da mudança (código anterior recuperado via `git stash` dos três arquivos, mesma sessão): p95 caiu em todos os cenários — JOGANDO cave, o pior caso, foi de 35,52ms para 14,24ms; GAME_OVER de 37,63ms para 15,30ms; PRONTO de 17,55ms para 10,54ms. Draw calls/frame e KB transitórios/frame ficaram estatisticamente iguais (a mudança não altera o que é desenhado, só onde) — a queda é inteiramente de custo por desenho (gradiente/parallax/mobs numa faixa menor), não de menos coisas na tela.
+
+  **Não verificável neste ambiente:** o FPS real sustentado no Android (R27.1) e se a queda de qualidade (task 64) de fato passa a ser acionada com menos frequência num aparelho real — isso depende de instalar um `.apk` novo, e o `.apk` da task 72 é anterior a esta mudança. Fica pendente de build e instalação manual, mesmo padrão da task 72.
+
+  **Testes atualizados, sem teste novo dedicado:** `tests/test_viewport.py` (tetos invertidos), `tests/test_mobs.py` (rename para `draw_ground`, banda `ground_band`, incluindo o cenário de faixa curta demais para um sprite — antes "céu curto", agora "chão curto"), `tests/test_bands.py`/`tests/test_resize.py` (números do exemplo da seção 32.3 recalculados), `tests/test_quality.py` (comentário atualizado, lógica inalterada), `tests/test_decor.py` (uma âncora que comparava contra `ground_y()` passou a comparar contra `screen_h()`, porque `ground_y()` deixou de crescer sem limite em telas alongadas — é consequência esperada da mudança, não uma regressão).
+
+  **Suíte completa (538 testes), `ruff check`/`ruff format --check` sem violações, `uv run mkdocs build --strict` limpo.**
+
+- [x] **81. Última pontuação na tela PRONTO**
+  `Game.last_score: int | None = None`, capturado em `_flap_action` (ramo `GAME_OVER`) antes de `reset()` zerar `self.score` — nunca gravado em `score.py`/`storage.py`. `ui.draw_ready_screen` ganha o parâmetro `last_score`; quando não é `None`, desenha "PONTUAÇÃO ANTERIOR: N" acima do recorde, `base_size=6` (entre os 5 dos créditos e os 8 do recorde) e cinza claro `(210, 210, 210)`, para ficar visualmente subordinada ao recorde dourado. _(R36.1, R36.2, R36.3)_
+
+  **Totalmente verificável neste ambiente** — ao contrário da task 80, não depende de Android real: `tests/test_game.py` cobre o valor inicial `None`, a captura no ciclo GAME_OVER→PRONTO e que uma nova instância de `Game` (o análogo mais próximo de reiniciar o app, sem um segundo processo) não herda a pontuação da anterior; `tests/test_ui_layout.py` cobre a linha extra aparecendo/desaparecendo conforme `last_score` e a ausência de sobreposição com as demais linhas da tela.
+
+  **Suíte completa (538 testes, incluídos os desta task), `ruff check`/`ruff format --check` sem violações, `uv run mkdocs build --strict` limpo.**
+
 ## Checklist de verificação da v3
 
 Verificável automaticamente / no desktop:
@@ -893,6 +913,8 @@ Verificável automaticamente / no desktop:
 - [x] Todo workflow com `permissions` de menor privilégio (R35.9) — `tests/test_repo_hygiene.py`
 - [x] Template de Pull Request presente (R35.10) — `tests/test_repo_hygiene.py`
 - [x] Ganho medido contra o baseline (R30.5) — `scripts/benchmark.py`, registrado em `design.md` seção 30 (task 73)
+- [x] Sobra vertical prioriza o chão, céu com teto pequeno (R25.1) — `tests/test_viewport.py`, custo de desenho reduzido medido por `scripts/benchmark.py` (task 80)
+- [x] Última pontuação exibida acima do recorde, não persistida, ausente na primeira tela PRONTO da execução (R36.1, R36.2, R36.3) — `tests/test_game.py`, `tests/test_ui_layout.py`
 
 Requer aparelho Android real:
 

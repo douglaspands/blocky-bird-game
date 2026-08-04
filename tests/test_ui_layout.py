@@ -38,10 +38,23 @@ def _assert_no_overlaps(rects: list[pygame.Rect]) -> None:
 
 
 def test_ready_screen_texts_do_not_overlap() -> None:
-    rects = _rects_for_screen(ui.draw_ready_screen, 999999)
+    rects = _rects_for_screen(ui.draw_ready_screen, 999999, None)
     assert len(rects) == 4  # titulo, creditos, instrucao, recorde
     _assert_texts_in_bounds(rects)
     _assert_no_overlaps([*rects, ui.mute_icon_rect()])
+
+
+def test_ready_screen_with_last_score_texts_do_not_overlap() -> None:
+    rects = _rects_for_screen(ui.draw_ready_screen, 999999, 999999)
+    assert len(rects) == 5  # titulo, creditos, instrucao, recorde, pontuacao anterior
+    _assert_texts_in_bounds(rects)
+    _assert_no_overlaps([*rects, ui.mute_icon_rect()])
+
+
+def test_ready_screen_omits_last_score_line_when_none() -> None:
+    with_last_score = _rects_for_screen(ui.draw_ready_screen, 10, 5)
+    without_last_score = _rects_for_screen(ui.draw_ready_screen, 10, None)
+    assert len(with_last_score) == len(without_last_score) + 1
 
 
 def test_hud_score_text_in_bounds() -> None:

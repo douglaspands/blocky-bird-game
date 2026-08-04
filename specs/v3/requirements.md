@@ -305,7 +305,7 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 
 ### Critérios de aceitação
 
-1. QUANDO sobra espaço vertical (tela mais alongada que a área jogável), O sistema DEVE preencher a parte de cima com céu do bioma atual e a parte de baixo com fileiras adicionais de bloco de chão.
+1. QUANDO sobra espaço vertical (tela mais alongada que a área jogável), O sistema DEVE dar prioridade ao chão: a parte de cima recebe céu do bioma atual limitado a um teto pequeno (2 fileiras de bloco), e a parte de baixo recebe o restante da sobra como fileiras adicionais de bloco de chão — o chão é uma faixa tileável sem gradiente nem parallax, e por isso mais barata de desenhar numa tela muito alongada (R27, task 80).
 2. QUANDO sobra espaço horizontal (tela mais larga que a área jogável), O sistema DEVE preencher cada lateral com um corte transversal do subsolo do bioma atual — camadas de bloco empilhadas com veios de minério.
 3. O sistema DEVE exibir mobs decorativos do universo Minecraft nas faixas, com pelo menos três variedades por bioma, todos gerados por código a partir das mesmas paletas do jogo (R7.1), sem imagem externa nem material de terceiros.
 4. Os mobs e o conteúdo das faixas NÃO DEVEM colidir com o pássaro, gerar pontuação, alterar a velocidade do jogo nem influenciar qualquer regra — são exclusivamente decorativos.
@@ -460,6 +460,18 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 8. O repositório DEVE ter Dependabot configurado para abrir PRs de atualização das dependências Python (ecossistema `uv`) e das GitHub Actions usadas nos workflows.
 9. Todo workflow em `.github/workflows/` DEVE declarar `permissions` explícitas de menor privilégio, em vez de herdar o padrão do repositório.
 10. O projeto DEVE ter um template de Pull Request lembrando do fluxo já documentado em "Sobre este projeto e o método SDD" (task/requisito referenciado, `tasks.md` marcado, gate de CI verde).
+
+---
+
+## R36 — Última pontuação na tela inicial
+
+**User story:** Como jogador, quero ver a pontuação da minha última partida assim que volto à tela inicial, para comparar rapidamente com o recorde.
+
+### Critérios de aceitação
+
+1. QUANDO o jogo exibe o estado PRONTO após pelo menos uma partida ter terminado nesta execução, O sistema DEVE exibir a pontuação dessa última partida acima do recorde, em destaque menor que o recorde.
+2. SE o jogo ainda não exibiu nenhum GAME_OVER nesta execução, O sistema NÃO DEVE exibir essa linha.
+3. A última pontuação exibida NÃO DEVE ser persistida em disco nem sobreviver ao reinício do aplicativo.
 
 ---
 

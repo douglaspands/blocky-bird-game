@@ -2,7 +2,7 @@
 
 Duas afirmacoes independentes convivem aqui, e a segunda e a que da nome ao requisito.
 A primeira e que os mobs aparecem — tres variedades por bioma, animados, distribuidos
-pelas faixas de ceu e laterais. A segunda e que **nada** do que eles fazem chega ao
+pelas faixas de chao e laterais. A segunda e que **nada** do que eles fazem chega ao
 jogo: nem um pixel dentro da area jogavel, nem uma colisao, nem um ponto, nem um
 frame de simulacao diferente do que haveria sem eles.
 
@@ -24,10 +24,10 @@ from src.game import Game, GameState
 from src.viewport import PLAY_H, PLAY_W, compute
 from tests.fakes import FakeRenderer
 
-PHONE = (1080, 2400)  # canvas 480x1067: faixa de ceu de 251px, sem laterais
-WIDE = (1920, 1080)  # canvas 1280x720: laterais de 400px, sem ceu
+PHONE = (1080, 2400)  # canvas 480x1067: faixa de chao de 251px, ceu de 96px (sem mobs), sem laterais
+WIDE = (1920, 1080)  # canvas 1280x720: laterais de 400px, sem chao estendido
 SQUARE_2_3 = (PLAY_W, PLAY_H)  # a geometria da v2: faixa nenhuma
-SHORT_SKY = (1080, 1850)  # canvas 480x822: ceu de 6px, mais baixo que um sprite
+SHORT_GROUND = (1080, 1850)  # canvas 480x822: chao de 6px, mais baixo que um sprite
 
 BIOME_IDS = tuple(mobs.BIOME_MOBS)
 
@@ -54,7 +54,7 @@ def _frames(
     seen = []
     for _ in range(count):
         renderer.calls.clear()
-        field.draw_sky(renderer, biome_id)
+        field.draw_ground(renderer, biome_id)
         field.draw_sides(renderer, biome_id)
         seen.append(_mob_draws(renderer))
         field.update(speed)
@@ -64,7 +64,7 @@ def _frames(
 # --- Os mobs existem mesmo (ancoras contra vacuidade) --------------------------
 
 
-@pytest.mark.parametrize("screen", (PHONE, WIDE), ids=("ceu", "laterais"))
+@pytest.mark.parametrize("screen", (PHONE, WIDE), ids=("chao", "laterais"))
 @pytest.mark.parametrize("biome_id", BIOME_IDS)
 def test_every_band_kind_shows_mobs_in_every_biome(screen, biome_id):
     """Sem esta ancora, todo teste de "mob nenhum invade o jogo" passaria por
@@ -79,10 +79,10 @@ def test_every_field_carries_the_three_varieties_of_its_biome(biome_id):
     """R25.3 pede pelo menos tres variedades por bioma *em cena*, e a deriva e lenta
     demais para que uma partida percorra o ciclo inteiro do campo. Quem garante e a
     distribuicao: as tres entram em rodizio em todo campo, de qualquer geometria."""
-    for screen, band, period in ((PHONE, "sky", mobs.SKY_PERIOD), (WIDE, "side", mobs.SIDE_PERIOD)):
+    for screen, band, period in ((PHONE, "ground", mobs.GROUND_PERIOD), (WIDE, "side", mobs.SIDE_PERIOD)):
         _use(screen)
         vp = config.viewport()
-        top, height = (0, vp.sky_band.height) if band == "sky" else (0, vp.height)
+        top, height = (vp.ground_band.top, vp.ground_band.height) if band == "ground" else (0, vp.height)
         field = mobs._field(biome_id, band, period, top, height, vp.width)
         assert {slot.kind for slot in field} == set(mobs.BIOME_MOBS[biome_id])
 
@@ -124,7 +124,7 @@ def test_the_idle_animation_alternates_and_the_mobs_are_not_in_lockstep():
 # --- Nada disso entra na area jogavel (R25.4) ---------------------------------
 
 
-@pytest.mark.parametrize("screen", (PHONE, WIDE), ids=("ceu", "laterais"))
+@pytest.mark.parametrize("screen", (PHONE, WIDE), ids=("chao", "laterais"))
 @pytest.mark.parametrize("biome_id", BIOME_IDS)
 def test_no_mob_pixel_ever_lands_inside_the_play_area(screen, biome_id):
     """A afirmacao central. Ao longo de um ciclo inteiro de deriva, em todo bioma e nas
@@ -138,10 +138,10 @@ def test_no_mob_pixel_ever_lands_inside_the_play_area(screen, biome_id):
 def test_the_bands_are_disjoint_from_the_play_area_by_construction():
     """Por que o recorte contra a faixa basta: as faixas e a area jogavel nunca se
     tocam, entao recortar contra uma e ficar fora da outra."""
-    for screen in (PHONE, WIDE, SQUARE_2_3, SHORT_SKY):
+    for screen in (PHONE, WIDE, SQUARE_2_3, SHORT_GROUND):
         play = _use(screen)
         vp = config.viewport()
-        for band in (vp.sky_band, vp.left_band, vp.right_band):
+        for band in (vp.sky_band, vp.ground_band, vp.left_band, vp.right_band):
             assert not play.colliderect(band)
 
 
@@ -175,13 +175,13 @@ def test_a_2_3_canvas_draws_no_mobs():
         assert not [mob for frame in _frames(SQUARE_2_3, biome_id, count=60) for mob in frame]
 
 
-def test_a_sky_band_shorter_than_a_sprite_draws_no_mobs():
-    """Um mob cortado na horizontal contra o ceu leria como defeito — ao contrario do
+def test_a_ground_band_shorter_than_a_sprite_draws_no_mobs():
+    """Um mob cortado na horizontal contra o chao leria como defeito — ao contrario do
     corte vertical da lateral, que le como estar atras da terra."""
-    _use(SHORT_SKY)
-    assert config.viewport().sky_band.height < mobs.MOB_SIZE
+    _use(SHORT_GROUND)
+    assert config.viewport().ground_band.height < mobs.MOB_SIZE
     assert config.viewport().left_band.width == 0
-    assert not [mob for frame in _frames(SHORT_SKY, "nether", count=60) for mob in frame]
+    assert not [mob for frame in _frames(SHORT_GROUND, "nether", count=60) for mob in frame]
 
 
 # --- Nada disso muda uma regra do jogo (R25.4) --------------------------------
@@ -258,7 +258,7 @@ def test_the_whole_simulation_is_identical_with_and_without_mobs(
     assert max(frame[1] for frame in flying) > 0  # pontuou de verdade
     assert any(frame[0] is GameState.GAME_OVER for frame in crashing)  # colidiu de verdade
 
-    monkeypatch.setattr(mobs.MobField, "draw_sky", lambda *args: None)
+    monkeypatch.setattr(mobs.MobField, "draw_ground", lambda *args: None)
     monkeypatch.setattr(mobs.MobField, "draw_sides", lambda *args: None)
     assert _simulate(400, _autopilot) == flying
     assert _simulate(400, _blind_flapping) == crashing
@@ -266,7 +266,7 @@ def test_the_whole_simulation_is_identical_with_and_without_mobs(
 
 def test_a_mob_over_the_bird_does_not_collide():
     """A abelha voa por dentro do retangulo onde um mob esta desenhado — na tela
-    estreita a faixa de ceu fica logo acima dela — e nada acontece."""
+    estreita a faixa de chao estendida fica logo abaixo dela — e nada acontece."""
     game = Game()
     game.apply_resize(PHONE)
     game.renderer = FakeRenderer(game.viewport.canvas)
@@ -361,7 +361,7 @@ def test_the_field_covers_at_least_three_canvas_widths():
     field = mobs._field("nether", "side", mobs.SIDE_PERIOD, 0, 720, 1280)
     assert len(field) * mobs.SIDE_PERIOD >= mobs.FIELD_SPANS * 1280
     _use((480, 720 * 4))  # canvas estreito: a conta daria menos que o piso
-    narrow = mobs._field("nether", "sky", mobs.SKY_PERIOD, 0, 400, 480)
+    narrow = mobs._field("nether", "ground", mobs.GROUND_PERIOD, 0, 400, 480)
     assert len(narrow) >= mobs.MIN_SLOTS
 
 
@@ -376,23 +376,25 @@ def _sweep_counts(screen: tuple[int, int], band: str) -> list[int]:
     renderer = FakeRenderer(vp.canvas)
     mobs.precompute(renderer)
     field = mobs.MobField()
-    period = mobs.SKY_PERIOD if band == "sky" else mobs.SIDE_PERIOD
-    height = vp.sky_band.height if band == "sky" else vp.height
+    period = mobs.GROUND_PERIOD if band == "ground" else mobs.SIDE_PERIOD
+    height = vp.ground_band.height if band == "ground" else vp.height
     span = len(mobs._field("cave", band, period, 0, height, vp.width)) * period
 
     counts = []
     for offset in range(0, span, 3):
         field.scrolled = float(offset)
         renderer.calls.clear()
-        if band == "sky":
-            field.draw_sky(renderer, "cave")
+        if band == "ground":
+            field.draw_ground(renderer, "cave")
         else:
             field.draw_sides(renderer, "cave")
         counts.append(len(_mob_draws(renderer)))
     return counts
 
 
-@pytest.mark.parametrize(("screen", "band", "floor", "ceiling"), ((PHONE, "sky", 2, 4), (WIDE, "side", 3, 7)))
+@pytest.mark.parametrize(
+    ("screen", "band", "floor", "ceiling"), ((PHONE, "ground", 2, 3), (WIDE, "side", 3, 7))
+)
 def test_the_bands_stay_populated_and_cheap_over_a_whole_cycle(screen, band, floor, ceiling):
     """Duas afirmacoes que so um ciclo inteiro cobre.
 
@@ -451,7 +453,7 @@ def test_no_sprite_is_built_during_a_frame(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(textures, "scale_pixel_perfect", forbidden)
     for _ in range(180):
-        field.draw_sky(renderer, "nether")
+        field.draw_ground(renderer, "nether")
         field.draw_sides(renderer, "nether")
         field.update(3.3)
 
@@ -490,18 +492,21 @@ def test_sky_and_side_bands_never_coexist():
     """Por que a ordem de desenho e verificada em duas telas, e nao numa so: o canvas
     recebe a proporcao da tela, entao so um dos eixos pode sobrar (`viewport.compute`).
     Uma tela com faixa de ceu *e* faixa lateral nao existe."""
-    for screen in (PHONE, WIDE, SQUARE_2_3, SHORT_SKY, (1400, 1000)):
+    for screen in (PHONE, WIDE, SQUARE_2_3, SHORT_GROUND, (1400, 1000)):
         vp = compute(*screen)
         assert not (vp.sky_extra and vp.left_band.width)
 
 
-def test_sky_mobs_are_drawn_before_the_pipes():
-    """O do ceu fica atras da coluna, que atravessa a faixa vinda de fora da tela."""
+def test_ground_mobs_are_drawn_after_the_ground_and_the_pipes():
+    """O mob de chao fica sobre a textura do chao, e o chao so e desenhado depois das
+    colunas (design secao 32.6) — entao o mob tambem fica depois delas."""
     kinds = _drawn_kinds(PHONE)
     pipes = [i for i, kind in enumerate(kinds) if kind in ("pipe_top", "pipe_bottom")]
-    sky_mobs = [i for i, kind in enumerate(kinds) if kind == "mob"]
-    assert pipes and sky_mobs
-    assert max(sky_mobs) < min(pipes)
+    ground = [i for i, kind in enumerate(kinds) if kind == "ground"]
+    ground_mobs = [i for i, kind in enumerate(kinds) if kind == "mob"]
+    assert pipes and ground and ground_mobs
+    assert max(pipes) < min(ground)
+    assert min(ground) < min(ground_mobs)
 
 
 def test_side_mobs_are_drawn_after_the_opaque_bands():

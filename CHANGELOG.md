@@ -31,6 +31,8 @@ Ver [`specs/v3/README.md`](specs/v3/README.md) para a descrição completa. Resu
   rastreabilidade verificada por teste automatizado.
 - Boas práticas de Git/GitHub: `LICENSE`, `CONTRIBUTING.md`, hooks de pre-commit
   espelhando o gate de CI, Dependabot, `permissions` de menor privilégio.
+- Última pontuação exibida acima do recorde na tela inicial, quando há uma partida
+  encerrada nesta execução.
 
 ## Anterior à v3
 

@@ -219,8 +219,8 @@ def test_the_hill_strip_is_a_fraction_of_the_canvas_height() -> None:
     renderer = FakeRenderer(config.viewport().canvas)
     DecorManager().draw(renderer, "overworld")
     hills = renderer._images[_strip_key("overworld", 1)]
-    assert hills.size[1] == len(HILL_SHAPES[0]) * HILL_UNIT  # 72px, contra 875 de canvas
-    assert hills.size[1] < config.ground_y() // 10
+    assert hills.size[1] == len(HILL_SHAPES[0]) * HILL_UNIT  # 72px, contra 1067 de canvas
+    assert hills.size[1] < config.screen_h() // 10
 
 
 # --- o rolamento: origem que anda, com volta ao comeco -----------------------------

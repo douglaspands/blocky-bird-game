@@ -3,12 +3,12 @@
 import pytest
 
 from src import config, viewport
-from src.viewport import MAX_GROUND_EXTRA, PLAY_H, PLAY_W, compute
+from src.viewport import MAX_SKY_EXTRA, PLAY_H, PLAY_W, compute
 
 # (nome, tela real, canvas esperado, ceu extra, chao extra) — a tabela da secao 32.3
 SCREENS = [
-    ("celular 20:9", (1080, 2400), (480, 1067), 251, 96),
-    ("celular 16:9", (1080, 1920), (480, 853), 37, 96),
+    ("celular 20:9", (1080, 2400), (480, 1067), 96, 251),
+    ("celular 16:9", (1080, 1920), (480, 853), 96, 37),
     ("janela padrao do desktop", (960, 720), (960, 720), 0, 0),
     ("monitor 16:9 maximizado", (1920, 1080), (1280, 720), 0, 0),
     ("exatamente 2:3", (480, 720), (480, 720), 0, 0),
@@ -68,14 +68,14 @@ def test_odd_horizontal_leftover_goes_to_the_right_band():
     assert vp.right_band.width == 241
 
 
-def test_vertical_leftover_fills_the_ground_first_then_the_sky():
-    """Ate 2 fileiras de bloco viram chao; o excedente vai para o ceu, que absorve
-    altura sem parecer estranho (R25.1)."""
-    vp = compute(480, 760)  # sobra 40px, menos que o teto do chao
-    assert (vp.ground_extra, vp.sky_extra) == (40, 0)
+def test_vertical_leftover_fills_the_sky_first_then_the_ground():
+    """Ate 2 fileiras de bloco viram ceu; o excedente vai para o chao, que absorve
+    altura sem custar mais desenho (gradiente, parallax, mobs ficam de fora) (R25.1)."""
+    vp = compute(480, 760)  # sobra 40px, menos que o teto do ceu
+    assert (vp.sky_extra, vp.ground_extra) == (40, 0)
 
-    vp = compute(480, 900)  # sobra 180px: 96 de chao, 84 de ceu
-    assert (vp.ground_extra, vp.sky_extra) == (MAX_GROUND_EXTRA, 84)
+    vp = compute(480, 900)  # sobra 180px: 96 de ceu, 84 de chao
+    assert (vp.sky_extra, vp.ground_extra) == (MAX_SKY_EXTRA, 84)
 
 
 def test_square_screen_only_grows_horizontally():

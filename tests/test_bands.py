@@ -31,9 +31,9 @@ def test_the_phone_canvas_really_has_both_bands():
     por vacuidade."""
     play = _use(PHONE)
     assert config.viewport().canvas == (480, 1067)
-    assert (play.top, play.bottom) == (251, 971)
-    assert config.viewport().sky_band.height == 251
-    assert config.viewport().ground_band.height == 96
+    assert (play.top, play.bottom) == (96, 816)
+    assert config.viewport().sky_band.height == 96
+    assert config.viewport().ground_band.height == 251
 
 
 def test_bird_ceiling_is_the_play_top_not_the_canvas_top():
@@ -135,10 +135,10 @@ def test_hud_score_stays_in_the_play_area_without_a_sky_band():
 
 
 def test_hud_score_does_not_split_a_short_sky_band():
-    """Celular 16:9: a faixa tem 37px e nao comporta o texto — melhor ficar inteiro
-    na area de jogo do que metade em cada lado."""
-    play = _use((1080, 1920))
-    assert config.viewport().sky_band.height == 37
+    """Sobra vertical pequena: a faixa de ceu fica com so 40px e nao comporta o texto —
+    melhor ficar inteiro na area de jogo do que metade em cada lado."""
+    play = _use((480, 760))
+    assert config.viewport().sky_band.height == 40
     assert ui.hud_score_center() == (play.centerx, play.top + ui.HUD_SCORE_MARGIN)
 
 
@@ -150,7 +150,7 @@ def test_mute_icon_sits_in_the_sky_band_when_it_fits():
 
 
 def test_mute_icon_drops_into_the_play_area_when_the_band_is_too_short():
-    play = _use((1080, 1920))
+    play = _use((480, 760))
     assert ui.mute_icon_rect().top == play.top + ui.MUTE_ICON_MARGIN
 
 
@@ -166,7 +166,7 @@ def test_state_screens_are_anchored_to_the_play_area() -> None:
     assert play.top > 0
 
     renderer = FakeRenderer(config.viewport().canvas)
-    ui.draw_ready_screen(renderer, 10)
+    ui.draw_ready_screen(renderer, 10, None)
     ui.draw_paused_overlay(renderer)
     ui.draw_game_over_screen(renderer, 3, 10)
 
