@@ -5,8 +5,8 @@ import pytest
 
 from src import config, perf, render, viewport
 from src import score as score_module
-from src.config import BLOCK, FPS, PIPE_W
-from src.game import MAX_FRAME_MS, MAX_STEPS, STEP_MS, Game, GameState
+from src.config import BLOCK, CORNER_TOLERANCE, FPS, PIPE_W
+from src.game import MAX_FRAME_MS, MAX_STEPS, STEP_MS, Game, GameState, _collides
 from tests.fakes import FakeRenderer
 
 
@@ -50,6 +50,58 @@ def test_collision_with_ground_ends_round():
         frames += 1
     assert game.state == GameState.GAME_OVER
     assert len(game.particles.particles) > 0
+
+
+@pytest.mark.parametrize(
+    ("rect_b", "expected"),
+    [
+        (pygame.Rect(50, 50, 10, 10), False),  # nao encosta em eixo nenhum
+        (pygame.Rect(19, 0, 2, 100), False),  # so 1px de sobreposicao em x, cheio em y
+        (pygame.Rect(0, 19, 100, 2), False),  # so 1px de sobreposicao em y, cheio em x
+        (pygame.Rect(0, 0, CORNER_TOLERANCE, 100), True),  # exatamente no limite em x
+        (pygame.Rect(0, 0, 100, CORNER_TOLERANCE), True),  # exatamente no limite em y
+        (pygame.Rect(0, 0, 100, 100), True),  # sobreposicao funda nos dois eixos
+    ],
+)
+def test_collides_requires_the_minimum_overlap_in_both_axes(rect_b, expected):
+    """R3.6: um resvalar raso (menos que CORNER_TOLERANCE) num eixo so nao conta como
+    colisao, mas o limite exato ja conta — e uma batida funda nos dois eixos sempre conta."""
+    rect_a = pygame.Rect(0, 0, 20, 20)
+    assert _collides(rect_a, rect_b) is expected
+
+
+def test_a_shallow_corner_graze_does_not_end_the_round():
+    """O resvalar tipico de canto: a hitbox reta invade fundo num eixo (x, alinhada com
+    a coluna) e raso no outro (y, poucos px acima da beirada da abertura) — exatamente o
+    que a rotacao do sprite sem rotacao da hitbox produz.
+
+    A geometria da coluna e fixada na mao (em vez de usar a abertura sorteada de
+    verdade) para o teste nao depender de onde `random.uniform` colocou `gap_y` — o
+    sorteio tambem alcanca `bottom_rect`, que precisa ficar bem longe do que o teste
+    verifica para nao colidir por conta propria."""
+    game = _make_game()
+    pipe = game.pipes.pipes[0]
+    pipe.top_rect.update(pipe.top_rect.x, 0, PIPE_W, 300)
+    pipe.bottom_rect.update(pipe.bottom_rect.x, 1000, PIPE_W, 100)
+
+    game.bird.rect.centerx = pipe.top_rect.centerx  # fundo em x: bem dentro da coluna
+    game.bird.rect.top = pipe.top_rect.bottom - (CORNER_TOLERANCE - 1)  # raso em y
+
+    assert game._collision_texture() is None
+
+
+def test_an_overlap_past_the_corner_tolerance_still_ends_the_round():
+    """Guarda de regressao: a mesma posicao do teste acima, so que funda o bastante nos
+    dois eixos, continua contando como colisao de verdade."""
+    game = _make_game()
+    pipe = game.pipes.pipes[0]
+    pipe.top_rect.update(pipe.top_rect.x, 0, PIPE_W, 300)
+    pipe.bottom_rect.update(pipe.bottom_rect.x, 1000, PIPE_W, 100)
+
+    game.bird.rect.centerx = pipe.top_rect.centerx
+    game.bird.rect.top = pipe.top_rect.bottom - CORNER_TOLERANCE
+
+    assert game._collision_texture() == pipe.block_main
 
 
 def test_starts_with_no_last_score():

@@ -46,6 +46,7 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 3. ENQUANTO em estado GAME_OVER, O sistema DEVE exibir tela de fim ("Game Over" estilizado, pontuação atual e recorde) e congelar o movimento dos obstáculos.
 4. QUANDO o jogador pressiona ESPAÇO, clica ou pressiona o botão A do controle na tela de GAME_OVER, O sistema DEVE reiniciar a partida no estado PRONTO.
 5. A detecção de colisão DEVE usar hitbox retangular do pássaro reduzida (~85% do sprite) para tolerância justa.
+6. A detecção de colisão DEVE exigir uma sobreposição mínima nos dois eixos (não só encostar) antes de contar como colisão, para tolerar um resvalar raso no canto de uma coluna ou do chão.
 
 ## R4 — Pontuação
 

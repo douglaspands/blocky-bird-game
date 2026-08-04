@@ -34,6 +34,12 @@ Ver [`specs/v3/README.md`](specs/v3/README.md) para a descrição completa. Resu
 - Última pontuação exibida acima do recorde na tela inicial, quando há uma partida
   encerrada nesta execução.
 
+### Fixed
+
+- Colisão sensível demais nos cantos de coluna e do chão, causada pela hitbox reta não
+  acompanhar a rotação do sprite da abelha — agora exige sobreposição mínima nos dois
+  eixos antes de contar como colisão.
+
 ## Anterior à v3
 
 Ver [`specs/v1/README.md`](specs/v1/README.md), [`specs/v2/README.md`](specs/v2/README.md)

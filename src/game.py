@@ -9,7 +9,7 @@ from src import assets, config, mobs, perf, quality, render, score, sounds, text
 from src.bands import SideBands
 from src.biome import BiomeManager
 from src.bird import Bird, precompute_sprites
-from src.config import BLOCK, CREDITS, FPS, PIPE_W, TITLE
+from src.config import BLOCK, CORNER_TOLERANCE, CREDITS, FPS, PIPE_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
 from src.input import (
@@ -66,6 +66,17 @@ def _load_icon() -> pygame.Surface | None:
     with contextlib.suppress(OSError, pygame.error):
         return pygame.image.load(str(assets.asset_path("app_icon_512.png")))
     return None
+
+
+def _collides(a: pygame.Rect, b: pygame.Rect) -> bool:
+    """Colisao AABB que perdoa um resvalar raso de canto (R3.6, `config.CORNER_TOLERANCE`).
+
+    So aritmetica sobre os quatro limites de cada retangulo — nenhum `pygame.Rect` novo
+    e construido aqui (R27.3, `tests/test_alloc.py::test_the_collision_check_builds_no_rectangle_at_all`).
+    """
+    overlap_x = min(a.right, b.right) - max(a.left, b.left)
+    overlap_y = min(a.bottom, b.bottom) - max(a.top, b.top)
+    return overlap_x >= CORNER_TOLERANCE and overlap_y >= CORNER_TOLERANCE
 
 
 class GameState(Enum):
@@ -279,11 +290,11 @@ class Game:
             self.sounds.toggle_mute()
 
     def _collision_texture(self) -> str | None:
-        """Retorna a chave da textura do bloco atingido, ou None se nao houve colisao (R3.2)."""
-        if self.bird.rect.colliderect(self.ground.rect):
+        """Retorna a chave da textura do bloco atingido, ou None se nao houve colisao (R3.2, R3.6)."""
+        if _collides(self.bird.rect, self.ground.rect):
             return self.biome.current.block_main
         for pipe in self.pipes.pipes:
-            if self.bird.rect.colliderect(pipe.top_rect) or self.bird.rect.colliderect(pipe.bottom_rect):
+            if _collides(self.bird.rect, pipe.top_rect) or _collides(self.bird.rect, pipe.bottom_rect):
                 return pipe.block_main
         return None
 

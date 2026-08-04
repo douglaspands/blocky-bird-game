@@ -113,6 +113,7 @@ PIPE_SPACING = 260      # distância horizontal entre pares
 BLOCK = 48              # tamanho do bloco renderizado (16×16 escalado 3×)
 PIPE_W = BLOCK          # largura da coluna = largura do bloco desenhado (evita hitbox maior que o sprite)
 HITBOX_SCALE = 0.85     # R3.5
+CORNER_TOLERANCE = 4    # px de sobreposicao minima nos dois eixos para contar colisao (R3.6)
 ```
 
 Valores de física são referência inicial; calibrar em playtest (task 12).
@@ -122,7 +123,7 @@ Valores de física são referência inicial; calibrar em playtest (task 12).
 - Atributos: `pos: Vector2`, `vel_y: float`, `angle: float`, `frame: int`.
 - `flap()`: `vel_y = FLAP_IMPULSE`; toca som flap; seta `angle = +30`.
 - `update()`: `vel_y = min(vel_y + GRAVITY, MAX_FALL_SPEED)`; `pos.y += vel_y`; clamp no topo (`pos.y >= 0`, R1.4); interpola `angle` até −60 durante queda (R1.3).
-- `rect` (hitbox): sprite rect escalado por `HITBOX_SCALE` centralizado (R3.5).
+- `rect` (hitbox): sprite rect escalado por `HITBOX_SCALE` centralizado (R3.5). É sempre um quadrado **reto** — nunca acompanha `angle`, mesmo com o sprite desenhado girando de +30° a −60° (ver seção 6 para a tolerância de canto que compensa essa divergência, R3.6).
 - Animação: alterna 2 frames de asa a cada 6 frames de jogo; no estado PRONTO faz bobbing senoidal (R6.1).
 - Sprite: abelha voxel 16×12 desenhada pixel a pixel em `textures.make_bee()` — corpo amarelo com listras pretas, asas cinza translúcido (R7.2).
 
@@ -141,7 +142,13 @@ class PipePair:
 - `PipeManager.update(speed, gap_size, block_main, block_edge)`: recebe os parâmetros do bioma *atual* a cada frame — move todos `x -= speed` (R2.3); spawna novo par (congelando `gap_size`/`block_main`/`block_edge` correntes) quando o último está a `PIPE_SPACING` da borda (R2.1); remove pares com `x + PIPE_W < 0` (R2.4).
 - `gap_y` aleatório uniforme entre margens seguras (topo + `GAP_MARGIN`, chão − `GAP_MARGIN`) (R2.2).
 - Renderização: coluna = pilha de blocos `BLOCK×BLOCK` (largura `PIPE_W = BLOCK`, R3.1/R3.5) com a textura congelada na criação; bloco da boca da abertura usa variante de borda (ex.: grama no Overworld) (R2.5).
-- Colisão: dois `Rect` por par (superior e inferior), largura `PIPE_W` idêntica à largura desenhada; `bird.rect.colliderect()` (R3.1).
+- Colisão: dois `Rect` por par (superior e inferior), largura `PIPE_W` idêntica à largura desenhada (R3.1).
+
+**Tolerância de canto (R3.6, ajuste pós-lançamento da v3).** `Game._collision_texture` não usa mais `bird.rect.colliderect()` puro — a checagem (`_collides`, módulo `game.py`) só conta colisão quando a sobreposição é ≥ `CORNER_TOLERANCE` px nos **dois** eixos (`x` e `y`), calculada por aritmética pura sobre `.left/.right/.top/.bottom`, sem construir nenhum `pygame.Rect` novo (o mesmo orçamento de zero alocação de `_collision_texture` que a seção 36 documenta e `tests/test_alloc.py::test_the_collision_check_builds_no_rectangle_at_all` fixa).
+
+Motivo: `bird.rect` é reto (seção 5), mas o sprite desenhado gira — a caixa reta "sobra" além do contorno visível da abelha justamente nas diagonais, que é onde ficam os cantos internos do vão de uma coluna e a quina do chão. Sem tolerância, 1px de sobreposição em qualquer eixo já matava, então um resvalar raso de canto (fundo num eixo, raso no outro — a marca desse descompasso reto-vs-rotação) matava sem o jogador achar que encostou. Uma batida de frente invade os dois eixos rápido e continua matando na mesma velocidade de sempre; só o resvalar raso passa a ser perdoado.
+
+Alternativa descartada: rotacionar `bird.rect` junto com `angle` (hitbox orientada/OBB). Resolveria a causa raiz de forma mais exata, mas trocaria uma comparação de retângulos alinhados aos eixos — barata, testável por aritmética simples — por geometria de polígono rotacionado, sem ganho perceptível sobre a tolerância fixa para o problema relatado (resvalar em canto, não uma imprecisão generalizada de ângulo).
 
 ## 7. Biomas (`biome.py`) — R5
 

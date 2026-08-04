@@ -876,6 +876,17 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 
   **Suíte completa (538 testes, incluídos os desta task), `ruff check`/`ruff format --check` sem violações, `uv run mkdocs build --strict` limpo.**
 
+- [x] **82. Tolerância de sobreposição mínima nos cantos**
+  Jogador relatou colisão sensível demais "nas quinas" — a sensação de perder sem encostar. Causa: `Bird.rect` é sempre um quadrado reto, mas o sprite desenhado gira de +30° a −60°; a caixa reta sobra além do contorno visível da abelha justamente nas diagonais, onde ficam os cantos internos do vão das colunas e a quina do chão. `src/config.py` ganha `CORNER_TOLERANCE = 4`; `src/game.py` ganha `_collides(a, b)`, função módulo-nível que substitui os `bird.rect.colliderect(...)` de `_collision_texture` — exige sobreposição ≥ `CORNER_TOLERANCE` px nos dois eixos, calculada por aritmética pura sobre `.left/.right/.top/.bottom` (sem construir `pygame.Rect` novo, para não quebrar o orçamento de zero alocação de `tests/test_alloc.py::test_the_collision_check_builds_no_rectangle_at_all`). _(R3.6)_
+
+  **Alternativa descartada, registrada em `design.md` seção 6:** rotacionar a hitbox junto com `angle` (OBB) resolveria a causa raiz de forma mais exata, mas trocaria uma comparação barata e testável por geometria de polígono rotacionado, sem ganho perceptível sobre a tolerância fixa para o sintoma relatado (resvalar em canto).
+
+  **Um teste novo revelou uma armadilha na própria bateria de testes, não no código de produção.** A primeira versão de `test_a_shallow_corner_graze_does_not_end_the_round` fixava só `pipe.top_rect` numa geometria conhecida e deixava `pipe.bottom_rect` com a abertura sorteada de verdade (`gap_y` aleatório) — intermitentemente, o sorteio colocava `bottom_rect` bem onde o teste posicionava a abelha, e o teste falhava por uma colisão real contra a metade errada da coluna, não por uma regressão no comportamento novo. Corrigido fixando os dois retângulos (`top_rect` e `bottom_rect`) antes de posicionar a abelha; confirmado sem flakiness rodando a bateria 5 vezes seguidas depois do ajuste.
+
+  **Totalmente verificável neste ambiente** — ajuste de regra de jogo, sem dependência de Android. `tests/test_game.py`: `_collides` testada diretamente no limite exato (`CORNER_TOLERANCE - 1` não colide, `CORNER_TOLERANCE` colide, sem sobreposição em eixo nenhum não colide), mais dois testes de integração (resvalar raso não termina a partida; sobreposição funda nos dois eixos continua terminando — guarda de regressão para a colisão "de verdade"). A sensação de melhora em si (o "feeling" de jogar) é subjetiva e não tem asserção automatizada — validada rodando `uv run main.py` manualmente e resvalando cantos de coluna em ângulo.
+
+  **Suíte completa (546 testes, +8 desta task), `ruff check`/`ruff format --check` sem violações, `uv run mkdocs build --strict` limpo.**
+
 ## Checklist de verificação da v3
 
 Verificável automaticamente / no desktop:
@@ -915,6 +926,7 @@ Verificável automaticamente / no desktop:
 - [x] Ganho medido contra o baseline (R30.5) — `scripts/benchmark.py`, registrado em `design.md` seção 30 (task 73)
 - [x] Sobra vertical prioriza o chão, céu com teto pequeno (R25.1) — `tests/test_viewport.py`, custo de desenho reduzido medido por `scripts/benchmark.py` (task 80)
 - [x] Última pontuação exibida acima do recorde, não persistida, ausente na primeira tela PRONTO da execução (R36.1, R36.2, R36.3) — `tests/test_game.py`, `tests/test_ui_layout.py`
+- [x] Colisão perdoa resvalar raso de canto, mas continua matando em batida de frente (R3.6) — `tests/test_game.py`
 
 Requer aparelho Android real:
 

@@ -8,7 +8,7 @@ O documento é vigiado por `tests/test_traceability.py`, que falha o build quand
 de aceitação não aparece aqui ou quando esta matriz referencia um teste inexistente (R32.2,
 R32.3). É o que impede a matriz de envelhecer em silêncio.
 
-> **Completa até a task 81.** Todo critério `R1.1`–`R36.3` de `requirements.md` tem uma
+> **Completa até a task 82.** Todo critério `R1.1`–`R36.3` de `requirements.md` tem uma
 > linha. Para os critérios cuja task implementadora ainda está pendente nesta versão (tasks
 > 72–73 — build do APK em aparelho real e registro dos números medidos), a coluna Testes
 > fica em branco: citar um teste ali seria inventar uma referência que
@@ -35,6 +35,7 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 | R3.3 | 3, 12 | 6 | `test_ui_layout.py::test_game_over_screen_texts_do_not_overlap` |
 | R3.4 | 3 | 6 | `test_game.py::test_flap_in_game_over_resets_to_pronto` |
 | R3.5 | 6, 16 | 5, 14 | `test_bird.py::test_hitbox_is_scaled_and_centered_on_sprite` |
+| R3.6 | 6 | 82 | `test_game.py::test_collides_requires_the_minimum_overlap_in_both_axes`, `test_game.py::test_a_shallow_corner_graze_does_not_end_the_round`, `test_game.py::test_an_overlap_past_the_corner_tolerance_still_ends_the_round` |
 | R4.1 | 8 | 7 | `test_game.py::test_score_increments_once_per_pipe` |
 | R4.2 | 8, 12 | 7 | `test_ui_layout.py::test_hud_score_text_in_bounds` |
 | R4.3 | 8, 36 | 22, 60 | `test_score.py::test_save_and_load_roundtrip`, `test_game.py::test_reaching_game_over_writes_the_record` |
