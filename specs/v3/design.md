@@ -228,7 +228,7 @@ if self.score > self.highscore:
   1. Título "BLOCKY BEE" (dourado).
   2. Créditos (`config.CREDITS`, "POR DOUGLAS E PEDRO") logo abaixo do título (R11.1).
   3. Instrução de comando ("ESPAÇO / CLIQUE PARA VOAR").
-  4. SE houve ao menos um GAME_OVER nesta execução: "PONTUAÇÃO ANTERIOR: N", cinza claro e menor que o recorde, logo acima dele (R36.1). `Game.last_score` guarda esse valor só em memória — `None` até a primeira volta de GAME_OVER para PRONTO, e nunca escrito em `score.py`/`storage.py` (R36.2, R36.3).
+  4. SE houve ao menos um GAME_OVER nesta execução: "ANTERIOR: N", branco quase puro e menor que o recorde, acima dele com espaçamento maior que o restante da tela para não colar visualmente no recorde (R36.1). `Game.last_score` guarda esse valor só em memória — `None` até a primeira volta de GAME_OVER para PRONTO, e nunca escrito em `score.py`/`storage.py` (R36.2, R36.3).
   5. Recorde atual ("RECORDE: N", texto dourado simples, sem caixa/contorno) no rodapé da tela, logo acima do chão (R12.1, R12.2).
 - Título da janela (`pygame.display.set_caption`) inclui os créditos: `"Blocky Bee - por Douglas e Pedro"` (R11.2).
 

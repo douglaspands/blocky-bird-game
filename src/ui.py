@@ -156,9 +156,9 @@ def _dim_overlay(renderer: render.Renderer) -> None:
     renderer.fill(OVERLAY_COLOR, pygame.Rect(0, 0, config.screen_w(), config.screen_h()))
 
 
-LAST_SCORE_COLOR = (210, 210, 210)
-"""Cor da linha de ultima pontuacao: mesma cinza secundaria de `draw_paused_overlay`,
-menos saturada que `GOLD` para subordina-la visualmente ao recorde (R36.1)."""
+LAST_SCORE_COLOR = (235, 235, 235)
+"""Cor da linha de ultima pontuacao: branco quase puro, para bom contraste contra o
+fundo, mas ainda visualmente subordinada ao dourado `GOLD` do recorde (R36.1)."""
 
 
 def draw_ready_screen(renderer: render.Renderer, highscore: int, last_score: int | None) -> None:
@@ -197,9 +197,9 @@ def draw_ready_screen(renderer: render.Renderer, highscore: int, last_score: int
     if last_score is not None:
         record_scale = _fit_scale(f"RECORDE: {highscore}", _scale_for(8))
         record_top = record_y - (pixelfont.GLYPH_H * record_scale) // 2
-        last_score_text = f"PONTUACAO ANTERIOR: {last_score}"
+        last_score_text = f"ANTERIOR: {last_score}"
         last_score_scale = _fit_scale(last_score_text, _scale_for(6))
-        last_score_y = record_top - 6 - (pixelfont.GLYPH_H * last_score_scale) // 2
+        last_score_y = record_top - 14 - (pixelfont.GLYPH_H * last_score_scale) // 2
         draw_text(
             renderer,
             last_score_text,

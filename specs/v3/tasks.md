@@ -887,6 +887,11 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 
   **Suíte completa (546 testes, +8 desta task), `ruff check`/`ruff format --check` sem violações, `uv run mkdocs build --strict` limpo.**
 
+- [x] **83. Legibilidade da linha de última pontuação na tela PRONTO**
+  Dono do projeto reportou (via chat) que a linha de última pontuação (task 81) ficava com o texto longo demais, colada no "RECORDE: N" logo abaixo e com contraste ruim. `src/ui.py`: texto encurtado de `"PONTUACAO ANTERIOR: N"` para `"ANTERIOR: N"`; `LAST_SCORE_COLOR` trocado de cinza `(210, 210, 210)` para branco quase puro `(235, 235, 235)`; gap fixo entre as duas linhas aumentado de `6` para `14` px, mais próximo dos `16` px usados nos demais espaçamentos da mesma tela. `specs/v3/design.md` seção 12 (R36.1) atualizado para refletir o novo texto/cor/espaçamento. _(R36.1)_
+
+  **Totalmente verificável neste ambiente** — ajuste só de apresentação, sem mudança de lógica. `tests/test_ui_layout.py::test_ready_screen_with_last_score_texts_do_not_overlap` e `test_ready_screen_omits_last_score_line_when_none` continuam cobrindo geometria (sem sobreposição, dentro dos limites da tela) sem depender do texto/cor exatos; nenhum teste novo necessário. Validado com `uv run pytest` (suíte completa) e inspeção visual via `uv run main.py`.
+
 ## Checklist de verificação da v3
 
 Verificável automaticamente / no desktop:
