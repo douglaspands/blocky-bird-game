@@ -47,13 +47,13 @@ jobs:
 
       - name: Upload Windows asset
         if: runner.os == 'Windows'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: BlockyBee-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.zip
 
       - name: Upload Linux asset
         if: runner.os == 'Linux'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: BlockyBee-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.event.release.tag_name }}.tar.bz2
 
@@ -95,6 +95,6 @@ jobs:
           cp "$apk" "BlockyBee-android-universal-${{ github.event.release.tag_name }}.apk"
 
       - name: Upload APK asset (uncompressed)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: BlockyBee-android-universal-${{ github.event.release.tag_name }}.apk
