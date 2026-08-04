@@ -20,7 +20,7 @@ jobs:
             arch: x64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv (Windows)
         if: runner.os == 'Windows'
@@ -63,7 +63,7 @@ jobs:
     # mais fragil do projeto, ver specs/v2/design.md secao 24.1).
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache buildozer state (Android SDK/NDK, p4a, build intermedio)
         uses: actions/cache@v4
