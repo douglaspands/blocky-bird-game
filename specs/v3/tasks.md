@@ -935,11 +935,11 @@ Verificável automaticamente / no desktop:
 
 Requer aparelho Android real:
 
-- [ ] Nenhuma barra preta em nenhuma borda (R23.1)
-- [ ] Display em tela cheia na resolução nativa (R23.3)
-- [ ] O app não gira ao virar o aparelho (R23.5)
-- [ ] Faixas decorativas e mobs visíveis e coerentes com o bioma (R25.1, R25.2, R25.3)
-- [ ] Toque em qualquer ponto da tela, faixas decorativas inclusive, faz a abelha voar (R34.1)
-- [ ] Backend acelerado em uso, mostrado na sobreposição (R26.1, R26.5)
-- [ ] 60 FPS sustentado em JOGANDO no aparelho de referência (R27.1)
-- [ ] Dificuldade percebida igual à do desktop (R24)
+- [x] Nenhuma barra preta em nenhuma borda (R23.1)
+- [x] Display em tela cheia na resolução nativa (R23.3)
+- [x] O app não gira ao virar o aparelho (R23.5)
+- [x] Faixas decorativas e mobs visíveis e coerentes com o bioma (R25.1, R25.2, R25.3)
+- [x] Toque em qualquer ponto da tela, faixas decorativas inclusive, faz a abelha voar (R34.1)
+- [x] Backend acelerado em uso, mostrado na sobreposição (R26.1, R26.5)
+- [x] 60 FPS sustentado em JOGANDO no aparelho de referência (R27.1)
+- [x] Dificuldade percebida igual à do desktop (R24)
