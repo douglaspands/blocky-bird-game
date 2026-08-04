@@ -68,7 +68,10 @@ def configure_event_filter() -> None:
 
 
 class InputManager:
+    """Traduz teclado, mouse, toque e joystick em acoes abstratas do jogo."""
+
     def __init__(self, renderer: render.Renderer) -> None:
+        """Detecta e guarda os joysticks ja conectados na inicializacao."""
         self.renderer = renderer
         pygame.joystick.init()
         self.joysticks: dict[int, pygame.joystick.JoystickType] = {}
@@ -89,12 +92,14 @@ class InputManager:
         nenhuma regra divergente entre eles (R34.2). Na v2 o tratamento era
         assimetrico — `pygame.SCALED` pre-convertia o mouse e so o toque era
         convertido a mao —, e a assimetria desapareceu junto com o `SCALED` (design
-        secao 33.4)."""
+        secao 33.4).
+        """
         self._handle_tap(actions, *self.renderer.to_logical(window_x, window_y))
 
     def _handle_tap(self, actions: set[str], lx: float, ly: float) -> None:
-        """Toque/clique em qualquer ponto do canvas voa; no icone de mudo alterna
-        mudo; fora do canvas e ignorado (R34.1, R34.3, R15.1, R15.4).
+        """Toque/clique em qualquer ponto do canvas voa; no icone de mudo alterna mudo.
+
+        Fora do canvas e ignorado (R34.1, R34.3, R15.1, R15.4).
 
         O recorte e contra o **canvas**, e nao contra a area jogavel. Na v2 o que
         caisse fora dos 480x720 era barra preta de letterbox, moldura morta do SDL, e
@@ -102,7 +107,8 @@ class InputManager:
         celular 20:9, ocupa mais tela que o jogo — justamente onde o polegar cai
         (R25.6, design secao 32.8). Como o canvas tem a proporcao da tela e a cobre
         por construcao, o descarte de R34.3 so sobra para o arredondamento da
-        conversao."""
+        conversao.
+        """
         if not (0 <= lx <= config.screen_w() and 0 <= ly <= config.screen_h()):
             return
         if ui.mute_icon_rect().collidepoint(lx, ly):

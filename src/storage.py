@@ -27,6 +27,7 @@ def is_frozen() -> bool:
 
 
 def save_dir() -> Path:
+    """Diretorio gravavel para dados persistentes (recorde, qualidade), por plataforma."""
     if is_android():
         try:
             # fornecido pelo p4a em runtime; indisponivel no venv de dev

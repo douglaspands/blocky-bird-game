@@ -7,12 +7,16 @@ from src.config import BLOCK, GROUND_H
 
 
 class Ground:
+    """Chao rolante: deslocamento visual e faixa de colisao fixa na base do canvas."""
+
     def __init__(self) -> None:
+        """Inicia sem deslocamento, com a faixa de colisao na linha do chao atual."""
         self.offset = 0.0
         self.rect = pygame.Rect(0, config.ground_y(), config.screen_w(), GROUND_H)
         """Faixa de colisao do chao, construida uma vez e movida no lugar (R27.3)."""
 
     def update(self, speed: float) -> None:
+        """Avanca o deslocamento visual do chao pela velocidade atual."""
         self.offset = (self.offset - speed) % BLOCK
 
     def sync_rect(self) -> None:
@@ -22,7 +26,8 @@ class Ground:
         `PipePair`: a geometria do chao nao depende de nada que role durante a partida,
         so do canvas. Quem chama e `Game.apply_resize`. Um `sync_rect()` dentro de
         `update` seria codigo que nenhum teste consegue justificar — foi escrito,
-        sobreviveu a rodada de mutacao por ser inerte, e saiu."""
+        sobreviveu a rodada de mutacao por ser inerte, e saiu.
+        """
         self.rect.y = config.ground_y()
         self.rect.width = config.screen_w()
 
@@ -58,15 +63,16 @@ class Ground:
 
 
 def _make_strip(main: pygame.Surface, edge: pygame.Surface, canvas_w: int, height: int) -> pygame.Surface:
-    """Parede de chao de `canvas_w + BLOCK` por `height`: a fileira de borda no topo,
-    as de preenchimento abaixo ate a base do canvas.
+    """Parede de chao de `canvas_w + BLOCK` por `height`.
 
-    O bloco a mais de largura e o que da lugar ao rolamento — com ele a faixa cobre o
+    A fileira de borda fica no topo, as de preenchimento abaixo ate a base do
+    canvas. O bloco a mais de largura e o que da lugar ao rolamento — com ele a faixa cobre o
     canvas inteiro em qualquer posicao do ciclo, e o desenho nunca precisa de uma
     segunda passada para tapar a sobra.
 
     Opaca de proposito: o chao cobre tudo que estiver atras dele, e uma faixa com
-    alfa mandaria o desenho para o caminho de mistura a troco de nada (R27.4)."""
+    alfa mandaria o desenho para o caminho de mistura a troco de nada (R27.4).
+    """
     strip = pygame.Surface((canvas_w + BLOCK, height))
     for x in range(0, canvas_w + BLOCK, BLOCK):
         strip.blit(edge, (x, 0))

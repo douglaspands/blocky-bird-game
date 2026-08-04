@@ -99,7 +99,8 @@ class Viewport:
         """Corte transversal do subsolo a direita (R25.2). Vazia numa tela 2:3.
 
         Calculada a partir de `play.right`, e nao como espelho de `left_band`, para
-        absorver o pixel impar quando `canvas_w - PLAY_W` e impar."""
+        absorver o pixel impar quando `canvas_w - PLAY_W` e impar.
+        """
         return pygame.Rect(self.play.right, 0, self.width - self.play.right, self.height)
 
 
@@ -138,7 +139,8 @@ def forced_size() -> tuple[int, int] | None:
 
     Como `compute` e idempotente sobre a propria saida, forcar o tamanho de tela
     equivale a forcar o canvas. Valor invalido e ignorado em silencio: e ferramenta
-    de desenvolvimento e nunca deve impedir o jogo de abrir."""
+    de desenvolvimento e nunca deve impedir o jogo de abrir.
+    """
     raw = os.environ.get(ENV_CANVAS, "").lower()
     parts = raw.split("x")
     if len(parts) != 2:
@@ -157,7 +159,8 @@ def screen_size() -> tuple[int, int]:
 
     No Android e a resolucao nativa do aparelho, que e o que faz a tela cheia
     preencher os quatro lados (R23.3); no desktop e a janela padrao mais larga que a
-    area jogavel (R23.7). `BLOCKY_CANVAS` tem precedencia sobre os dois."""
+    area jogavel (R23.7). `BLOCKY_CANVAS` tem precedencia sobre os dois.
+    """
     forced = forced_size()
     if forced is not None:
         return forced
@@ -177,5 +180,6 @@ def lock_portrait_orientation() -> None:
     Reforca o `orientation = portrait` que o `buildozer.spec` ja declara: o manifesto
     convence o Android, este hint convence o SDL, e o jogo nunca gira quando o
     aparelho e virado (R23.5). Nao sobrescreve um valor ja definido no ambiente, para
-    continuar sendo possivel investigar paisagem sem editar codigo."""
+    continuar sendo possivel investigar paisagem sem editar codigo.
+    """
     os.environ.setdefault(ENV_ORIENTATION, "Portrait")

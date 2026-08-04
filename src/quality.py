@@ -35,7 +35,8 @@ class Level(IntEnum):
     """Os tres niveis, ordenados: `BAIXO < MEDIO < ALTO`.
 
     `IntEnum` porque a ordem e usada — subir e descer de nivel sao comparacoes, e
-    "esta abaixo do maximo" e um `<`."""
+    "esta abaixo do maximo" e um `<`.
+    """
 
     BAIXO = 0
     MEDIO = 1
@@ -97,7 +98,8 @@ def load_level(path: Path | None = None) -> Level:
     quebrado ou com um nivel que nao existe resulta em ALTO e redeteccao. Um arquivo
     de preferencia corrompido nunca pode impedir o jogo de abrir — e comecar no maximo
     e a escolha certa por ser a unica que se corrige sozinha em dois segundos, ao
-    contrario de comecar no minimo."""
+    contrario de comecar no minimo.
+    """
     path = path if path is not None else _default_path()
     try:
         with open(path, encoding="utf-8") as file:
@@ -118,8 +120,11 @@ def save_level(level: Level, path: Path | None = None) -> None:
 
 
 def _default_path() -> Path:
-    """Resolvido a cada chamada, e nao como default de parametro, para acompanhar uma
-    troca de plataforma em tempo de execucao — igual a `score._default_path`."""
+    """Resolve o caminho padrao do arquivo de qualidade.
+
+    Resolvido a cada chamada, e nao como default de parametro, para acompanhar uma
+    troca de plataforma em tempo de execucao — igual a `score._default_path`.
+    """
     return storage.save_dir() / FILENAME
 
 

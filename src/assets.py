@@ -14,6 +14,7 @@ from src import storage
 
 
 def asset_path(filename: str) -> Path:
+    """Resolve o caminho absoluto de um asset em `assets/filename`."""
     if storage.is_frozen():
         base = Path(getattr(sys, "_MEIPASS", "."))
     else:

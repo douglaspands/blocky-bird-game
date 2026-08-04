@@ -51,8 +51,8 @@ flags extras.
 ### Releases automatizadas (GitHub Actions)
 
 Ao publicar uma Release no GitHub (com uma tag de versão, ex. `v1.0.0`), o workflow
-[`.github/workflows/release.yml`](.github/workflows/release.yml) builda o executável
-para Windows e Linux automaticamente e anexa aos assets da release:
+[`.github/workflows/release.yml`](https://github.com/douglaspands/blocky-bird-game/blob/main/.github/workflows/release.yml)
+builda o executável para Windows e Linux automaticamente e anexa aos assets da release:
 
 - `BlockyBee-windows-x64-<tag>.zip`
 - `BlockyBee-linux-x64-<tag>.tar.bz2`

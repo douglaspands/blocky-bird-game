@@ -26,8 +26,11 @@ _viewport: "Viewport | None" = None
 
 
 def set_viewport(vp: "Viewport") -> None:
-    """Define o viewport ativo. Chamado pelo `Game` depois de criar o display e de
-    novo a cada redimensionamento da janela (R23.6)."""
+    """Define o viewport ativo.
+
+    Chamado pelo `Game` depois de criar o display e de novo a cada
+    redimensionamento da janela (R23.6).
+    """
     global _viewport
     _viewport = vp
 
@@ -36,7 +39,8 @@ def viewport() -> "Viewport":
     """Viewport ativo.
 
     Sem display criado (testes de unidade, scripts), o padrao e o canvas 2:3 —
-    identico a area jogavel, que e exatamente o comportamento da v2."""
+    identico a area jogavel, que e exatamente o comportamento da v2.
+    """
     global _viewport
     if _viewport is None:
         from src import viewport as viewport_module
@@ -51,7 +55,8 @@ def screen_w() -> int:
     Deixou de ser constante de modulo na v3: o canvas tem a proporcao da tela real,
     entao a largura so existe depois que o display foi criado. Funcao pelo mesmo
     motivo de `ground_y()` — uma constante importada congelaria o valor de quem
-    importou antes do viewport ser definido."""
+    importou antes do viewport ser definido.
+    """
     return viewport().canvas[0]
 
 
@@ -61,8 +66,11 @@ def screen_h() -> int:
 
 
 def play() -> "pygame.Rect":
-    """Area jogavel dentro do canvas: onde a abelha voa, onde as colunas existem e
-    onde a colisao acontece. Sempre 480x720 de mundo, em qualquer tela (R24.1)."""
+    """Area jogavel dentro do canvas.
+
+    Onde a abelha voa, onde as colunas existem e onde a colisao acontece.
+    Sempre 480x720 de mundo, em qualquer tela (R24.1).
+    """
     return viewport().play
 
 
@@ -71,5 +79,6 @@ def ground_y() -> int:
 
     O que fica abaixo dele e faixa decorativa de chao (R25.1): `Ground.draw` enche
     ate a base do canvas, entao a fileira extra e consequencia direta do canvas mais
-    alto, sem regra nova."""
+    alto, sem regra nova.
+    """
     return play().bottom - GROUND_H

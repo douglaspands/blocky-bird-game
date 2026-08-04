@@ -12,6 +12,8 @@ BANNER_FRAMES = 90
 
 @dataclass(frozen=True)
 class Biome:
+    """Parametros de um bioma: threshold de ativacao, velocidade, texturas e ceu."""
+
     id: str
     name: str
     threshold: int
@@ -88,7 +90,10 @@ def _biome_for_score(score: int) -> Biome:
 
 
 class BiomeManager:
+    """Acompanha o bioma ativo e as transicoes de fade/banner conforme o score."""
+
     def __init__(self) -> None:
+        """Inicia no primeiro bioma (Overworld), sem fade nem banner em curso."""
         self.current = BIOMES[0]
         self.previous = BIOMES[0]
         self.fade_timer = 0
@@ -114,7 +119,8 @@ class BiomeManager:
         """Gradiente de ceu do bioma, construido uma vez por tamanho de canvas (R14.3).
 
         A chave inclui o tamanho porque o canvas real so e conhecido em runtime e pode
-        mudar num redimensionamento (R23.6)."""
+        mudar num redimensionamento (R23.6).
+        """
         width, height = renderer.size
         return renderer.image(
             ("sky", biome.id, width, height),
@@ -122,6 +128,7 @@ class BiomeManager:
         )
 
     def draw_background(self, renderer: render.Renderer) -> None:
+        """Desenha o ceu do bioma atual, cruzando com o anterior durante o fade."""
         current_grad = self._gradient(renderer, self.current)
         if self.fade_timer > 0:
             prev_grad = self._gradient(renderer, self.previous)
@@ -134,6 +141,7 @@ class BiomeManager:
             renderer.draw(current_grad, (0, 0))
 
     def draw_banner(self, renderer: render.Renderer) -> None:
+        """Desenha o nome do bioma no topo da area jogavel enquanto o banner dura."""
         if self.banner_timer > 0:
             play = config.play()
             ui.draw_text(renderer, self.current.name.upper(), (play.centerx, play.top + 110), base_size=16)

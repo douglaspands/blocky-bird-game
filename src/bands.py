@@ -36,7 +36,8 @@ class SideBands:
 
     O conteudo so muda quando o canvas ou o bioma mudam, entao cada parede e
     construida uma vez e guardada com o renderizador, que a chaveia por bioma, lado e
-    tamanho — a mesma disciplina dos gradientes de ceu."""
+    tamanho — a mesma disciplina dos gradientes de ceu.
+    """
 
     def draw(self, renderer: render.Renderer, textures: dict[str, pygame.Surface], biome: Biome) -> None:
         """Cobre as laterais do canvas. Sem sobra horizontal (tela 2:3), nao faz nada."""
@@ -83,7 +84,8 @@ def _build(
 
     As duas ancoras nao compartilham grade: `ground_y` depende da faixa de ceu e
     quase nunca e multiplo do bloco. Por isso a faixa e preenchida com a camada
-    profunda primeiro, e as fileiras de cada ancora sao desenhadas por cima."""
+    profunda primeiro, e as fileiras de cada ancora sao desenhadas por cima.
+    """
     band = pygame.Surface((width, height))  # sem SRCALPHA: opacidade e requisito (R24.4)
     main = textures[biome.block_main]
     edge = textures[biome.block_edge]

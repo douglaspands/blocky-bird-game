@@ -1,0 +1,1 @@
+--8<-- "specs/v2/requirements.md"

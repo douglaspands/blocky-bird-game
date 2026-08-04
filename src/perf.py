@@ -59,7 +59,8 @@ def tune_gc() -> None:
 
     Efeito colateral que importa em teste: o congelamento e permanente e global. Quem
     chama isto fora do jogo (a suite, por criar `Game` centenas de vezes) precisa
-    desfaze-lo com `gc.unfreeze()` e devolver os limiares."""
+    desfaze-lo com `gc.unfreeze()` e devolver os limiares.
+    """
     gc.collect()
     gc.freeze()
     gc.set_threshold(*GC_THRESHOLD)

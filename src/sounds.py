@@ -18,7 +18,8 @@ class MixerParams(TypedDict, total=False):
 
     Tipado, e nao um `dict[str, int]`, para que o desempacotamento nas duas chamadas
     seja conferido pelo `ty` contra a assinatura real do pygame — que tem tambem
-    parametros de outros tipos (`devicename`)."""
+    parametros de outros tipos (`devicename`).
+    """
 
     frequency: int
     size: int
@@ -31,7 +32,8 @@ def mixer_params() -> MixerParams:
 
     O buffer maior so no Android, onde o padrao do pygame e pequeno demais para o
     caminho de audio do aparelho e o som sai crepitando (R8.4, R14.6, design secao 11).
-    No desktop a chave nem e passada, para continuar valendo o padrao do pygame."""
+    No desktop a chave nem e passada, para continuar valendo o padrao do pygame.
+    """
     params: MixerParams = {"frequency": SAMPLE_RATE, "size": -16, "channels": 1}
     if is_android():
         params["buffer"] = ANDROID_MIXER_BUFFER
@@ -50,7 +52,8 @@ def pre_init() -> None:
 
     `pre_init` nao abre nada: so guarda o que o `init` seguinte vai usar. Por isso e
     inofensiva quando o audio nao existe — a falha continua acontecendo no `init`, onde
-    ja e tratada."""
+    ja e tratada.
+    """
     pygame.mixer.pre_init(**mixer_params())
 
 
@@ -100,13 +103,16 @@ def _white_noise(duration_ms: int, volume: float = 0.5) -> array.array:
 
 
 class SoundManager:
+    """Gera e toca os efeitos sonoros sintetizados, com mudo e degradacao graciosa."""
+
     def __init__(self) -> None:
         """Assume o mixer que `pre_init` + `pygame.init()` ja deixaram pronto.
 
         So inicializa por conta propria se ele nao estiver de pe — o que acontece quando
         alguem constroi o `SoundManager` fora do jogo (um teste, um script) e quando o
         `pygame.init()` nao conseguiu abrir o dispositivo. No segundo caso a tentativa
-        aqui tambem falha, e o jogo segue mudo, como desde a v1 (R8.4)."""
+        aqui tambem falha, e o jogo segue mudo, como desde a v1 (R8.4).
+        """
         self.muted = False
         self.audio_ok = False
         try:
@@ -131,4 +137,5 @@ class SoundManager:
             self._sounds[name].play()
 
     def toggle_mute(self) -> None:
+        """Liga/desliga o mudo (R8.3)."""
         self.muted = not self.muted

@@ -17,8 +17,12 @@ MAX_SIZE = 8
 
 
 class Particle:
+    """Um fragmento de bloco em queda livre, com cor amostrada da textura atingida.
+
+    Sem `__dict__` por instancia: sao 16 por explosao, todas iguais em forma (R27.3).
+    """
+
     __slots__ = ("color", "lifetime", "pos", "rect", "size", "vel")
-    """Sem `__dict__` por instancia: sao 16 por explosao, todas iguais em forma (R27.3)."""
 
     def __init__(
         self,
@@ -28,6 +32,7 @@ class Particle:
         size: int,
         color: tuple[int, int, int],
     ) -> None:
+        """Cria a particula em `pos`, com velocidade, duracao, tamanho e cor dados."""
         self.pos = pygame.Vector2(pos)
         self.vel = pygame.Vector2(vel)
         self.lifetime = lifetime
@@ -40,6 +45,7 @@ class Particle:
         self._sync_rect()
 
     def update(self) -> None:
+        """Avanca um passo: gravidade, posicao, contagem regressiva de vida."""
         self.vel.y += GRAVITY
         self.pos += self.vel
         self.lifetime -= 1
@@ -51,14 +57,19 @@ class Particle:
 
     @property
     def alive(self) -> bool:
+        """Verdadeiro enquanto a duracao restante for maior que zero."""
         return self.lifetime > 0
 
     def draw(self, renderer: render.Renderer) -> None:
+        """Desenha a particula como um quadrado solido na sua cor."""
         renderer.fill(self.color, self.rect)
 
 
 class ParticleSystem:
+    """Conjunto de particulas vivas: dispara explosoes e atualiza/desenha todas."""
+
     def __init__(self) -> None:
+        """Inicia sem nenhuma particula em cena."""
         self.particles: list[Particle] = []
 
     def burst(self, pos: tuple[float, float], texture: pygame.Surface, n: int = 16) -> None:
@@ -77,6 +88,7 @@ class ParticleSystem:
             self.particles.append(Particle(pos, vel, lifetime, size, color))
 
     def update(self) -> None:
+        """Atualiza todas as particulas e remove as que ja expiraram."""
         for particle in self.particles:
             particle.update()
         # remocao no lugar, como em `PipeManager.update`: sem particula em cena o laco
@@ -89,5 +101,6 @@ class ParticleSystem:
                 del self.particles[index]
 
     def draw(self, renderer: render.Renderer) -> None:
+        """Desenha todas as particulas vivas."""
         for particle in self.particles:
             particle.draw(renderer)

@@ -10,6 +10,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.7",
+    "mkdocstrings[python]>=1.0.6",
     "pyinstaller>=6.21.0",
     "pytest>=9.1.1",
     "ruff>=0.16.0",
@@ -19,14 +22,23 @@ dev = [
 [tool.ruff]
 line-length = 110
 target-version = "py310"
-extend-exclude = ["specs"]
+# p4a-recipes: copiado de um PR upstream do python-for-android (task 27/28), nao e
+# codigo deste projeto — mesma exclusao ja usada por [tool.ty.src].
+extend-exclude = ["specs", "p4a-recipes"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "D"]
 ignore = []
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Docstrings (R31) cobrem src/, scripts/, main.py e conftest.py — nao os testes.
+"tests/*.py" = ["D"]
 
 [tool.ty.environment]
 python-version = "3.10"

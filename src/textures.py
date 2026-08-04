@@ -22,10 +22,12 @@ def _shaded(base_color: tuple[int, int, int], seed: int, variation: float = 0.12
 
 
 def make_dirt(seed: int = 1) -> pygame.Surface:
+    """Textura de terra, 16x16."""
     return _shaded((134, 96, 67), seed)
 
 
 def make_grass_side(seed: int = 2) -> pygame.Surface:
+    """Textura de terra com uma faixa de grama no topo, 16x16."""
     surf = make_dirt(seed)
     rng = random.Random(seed + 1)
     for x in range(TEX_SIZE):
@@ -37,18 +39,22 @@ def make_grass_side(seed: int = 2) -> pygame.Surface:
 
 
 def make_stone(seed: int = 3) -> pygame.Surface:
+    """Textura de pedra, 16x16."""
     return _shaded((128, 128, 128), seed)
 
 
 def make_cobblestone(seed: int = 4) -> pygame.Surface:
+    """Textura de paralelepipedo, 16x16."""
     return _shaded((122, 122, 122), seed, variation=0.22)
 
 
 def make_netherrack(seed: int = 5) -> pygame.Surface:
+    """Textura de netherrack, 16x16."""
     return _shaded((110, 54, 48), seed, variation=0.18)
 
 
 def make_obsidian(seed: int = 6) -> pygame.Surface:
+    """Textura de obsidiana com veios roxos, 16x16."""
     surf = _shaded((20, 16, 34), seed, variation=0.15)
     rng = random.Random(seed + 1)
     for _ in range(6):
@@ -97,7 +103,8 @@ def _voxel(boxes: list[Box]) -> pygame.Surface:
     `make_bee` posiciona pixel a pixel, o que cabia num sprite so. Para os nove mobs de
     R25.3, com dois frames cada, a lista de cubos e a mesma ideia escrita de forma
     legivel: cada linha e uma parte do corpo, o que vem depois pinta por cima do que
-    veio antes, e o frame de idle e a mesma lista com um ou dois cubos movidos."""
+    veio antes, e o frame de idle e a mesma lista com um ou dois cubos movidos.
+    """
     surf = pygame.Surface((TEX_SIZE, TEX_SIZE), pygame.SRCALPHA)
     for color, x, y, w, h in boxes:
         surf.fill(color, pygame.Rect(x, y, w, h))
@@ -337,6 +344,7 @@ jogo (R25.4)."""
 
 
 def scale_pixel_perfect(surface: pygame.Surface, size: int) -> pygame.Surface:
+    """Escala uma textura quadrada para `size x size` sem suavizar (vizinho-mais-proximo)."""
     return pygame.transform.scale(surface, (size, size))
 
 

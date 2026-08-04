@@ -61,13 +61,16 @@ def _load_icon() -> pygame.Surface | None:
 
     Sem efeito visivel no Android (sem barra de titulo), mas nao ha custo em tentar.
     Degradacao graciosa: um asset ausente ou corrompido nunca deve impedir o jogo de
-    abrir (mesma disciplina do audio, R8.4)."""
+    abrir (mesma disciplina do audio, R8.4).
+    """
     with contextlib.suppress(OSError, pygame.error):
         return pygame.image.load(str(assets.asset_path("app_icon_512.png")))
     return None
 
 
 class GameState(Enum):
+    """Os quatro estados da maquina de estados do jogo (R6)."""
+
     PRONTO = auto()
     JOGANDO = auto()
     PAUSADO = auto()
@@ -75,7 +78,10 @@ class GameState(Enum):
 
 
 class Game:
+    """Orquestra estado, entrada, atualizacao e desenho do jogo inteiro."""
+
     def __init__(self) -> None:
+        """Inicializa pygame, janela, renderer e todos os subsistemas do jogo."""
         # antes do init: o SDL le o hint de orientacao ao criar o subsistema de video,
         # e o `pygame.init()` ja sobe o mixer com os parametros que `pre_init` deixou —
         # e uma vez so, em vez das duas da v2 (R27.6, design secao 40).
@@ -156,7 +162,8 @@ class Game:
 
         `forget_images` nao sabe distinguir o que depende do canvas do que nao depende,
         entao as 62 rotacoes da abelha e os 18 sprites de mob caem junto e sao refeitos
-        aqui — fora do frame, como na inicializacao."""
+        aqui — fora do frame, como na inicializacao.
+        """
         new_viewport = viewport.compute(*size)
         if new_viewport.canvas == self.viewport.canvas:
             return
@@ -177,7 +184,8 @@ class Game:
         """Aplica o redimensionamento pendente quando o arrasto para.
 
         Sem esperar o arrasto assentar, cada pixel de uma janela sendo arrastada
-        recriaria o display — dezenas de vezes por segundo."""
+        recriaria o display — dezenas de vezes por segundo.
+        """
         if self._pending_resize is None:
             return
         self._resize_idle += 1
@@ -186,6 +194,7 @@ class Game:
             self.apply_resize(size)
 
     def reset(self) -> None:
+        """Recria todo o estado de uma partida nova (passaro, biomas, colunas, score)."""
         play = config.play()
         self.bird = Bird(play.x + play.width // 4, play.y + play.height // 2)
         self.biome = BiomeManager()
@@ -222,15 +231,18 @@ class Game:
             self.state = GameState.JOGANDO
 
     def _back_action(self) -> None:
-        """BACK do Android pausa em JOGANDO; nos demais estados, encerra o
-        jogo (R15.2, R15.3). Fica no Game (que conhece o estado), nao no
-        InputManager, mantendo a separacao acao/estado da v1."""
+        """BACK do Android pausa em JOGANDO; nos demais estados, encerra o jogo.
+
+        (R15.2, R15.3). Fica no Game (que conhece o estado), nao no
+        InputManager, mantendo a separacao acao/estado da v1.
+        """
         if self.state == GameState.JOGANDO:
             self._toggle_pause()
         else:
             self.running = False
 
     def handle_events(self) -> None:
+        """Coleta as acoes de entrada do quadro e as aplica ao estado do jogo."""
         actions, quit_requested = self.input.poll()
         if quit_requested:
             self.running = False
@@ -277,7 +289,8 @@ class Game:
         Superar o recorde marca-o como sujo em vez de gravar em disco: escrita de
         arquivo dentro do frame de JOGANDO e uma chamada de sistema sincrona, com uma
         cauda de latencia que nao depende do jogo (R27.5). Quem grava e
-        `_flush_highscore`."""
+        `_flush_highscore`.
+        """
         for pipe in self.pipes.pipes:
             if not pipe.scored and pipe.x + PIPE_W < self.bird.pos.x:
                 pipe.scored = True
@@ -295,7 +308,8 @@ class Game:
         gravacao incremental da v2 continua de pe (R4.3, R16.4) porque o Android *avisa*
         antes de encerrar — `APP_WILLENTERBACKGROUND` chega primeiro, e e nele que a
         gravacao passa a acontecer. O que se perde e o caso de o processo morrer sem
-        nenhum aviso, que nem a v2 cobria."""
+        nenhum aviso, que nem a v2 cobria.
+        """
         if self._highscore_dirty:
             score.save_highscore(self.highscore)
             self._highscore_dirty = False
@@ -305,7 +319,8 @@ class Game:
 
         Sai do frame pelo mesmo motivo do recorde: a troca de nivel acontece justamente
         no aparelho que ja esta com dificuldade, e escrever em disco ali seria uma
-        chamada de sistema sincrona no pior momento possivel (R27.5)."""
+        chamada de sistema sincrona no pior momento possivel (R27.5).
+        """
         if self.quality.dirty:
             quality.save_level(self.quality.level)
             self.quality.dirty = False
@@ -315,11 +330,13 @@ class Game:
 
         Os dois arquivos sao gravados nos mesmos tres momentos — fim de partida, ida
         para segundo plano e saida do laco — porque a razao e a mesma: sao os unicos
-        instantes em que ninguem esta jogando."""
+        instantes em que ninguem esta jogando.
+        """
         self._flush_highscore()
         self._flush_quality()
 
     def update(self) -> None:
+        """Avanca um passo fixo de simulacao conforme o estado atual do jogo."""
         if self.state == GameState.PRONTO:
             self.bird.update_idle()
             # sem deriva, so o idle: o cenario respira na tela inicial sem sair do lugar
@@ -348,6 +365,7 @@ class Game:
             self.particles.update()
 
     def draw(self) -> None:
+        """Desenha um quadro completo: fundo, decoracao, jogo e UI do estado atual."""
         b = self.biome.current
         renderer = self.renderer
         # o que cai fora nos niveis mais baixos e sempre decoracao — nunca coluna,
@@ -415,6 +433,7 @@ class Game:
         return steps
 
     def run(self) -> None:
+        """Laco principal: relogio, simulacao em passos fixos e desenho, ate fechar."""
         profiler = self.profiler
         while self.running:
             # o teto de quadros vem do nivel de qualidade: cai para 30 no BAIXO, e a

@@ -9,11 +9,16 @@ from src.config import BLOCK, GAP_MARGIN, PIPE_SPACING, PIPE_W
 
 
 class PipePair:
+    """Uma coluna com abertura: metade de cima e metade de baixo do obstaculo.
+
+    Sem `__dict__` por instancia: ha varias colunas vivas a cada instante e todas
+    tem exatamente estes campos (R27.3).
+    """
+
     __slots__ = ("block_edge", "block_main", "bottom_rect", "gap_size", "gap_y", "scored", "top_rect", "x")
-    """Sem `__dict__` por instancia: ha varias colunas vivas a cada instante e todas
-    tem exatamente estes campos (R27.3)."""
 
     def __init__(self, x: float, gap_y: float, gap_size: int, block_main: str, block_edge: str) -> None:
+        """Cria a coluna em `x`, com a abertura centrada em `gap_y`."""
         self.x = x
         self.gap_y = gap_y
         self.gap_size = gap_size
@@ -37,7 +42,8 @@ class PipePair:
         Depende de `config.ground_y()`, que muda quando a janela e redimensionada — por
         isso `Game.apply_resize` chama isto, e nao so o passo de simulacao: entre o
         redimensionamento e o proximo `update` ha frames desenhados (PRONTO, PAUSADO,
-        GAME_OVER) que usariam a altura antiga."""
+        GAME_OVER) que usariam a altura antiga.
+        """
         x = round(self.x)
         self.top_rect.x = x
         self.top_rect.height = round(self.gap_y - self.gap_size / 2)
@@ -47,8 +53,10 @@ class PipePair:
         self.bottom_rect.height = config.ground_y() - top
 
     def off_screen(self) -> bool:
-        """Descarte na borda esquerda da area jogavel, nao do canvas (R2.4): o que
-        sai dela ja esta atras da faixa decorativa e nao volta a ser visto."""
+        """Descarte na borda esquerda da area jogavel, nao do canvas (R2.4).
+
+        O que sai dela ja esta atras da faixa decorativa e nao volta a ser visto.
+        """
         return self.x + PIPE_W < config.play().left
 
     def visible(self) -> bool:
@@ -62,7 +70,8 @@ class PipePair:
         coluna passa um bom tempo entre a borda do canvas e a da area jogavel, e la
         ela existe de verdade — e a faixa lateral, desenhada depois, que a esconde
         (R24.4). Descartar antes disso deixaria a faixa transparente onde ela nao
-        cobrisse."""
+        cobrisse.
+        """
         return -PIPE_W < round(self.x) < config.screen_w()
 
     def draw(self, renderer: render.Renderer, textures: dict[str, pygame.Surface]) -> None:
@@ -75,7 +84,8 @@ class PipePair:
 
         As texturas continuam sendo as do bioma congelado na criacao da coluna
         (R2.5): o par entra na chave das faixas, entao uma coluna do overworld que
-        sobreviva a entrada na cave continua saindo de terra e grama."""
+        sobreviva a entrada na cave continua saindo de terra e grama.
+        """
         height = config.screen_h()
         main = textures[self.block_main]
         edge = textures[self.block_edge]
@@ -110,7 +120,8 @@ def _make_strip(
     metades chega a ser mais alta que a tela.
 
     Opaca de proposito, como a faixa do chao: a coluna cobre o que estiver atras
-    dela, e um canal alfa so mandaria o desenho para o caminho de mistura (R27.4)."""
+    dela, e um canal alfa so mandaria o desenho para o caminho de mistura (R27.4).
+    """
     strip = pygame.Surface((PIPE_W, height))
     rows = range(0, height, BLOCK) if edge_at_top else range(height - BLOCK, -BLOCK, -BLOCK)
     for index, y in enumerate(rows):
@@ -119,7 +130,10 @@ def _make_strip(
 
 
 class PipeManager:
+    """Cria, move, descarta e desenha as colunas em cena para um bioma."""
+
     def __init__(self, gap_size: int, block_main: str, block_edge: str) -> None:
+        """Inicia sem colunas, com os parametros de abertura e textura do bioma atual."""
         self.pipes: list[PipePair] = []
         # nasce na borda direita da AREA JOGAVEL, nao do canvas: e o que faz o tempo
         # entre o surgimento da coluna e a chegada a abelha ser identico em qualquer
@@ -158,7 +172,8 @@ class PipeManager:
         """Reposiciona os retangulos de todas as colunas (R23.6).
 
         Chamado no redimensionamento, que muda a linha do chao sob colunas que nao se
-        moveram."""
+        moveram.
+        """
         for pipe in self.pipes:
             pipe.sync_rects()
 

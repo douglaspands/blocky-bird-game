@@ -683,14 +683,40 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 
 ### Bloco I — Documentação e rigor SDD
 
-- [ ] **65. Docstrings em todo o projeto e gate no ruff**
+- [x] **65. Docstrings em todo o projeto e gate no ruff**
   Ativar as regras `D` (pydocstyle, convenção `google`) no `pyproject.toml` e preencher as docstrings faltantes em `src/`, `scripts/`, `main.py` e `conftest.py`, em português, respeitando `line-length = 110`. O CI já roda `ruff check`, então o gate entra sem infraestrutura nova. _(R31.1, R31.2, R31.3)_
 
-- [ ] **66. Site de documentação (MkDocs Material + mkdocstrings)**
+  **O ponto de partida já tinha 75 dos 154 erros resolvíveis por `--fix`** (`D209`, fecho de aspas de docstring multilinha numa linha própria) — boa parte do código já vinha com docstring de fato, só não na forma que `pydocstyle` exige; os 79 restantes eram classes, métodos, `__init__` e funções realmente sem nenhuma. Todos preenchidos à mão, uma frase de resumo mais uma segunda linha em branco quando havia contexto adicional (`D205` cobra exatamente essa separação).
+
+  **O gate ficou restrito a `src/`, `scripts/`, `main.py` e `conftest.py`, e não a `tests/`.** A task pede docstring nesses quatro lugares — não em `tests/`, onde o nome da função já é a documentação (`test_flap_aplica_impulso_e_ignora_gravidade_no_mesmo_quadro`, por exemplo) e uma exigência de docstring só produziria ruído repetitivo em ~500 testes. `ruff check .` roda no repo inteiro (é o que o CI chama), então a exclusão foi codificada em `[tool.ruff.lint.per-file-ignores]` (`"tests/*.py" = ["D"]`), e não por convenção informal.
+
+  **`p4a-recipes/` saiu do escopo do ruff, não só do de docstring.** É código copiado de um PR upstream do `python-for-android` (tasks 27–28), documentado em inglês e já excluído por `[tool.ty.src]` pelo mesmo motivo — não é código deste projeto. `extend-exclude` ganhou a mesma entrada, para que o gate novo não force uma tradução ou reformatação de texto de terceiros.
+
+  **Suíte completa (514 testes), `ruff check`, `ruff format --check` e `ty check` sem violações**, confirmados depois do preenchimento.
+
+- [x] **66. Site de documentação (MkDocs Material + mkdocstrings)**
   `mkdocs.yml` publicando a página de apresentação, a API extraída das docstrings de `src/` via `mkdocstrings[python]`, e os specs de v1/v2/v3 lado a lado. Workflow `.github/workflows/docs.yml` para GitHub Pages. Dependências apenas no grupo `dev`. Validar com `uv run mkdocs build --strict`. _(R31.4, R31.5)_
 
-- [ ] **67. Matriz de rastreabilidade (`specs/v3/traceability.md`)**
+  **Nenhum conteúdo é duplicado — `docs/` é só um esqueleto de inclusões.** Cada página de spec (`docs/specs/vN/*.md`) e a própria página inicial (`docs/index.md`) são uma linha só, `--8<-- "specs/vN/arquivo.md"` (`pymdownx.snippets`, `base_path: ["."]`), apontando para o arquivo real na raiz do repo. Documentar duas vezes é o problema que a task 41 do design.md já registrava — README e site divergindo silenciosamente — e a inclusão resolve isso por construção: editar `specs/v3/design.md` já atualiza o site no próximo build, sem lembrar de copiar nada.
+
+  **As páginas de spec viraram `README.md`, não `index.md`.** Os documentos reais (`specs/v1/README.md`, `specs/v2/README.md`...) já se linkam entre si com caminhos relativos (`v1/README.md`, `../README.md`) — nomear os stubs em `docs/` do mesmo jeito faz esses links resolverem de graça dentro do site; com `index.md` cada um viraria um aviso de link quebrado no `--strict`.
+
+  **`docs/api.md` é uma lista plana de `::: src.modulo`, um por módulo de `src/`, não uma árvore de páginas.** Simples de manter (uma linha nova por módulo novo) e evita a complexidade de navegação aninhada que `mkdocstrings` ofereceria — o site tem 23 módulos, não 200.
+
+  **Um link real quebrava o `--strict`:** o `README.md` linkava `.github/workflows/release.yml` por caminho relativo, que não existe dentro de `docs/`. Trocado por URL absoluta do GitHub (`blob/main/...`), a única correção de conteúdo fora do `docs/` que esta task fez.
+
+  **`uv run mkdocs build --strict` roda limpo** (zero *warnings*; sobram só *infos* de link relativo entre os `README.md` das versões, que o mkdocs resolve sozinho). Dependências (`mkdocs`, `mkdocs-material`, `mkdocstrings[python]`) entraram só no grupo `dev` — `uv sync` sem `--group dev` (o caminho do PyInstaller/Buildozer) não as instala, cumprindo R31.5. `site/` (gerado) foi ao `.gitignore`, ao lado de `bin/`/`.buildozer/` pelo mesmo motivo: artefato de build, não fonte.
+
+  **Não verificável neste ambiente:** o deploy real do `.github/workflows/docs.yml` (`actions/deploy-pages`) exige que a Origem do GitHub Pages do repositório esteja configurada como "GitHub Actions" — uma opção do painel do GitHub, fora do alcance deste ambiente. Validado apenas como YAML bem formado e por leitura cruzada com a documentação oficial das actions `upload-pages-artifact`/`deploy-pages`.
+
+- [x] **67. Matriz de rastreabilidade (`specs/v3/traceability.md`)**
   Uma linha por critério de aceitação, ligando requisito → seção de design → task → teste(s). _(R32.1)_
+
+  **168 critérios (`R1.1`–`R34.5`), um por linha, nenhum de sobra e nenhum faltando** — conferido por script contra a extração automática dos itens numerados de `requirements.md`. As colunas de Task vieram principalmente das próprias notas retrospectivas de `tasks.md`, que desde a task 42 já citam requisito e teste em prosa; a matriz é, em boa parte, essa informação transcrita em linha.
+
+  **Nem toda linha tem teste — e isso é deliberado, não uma lacuna.** Critérios cuja task implementadora ainda está pendente nesta versão (65, 66, 68–73) ficam com a coluna de Testes em branco: citar um teste ali seria inventar uma referência que `tests/test_traceability.py` (task 68) rejeitaria assim que existir. Critérios que só um aparelho Android real comprova usam o marcador `manual`, o mesmo vocabulário que `tasks.md` já usa na seção "Requer aparelho Android real".
+
+  **Conferido por script, não por leitura.** Duas verificações automatizadas rodaram sobre o arquivo: (1) todo `RN.M` de `requirements.md` aparece exatamente uma vez na matriz, sem sobra nem falta; (2) toda referência `arquivo.py::funcao` citada (197 no total) resolve para um `def` real em `tests/`. As colunas de Design foram checadas por amostragem contra os cabeçalhos reais (`##`/`###`) de `design.md` — inclusive as decimais (`32.4`, `21.2`), que já eram o formato usado no exemplo original da seção 42 do próprio design.md.
 
 - [ ] **68. Teste que verifica a matriz (`tests/test_traceability.py`)**
   Parse de `requirements.md` extraindo todo critério `RN.M`; falha se algum não estiver na matriz e falha se a matriz citar um teste inexistente. É o que impede o documento de envelhecer em silêncio. _(R32.2, R32.3)_
@@ -736,8 +762,8 @@ Verificável automaticamente / no desktop:
 - [x] Estado após N frames idêntico ao da v2 a 60 FPS (R28.4) — `tests/test_game.py`
 - [x] Regras idênticas nos três níveis de qualidade (R29.3) — `tests/test_quality.py`
 - [x] Histerese impede oscilação de nível (R29.4) — `tests/test_quality.py`
-- [ ] `ruff check` sem violações de docstring (R31.1–R31.3) — CI
-- [ ] `mkdocs build --strict` sem avisos (R31.4) — CI
+- [x] `ruff check` sem violações de docstring (R31.1–R31.3) — CI
+- [x] `mkdocs build --strict` sem avisos (R31.4) — CI
 - [ ] Todo critério de aceitação presente na matriz (R32.2) — `tests/test_traceability.py`
 - [ ] Cobertura acima do mínimo declarado (R32.4) — CI
 - [ ] Ganho medido contra o baseline (R30.5) — `scripts/benchmark.py`

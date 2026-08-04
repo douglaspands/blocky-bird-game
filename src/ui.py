@@ -23,7 +23,8 @@ def max_text_w() -> int:
     """Largura maxima de um texto: a area jogavel menos 20px de margem de cada lado.
 
     Medida contra a area jogavel, e nao contra o canvas, para que o texto nunca
-    escorra por cima das faixas laterais numa tela larga (R25.2)."""
+    escorra por cima das faixas laterais numa tela larga (R25.2).
+    """
     return config.play().width - 40
 
 
@@ -38,7 +39,8 @@ def mute_icon_rect() -> pygame.Rect:
 
     Funcao, e nao constante, porque o canvas so tem dimensao depois que o display
     existe. `input.py` importa daqui para o hit-test, mantendo desenho e posicao do
-    botao como uma unica fonte de verdade."""
+    botao como uma unica fonte de verdade.
+    """
     vp = config.viewport()
     needed = MUTE_ICON_MARGIN + MUTE_ICON_SIZE
     top = MUTE_ICON_MARGIN if vp.sky_band.height >= needed else vp.play.top + MUTE_ICON_MARGIN
@@ -68,15 +70,17 @@ entradas, e nao mil."""
 
 
 def _fit_scale(text: str, scale: int) -> int:
-    """Reduz a escala ate o texto caber em MAX_TEXT_W (a fonte bitmap e proporcionalmente
-    mais larga que a SysFont usada na v1, entao alguns textos longos estourariam a tela
-    sem este ajuste).
+    """Reduz a escala ate o texto caber em MAX_TEXT_W.
+
+    A fonte bitmap e proporcionalmente mais larga que a SysFont usada na v1,
+    entao alguns textos longos estourariam a tela sem este ajuste.
 
     O laco de medicao roda uma vez por combinacao e nunca mais: `draw_text` e `_stack`
     chamam esta funcao para cada linha de cada frame, sempre com os mesmos argumentos
     (R27.3). O limite entra na chave porque `max_text_w()` e derivado do viewport — hoje
     ele nao muda no redimensionamento (a area jogavel e fixa), e amarra-lo a chave e o
-    que garante que continue correto se um dia mudar."""
+    que garante que continue correto se um dia mudar.
+    """
     limit = max_text_w()
     key = (len(text), scale, limit)
     fitted = _FIT_SCALE_CACHE.get(key)
@@ -94,7 +98,8 @@ def _text_image(
     """Linha de texto ja renderizada, guardada por (texto, escala, cor).
 
     `pixelfont.render` ja cacheia a superficie; o cache do renderizador evita
-    reenvia-la a cada frame, que e o que importa no caminho de GPU (R27.2)."""
+    reenvia-la a cada frame, que e o que importa no caminho de GPU (R27.2).
+    """
     return renderer.image(("text", text, scale, color), lambda: pixelfont.render(text, scale, color))
 
 
@@ -105,6 +110,7 @@ def draw_text(
     base_size: int = 12,
     color: tuple[int, int, int] = (255, 255, 255),
 ) -> None:
+    """Desenha `text` centrado em `center`, com sombra dura e escala ajustada a largura."""
     scale = _fit_scale(text, _scale_for(base_size))
     shadow = _text_image(renderer, text, scale, SHADOW_COLOR)
     main = _text_image(renderer, text, scale, color)
@@ -145,11 +151,13 @@ def _dim_overlay(renderer: render.Renderer) -> None:
     """Escurece o canvas inteiro para as telas de pausa e de fim de jogo.
 
     Um `fill` com alfa, e nao mais uma `Surface` de tela cheia criada por frame — era
-    a maior fonte de lixo por frame da v2 (design secao 30)."""
+    a maior fonte de lixo por frame da v2 (design secao 30).
+    """
     renderer.fill(OVERLAY_COLOR, pygame.Rect(0, 0, config.screen_w(), config.screen_h()))
 
 
 def draw_ready_screen(renderer: render.Renderer, highscore: int) -> None:
+    """Desenha a tela PRONTO: titulo, creditos, instrucao de voo e recorde."""
     play = config.play()
     next_y = _stack(
         renderer,
@@ -184,7 +192,8 @@ def _paint_mute_icon(muted: bool) -> pygame.Surface:
 
     As duas riscas do estado mudo sao diagonais, e o renderizador so preenche
     retangulos — entao o icone e pintado uma vez por estado e vira imagem. Sao duas no
-    total, exatamente as que a task 56 tambem preve."""
+    total, exatamente as que a task 56 tambem preve.
+    """
     size = MUTE_ICON_SIZE
     surface = pygame.Surface((size, size), pygame.SRCALPHA)
     rect = pygame.Rect(0, 0, size, size)
@@ -218,7 +227,8 @@ def hud_score_center(base_size: int = 12) -> tuple[int, int]:
 
     Quando existe faixa de ceu e ela comporta o texto, a pontuacao vai para o meio
     dela, liberando a area de jogo (R25.7). Numa tela 2:3, sem faixa, cai exatamente
-    onde caia na v2."""
+    onde caia na v2.
+    """
     vp = config.viewport()
     sky = vp.sky_band
     text_h = pixelfont.GLYPH_H * _scale_for(base_size) + SHADOW_OFFSET
@@ -228,10 +238,12 @@ def hud_score_center(base_size: int = 12) -> tuple[int, int]:
 
 
 def draw_hud_score(renderer: render.Renderer, score: int) -> None:
+    """Desenha o placar do HUD, sobre o ceu ou logo abaixo dele conforme o espaco."""
     draw_text(renderer, str(score), hud_score_center(), base_size=12)
 
 
 def draw_paused_overlay(renderer: render.Renderer) -> None:
+    """Desenha o overlay de PAUSADO sobre o jogo, com a dica de mudo por seta."""
     play = config.play()
     _dim_overlay(renderer)
     _stack(
@@ -246,6 +258,7 @@ def draw_paused_overlay(renderer: render.Renderer) -> None:
 
 
 def draw_game_over_screen(renderer: render.Renderer, score: int, highscore: int) -> None:
+    """Desenha a tela de GAME_OVER: placar, recorde e instrucao de reinicio."""
     play = config.play()
     _dim_overlay(renderer)
     _stack(

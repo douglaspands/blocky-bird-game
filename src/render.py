@@ -140,7 +140,8 @@ class Renderer:
 
         Usado no redimensionamento: gradiente de ceu e faixas laterais sao chaveados
         pelo tamanho do canvas, entao as versoes antigas nunca mais seriam pedidas e
-        ficariam ocupando memoria de video a toa."""
+        ficariam ocupando memoria de video a toa.
+        """
         self._images.clear()
 
     @property
@@ -172,7 +173,8 @@ class Renderer:
         """Converte um ponto em pixels reais da janela para coordenada de canvas.
 
         Os dois caminhos convertem a mesma coisa da mesma forma, e e isso que permite
-        a `input.py` tratar mouse e toque por um caminho unico (R34.1)."""
+        a `input.py` tratar mouse e toque por um caminho unico (R34.1).
+        """
         raise NotImplementedError
 
     def snapshot(self) -> pygame.Surface:
@@ -186,7 +188,8 @@ class Renderer:
         de `logical_size`. So e fiel quando o canvas tem o tamanho da janela — que e o
         caso dos testes e do desktop. Com escala diferente de 1 a leitura sai recortada;
         para conferir um canvas de celular no PC, force a janela com `BLOCKY_CANVAS` ou
-        use o `SurfaceRenderer`, cujo snapshot e sempre o canvas inteiro."""
+        use o `SurfaceRenderer`, cujo snapshot e sempre o canvas inteiro.
+        """
         raise NotImplementedError
 
 
@@ -226,8 +229,11 @@ class SurfaceImage(Image):
 
     @property
     def alpha(self) -> int:
-        """Alfa de superficie inteira. `None` do pygame vira 255, para que ler o
-        valor logo apos criar a imagem devolva o mesmo que no caminho de GPU."""
+        """Alfa de superficie inteira.
+
+        `None` do pygame vira 255, para que ler o valor logo apos criar a
+        imagem devolva o mesmo que no caminho de GPU.
+        """
         value = self.raw.get_alpha()
         return _OPAQUE if value is None else value
 
@@ -279,7 +285,8 @@ class GpuRenderer(Renderer):
 
         Aqui nao se converte: `Texture.from_surface` ja faz a conversao no envio, e
         no caminho de GPU nao ha formato de display para converter (a janela vem do
-        `_sdl2`, sem `display.set_mode`)."""
+        `_sdl2`, sem `display.set_mode`).
+        """
         texture = video.Texture.from_surface(self.sdl, surface)
         texture.blend_mode = pygame.BLENDMODE_BLEND
         return GpuImage(texture)
@@ -345,7 +352,8 @@ class SurfaceRenderer(Renderer):
         """Tamanho da janela pelo SDL, e nao pela superficie de display.
 
         `Surface.get_size()` so acompanha o arrasto no proximo `set_mode`;
-        `display.get_window_size()` ja reflete o tamanho novo."""
+        `display.get_window_size()` ja reflete o tamanho novo.
+        """
         return pygame.display.get_window_size()
 
     def resize(self, canvas: tuple[int, int]) -> None:
@@ -362,7 +370,8 @@ class SurfaceRenderer(Renderer):
         cada `draw` dela e um blit que pagaria conversao de formato se ela nao
         estivesse no formato do display. Superficies que ja chegam convertidas da
         origem (texturas, glifos) passam por aqui de novo, o que e barato e mantem a
-        garantia valendo para quem constroi a superficie na hora."""
+        garantia valendo para quem constroi a superficie na hora.
+        """
         return SurfaceImage(convert(surface))
 
     def clear(self, color: Color) -> None:
@@ -385,7 +394,8 @@ class SurfaceRenderer(Renderer):
 
         A superficie de mistura e cacheada por tamanho: o escurecimento de PAUSADO e
         de GAME_OVER cobre o canvas inteiro todo frame, e aloca-la a cada um era
-        justamente a maior fonte de lixo por frame da v2 (design secao 30)."""
+        justamente a maior fonte de lixo por frame da v2 (design secao 30).
+        """
         if not _has_alpha(color):
             self.surface.fill(color, rect)
             return
@@ -474,7 +484,8 @@ def _open_sdl_window(window: tuple[int, int], *, fullscreen: bool, title: str) -
     A janela do caminho de GPU nao pode vir de `pygame.display.set_mode`: o SDL
     recusa criar um renderizador para uma janela que ja tem superficie associada.
     Por isso ela e criada aqui, e o modulo `display` do pygame deixa de ser o dono
-    da janela nesse caminho."""
+    da janela nesse caminho.
+    """
     if video is None:
         logger.warning("pygame._sdl2 indisponivel nesta build do pygame")
         return None

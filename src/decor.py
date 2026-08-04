@@ -107,7 +107,8 @@ def _draw_stalactites(renderer: render.Renderer, x: int, idx: int, ground_y: int
     O renderizador so preenche retangulos, entao o triangulo e pintado numa
     superficie e guardado como imagem, chaveada pelo seu tamanho — os sorteios
     produzem poucas combinacoes distintas, e a partir da segunda aparicao de cada uma
-    o desenho e uma copia de pixels ja prontos."""
+    o desenho e uma copia de pixels ja prontos.
+    """
     rng = random.Random(idx * 19 + 3)
     size = (rng.randint(20, 40), rng.randint(40, 100))
     image = renderer.image(("stalactite", size), lambda: _paint_triangle(size, STALACTITE_COLOR))
@@ -120,7 +121,8 @@ def ore_vein_shapes(x: int, idx: int, ground_y: int) -> Iterator[tuple[tuple[int
     Publico e devolvendo formas, em vez de desenhar, porque tem dois consumidores que
     pintam em alvos diferentes: a camada de parallax da Cave, que preenche pelo
     renderizador, e as faixas laterais, que constroem uma superficie uma unica vez
-    (`bands.py`, R25.2)."""
+    (`bands.py`, R25.2).
+    """
     rng = random.Random(idx * 23 + 4)
     y = rng.randint(150, ground_y - 150)
     color = rng.choice([(120, 190, 255), (255, 215, 60), (200, 200, 210)])
@@ -183,7 +185,8 @@ class _StripPainter(render.Renderer):
         Sem passar por `render.convert`: a faixa e alvo de construcao, e nao a tela.
         Converter aqui alinharia a forma ao formato do display so para pinta-la uma
         vez; quem paga o custo por desenho e a faixa pronta, convertida quando ela
-        vira imagem do renderizador de verdade."""
+        vira imagem do renderizador de verdade.
+        """
         return render.SurfaceImage(surface)
 
     def draw(self, image: render.Image, dest: render.Dest, area: pygame.Rect | None = None) -> None:
@@ -241,11 +244,15 @@ def _build(key: object, drawer: Drawer, period: int, tiles: int, ground_y: int) 
 
 
 class DecorManager:
+    """Acompanha o deslocamento das duas camadas de parallax de fundo."""
+
     def __init__(self) -> None:
+        """Inicia as duas camadas sem deslocamento."""
         self.far_scrolled = 0.0
         self.near_scrolled = 0.0
 
     def update(self, speed: float) -> None:
+        """Avanca o deslocamento das duas camadas, cada uma no seu fator de parallax."""
         self.far_scrolled += speed * FAR_FACTOR
         self.near_scrolled += speed * NEAR_FACTOR
 

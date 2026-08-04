@@ -1,5 +1,6 @@
-"""Gera o icone do app (a abelha do jogo, R21) por codigo, reaproveitando
-textures.make_bee — sem imagem externa nem dependencia de Pillow.
+"""Gera o icone do app (a abelha do jogo, R21) por codigo.
+
+Reaproveita textures.make_bee — sem imagem externa nem dependencia de Pillow.
 
 Gera em assets/:
   app_icon_512.png            icone da janela do desktop + fonte do .ico
@@ -48,8 +49,11 @@ def _vertical_gradient(
 
 
 def _scale_nearest_fit(surface: pygame.Surface, max_side: int) -> pygame.Surface:
-    """Escala mantendo a proporcao ate o maior lado caber em max_side, sem suavizar
-    (vizinho-mais-proximo, mesma tecnica de textures.scale_pixel_perfect — R7.1)."""
+    """Escala mantendo a proporcao ate o maior lado caber em max_side.
+
+    Sem suavizar (vizinho-mais-proximo, mesma tecnica de
+    textures.scale_pixel_perfect — R7.1).
+    """
     w, h = surface.get_size()
     scale = max_side / max(w, h)
     new_size = (max(1, round(w * scale)), max(1, round(h * scale)))
@@ -73,8 +77,11 @@ def make_foreground_layer(size: int = ADAPTIVE_CANVAS) -> pygame.Surface:
 
 
 def make_composed_icon(size: int = ICON_SIZE) -> pygame.Surface:
-    """Icone 'terminado' (fundo + abelha), usado onde nao ha mascara de sistema:
-    janela do desktop, .exe do Windows, icone legado do Android (R21.6)."""
+    """Icone 'terminado' (fundo + abelha).
+
+    Usado onde nao ha mascara de sistema: janela do desktop, .exe do Windows,
+    icone legado do Android (R21.6).
+    """
     surf = pygame.Surface((size, size))
     _vertical_gradient(surf, SKY_TOP, SKY_BOTTOM)
 
@@ -118,6 +125,7 @@ def build_ico(source: pygame.Surface, out_path: Path, sizes: list[int] = ICO_SIZ
 
 
 def main() -> None:
+    """Gera e salva todos os icones do app em assets/."""
     ASSETS_DIR.mkdir(exist_ok=True)
 
     composed = make_composed_icon(ICON_SIZE)

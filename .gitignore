@@ -23,6 +23,9 @@ quality.json
 .buildozer/
 bin/
 
+# Site de documentacao gerado (task 66) — publicado pelo CI, nao versionado
+site/
+
 # Configuracao local do Claude Code (maquina/usuario especifico)
 .claude/settings.local.json
 .claude/scheduled_tasks.lock

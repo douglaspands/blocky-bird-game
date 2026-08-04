@@ -113,7 +113,8 @@ def precompute(renderer: render.Renderer) -> None:
 
     Chamada na inicializacao e de novo apos um redimensionamento, que descarta o cache
     de imagens do renderizador — mesma disciplina de `bird.precompute_sprites`. Os
-    sprites nao dependem do canvas, mas `forget_images` nao sabe distinguir isso."""
+    sprites nao dependem do canvas, mas `forget_images` nao sabe distinguir isso.
+    """
     for kind in textures.MOB_MAKERS:
         for frame in IDLE_FRAMES:
             _sprite(renderer, kind, frame)
@@ -126,7 +127,8 @@ def _build_field(
 
     O sorteio percorre as variedades em rodizio (`index % 3`) em vez de escolher ao
     acaso: e o que garante que as tres do bioma estejam presentes em qualquer campo,
-    em vez de deixar isso por conta da sorte de um canvas estreito."""
+    em vez de deixar isso por conta da sorte de um canvas estreito.
+    """
     kinds = BIOME_MOBS[biome_id]
     rng = random.Random(f"{biome_id}:{band}")
     count = max(MIN_SLOTS, -(-FIELD_SPANS * canvas_w // period))
@@ -156,6 +158,7 @@ class MobField:
     """
 
     def __init__(self) -> None:
+        """Inicia sem deriva, no primeiro quadro de idle."""
         self.scrolled = 0.0
         self.frame = 0
         self._frame_timer = 0
@@ -164,7 +167,8 @@ class MobField:
         """Avanca a deriva e a animacao de idle.
 
         `speed` zero congela a deriva e deixa o idle correndo, que e o que a tela
-        PRONTO pede: o cenario respira antes de a partida comecar, sem sair do lugar."""
+        PRONTO pede: o cenario respira antes de a partida comecar, sem sair do lugar.
+        """
         self.scrolled += speed * MOB_FACTOR
         self._frame_timer += 1
         if self._frame_timer >= IDLE_FRAME_INTERVAL:
@@ -181,7 +185,8 @@ class MobField:
 
         Um unico campo alimenta os dois lados, e nao um por lado: assim o mob que sai
         pela esquerda da faixa direita e o mesmo que, muito depois, entra pela direita
-        da esquerda — como se tivesse atravessado a terra por tras do poco."""
+        da esquerda — como se tivesse atravessado a terra por tras do poco.
+        """
         vp = config.viewport()
         self._draw(renderer, biome_id, "side", SIDE_PERIOD, 0, vp.height, (vp.left_band, vp.right_band))
 

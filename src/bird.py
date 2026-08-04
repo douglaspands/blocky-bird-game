@@ -26,11 +26,16 @@ vez de descobri-las uma a uma durante o jogo (R27.2)."""
 
 
 class Bird:
+    """Fisica e animacao do passaro: gravidade, flap, rotacao e hitbox.
+
+    Sem `__dict__` por instancia: e uma classe de dados pequena e estavel, o caso
+    em que `__slots__` rende — menos memoria e acesso a atributo mais direto (R27.3).
+    """
+
     __slots__ = ("_frame_timer", "_idle_timer", "angle", "base_y", "frame", "pos", "rect", "size", "vel_y")
-    """Sem `__dict__` por instancia: e uma classe de dados pequena e estavel, o caso
-    em que `__slots__` rende — menos memoria e acesso a atributo mais direto (R27.3)."""
 
     def __init__(self, x: float, y: float) -> None:
+        """Cria o passaro na posicao `(x, y)`, parado, com hitbox sincronizada."""
         self.pos = pygame.Vector2(x, y)
         self.base_y = y
         self.vel_y = 0.0
@@ -51,10 +56,12 @@ class Bird:
         self.sync_rect()
 
     def flap(self) -> None:
+        """Aplica o impulso de subida e vira o sprite para cima."""
         self.vel_y = FLAP_IMPULSE
         self.angle = MAX_ANGLE_UP
 
     def update(self) -> None:
+        """Avanca um passo de fisica: gravidade, posicao, rotacao e clamp no teto."""
         self.vel_y = min(self.vel_y + GRAVITY, MAX_FALL_SPEED)
         self.pos.y += self.vel_y
 
@@ -95,7 +102,8 @@ class Bird:
 
         A conta e a mesma da `property` que existia aqui — `round(pos)` primeiro, meia
         largura depois — e nao `round(pos + size / 2)`: para um `size` impar as duas
-        divergem, e a hitbox nao pode mudar de lugar por causa de uma otimizacao."""
+        divergem, e a hitbox nao pode mudar de lugar por causa de uma otimizacao.
+        """
         self.rect.centerx = round(self.pos.x) + self.size // 2
         self.rect.centery = round(self.pos.y) + self.size // 2
 
@@ -106,7 +114,8 @@ class Bird:
         `precompute_sprites` na inicializacao, e `quantize` garante que a consulta
         sempre caia numa delas. `pygame.transform.rotate` aloca uma superficie nova a
         cada chamada e reamostra o sprite inteiro — barato uma vez, caro sessenta
-        vezes por segundo (R27.3)."""
+        vezes por segundo (R27.3).
+        """
         image = _sprite(renderer, textures, self.frame, quantize(self.angle))
         width, height = image.size
         center_x = self.pos.x + self.size / 2
@@ -121,7 +130,8 @@ def quantize(angle: float) -> int:
     valor. Ela existe para que isso deixe de ser uma suposicao: sem ela, um angulo
     fora da grade — vindo de um estado restaurado, de um ajuste futuro no passo de
     queda ou de um teste — pediria uma textura que ninguem pre-computou, e a rotacao
-    voltaria para dentro do frame, exatamente onde nao pode estar."""
+    voltaria para dentro do frame, exatamente onde nao pode estar.
+    """
     snapped = round(angle / ANGLE_FALL_STEP) * ANGLE_FALL_STEP
     return min(MAX_ANGLE_UP, max(MAX_ANGLE_DOWN, snapped))
 
@@ -142,7 +152,8 @@ def precompute_sprites(renderer: render.Renderer, textures: dict[str, pygame.Sur
     Chamada na inicializacao e de novo apos um redimensionamento, que descarta o cache
     de imagens do renderizador. Sem ela as texturas nasceriam sob demanda — uma por
     frame durante a primeira queda, que e justamente o momento em que o jogador esta
-    olhando o movimento."""
+    olhando o movimento.
+    """
     for frame in WING_FRAMES:
         for angle in ANGLES:
             _sprite(renderer, textures, frame, angle)
