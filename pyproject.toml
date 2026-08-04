@@ -3,6 +3,7 @@ name = "blocky-bee"
 version = "0.1.0"
 description = "Flappy Bird com tematica Minecraft em Python/Pygame — graficos e sons gerados por codigo, sem assets externos"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "pygame-ce>=2.5",
@@ -13,11 +14,20 @@ dev = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.7",
     "mkdocstrings[python]>=1.0.6",
+    "pre-commit>=4.6.1",
     "pyinstaller>=6.21.0",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pyyaml>=6.0.3",
     "ruff>=0.16.0",
     "ty>=0.0.65",
 ]
+
+[tool.pytest.ini_options]
+# R32.4: cobertura medida em toda execucao de `pytest`, nao so no CI. N fixado na
+# primeira medicao (96%, arredondada para baixo), ja acima da meta declarada de 90%
+# (design.md secao 42) — sobe conforme as tarefas avancam, nunca desce sem justificativa.
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=96"
 
 [tool.ruff]
 line-length = 110

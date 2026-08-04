@@ -8,13 +8,16 @@ O documento é vigiado por `tests/test_traceability.py`, que falha o build quand
 de aceitação não aparece aqui ou quando esta matriz referencia um teste inexistente (R32.2,
 R32.3). É o que impede a matriz de envelhecer em silêncio.
 
-> **Completa até a task 67.** Todo critério `R1.1`–`R34.5` de `requirements.md` tem uma linha.
-> Para os critérios cuja task implementadora ainda está pendente nesta versão (tasks 65, 66,
-> 68–73 — docstrings/site, o próprio teste da matriz, cobertura, README e fechamento com
-> aparelho real), a coluna Testes fica em branco: citar um teste ali seria inventar uma
-> referência que `tests/test_traceability.py` (task 68) rejeitaria. Critérios que só um
-> aparelho Android real comprova, sem nenhum caminho automatizável no desktop, usam o
-> marcador `manual`, seguindo o que `tasks.md` já separa em "Requer aparelho Android real".
+> **Completa até a task 79.** Todo critério `R1.1`–`R35.10` de `requirements.md` tem uma
+> linha. Para os critérios cuja task implementadora ainda está pendente nesta versão (tasks
+> 72–73 — build do APK em aparelho real e registro dos números medidos), a coluna Testes
+> fica em branco: citar um teste ali seria inventar uma referência que
+> `tests/test_traceability.py` rejeitaria. Critérios cuja implementação (tasks 65, 66, 69,
+> 71) já existe mas não tem um teste dedicado — o gate é o próprio
+> `ruff`/`mkdocs build --strict`/`pytest-cov`, ou o critério é sobre o conteúdo do
+> `README.md` em si — também ficam em branco pelo mesmo motivo. Critérios que só um aparelho
+> Android real comprova, sem nenhum caminho automatizável no desktop, usam o marcador
+> `manual`, seguindo o que `tasks.md` já separa em "Requer aparelho Android real".
 
 | Critério | Design | Task | Testes |
 |---|---|---|---|
@@ -173,8 +176,8 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 | R31.4 | 41 | 66 | |
 | R31.5 | 41 | 66 | |
 | R32.1 | 42 | 67 | |
-| R32.2 | 42 | 68 | |
-| R32.3 | 42 | 68 | |
+| R32.2 | 42 | 68 | `test_traceability.py::test_every_acceptance_criterion_is_in_the_matrix` |
+| R32.3 | 42 | 68 | `test_traceability.py::test_every_test_reference_in_the_matrix_resolves_to_a_real_function` |
 | R32.4 | 42 | 69 | |
 | R33.1 | 43 | 71 | |
 | R33.2 | 43 | 71 | |
@@ -186,3 +189,13 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 | R34.3 | 32.8 | 51 | `test_input.py::test_finger_tap_outside_the_canvas_is_ignored` |
 | R34.4 | 32.8 | 51 | `test_input.py::test_tap_on_a_band_starts_and_restarts_the_match` |
 | R34.5 | 32.8 | 51 | `test_mobs.py::test_the_whole_simulation_is_identical_with_and_without_mobs`, `test_input.py::test_tap_on_a_decorative_band_flaps` |
+| R35.1 | 44 | 74 | `test_repo_hygiene.py::test_the_license_file_is_mit_with_the_current_copyright_holder`, `test_repo_hygiene.py::test_readme_references_the_license_and_disclaims_the_minecraft_trademark` |
+| R35.2 | 44 | 74 | `test_repo_hygiene.py::test_pyproject_declares_the_same_license_as_the_license_file` |
+| R35.3 | 44 | 77 | `test_repo_hygiene.py::test_contributing_documents_the_branch_naming_convention`, `test_repo_hygiene.py::test_contributing_documents_commit_and_tag_conventions_and_the_hook_install_command` |
+| R35.4 | 44 | 78 | `test_repo_hygiene.py::test_changelog_follows_keep_a_changelog_with_an_unreleased_section`, `test_repo_hygiene.py::test_changelog_does_not_rewrite_pre_v3_history` |
+| R35.5 | 44 | 76 | `test_repo_hygiene.py::test_pre_commit_mirrors_the_ci_lint_and_type_gate`, `test_repo_hygiene.py::test_pre_commit_has_the_hygiene_hooks_ruff_and_ty_do_not_cover` |
+| R35.6 | 44 | 76 | `test_repo_hygiene.py::test_ci_also_runs_the_pre_commit_hooks` |
+| R35.7 | 44 | 75 | `test_repo_hygiene.py::test_editorconfig_is_root_and_normalizes_whitespace`, `test_repo_hygiene.py::test_gitattributes_normalizes_line_endings_and_marks_known_binaries` |
+| R35.8 | 44 | 79 | `test_repo_hygiene.py::test_dependabot_covers_uv_and_github_actions` |
+| R35.9 | 44 | 79 | `test_repo_hygiene.py::test_every_workflow_declares_least_privilege_permissions` |
+| R35.10 | 44 | 79 | `test_repo_hygiene.py::test_pull_request_template_points_back_to_the_sdd_workflow` |

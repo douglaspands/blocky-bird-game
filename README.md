@@ -3,6 +3,18 @@
 Flappy Bird com temática Minecraft, feito em Python/Pygame. Todos os gráficos e sons
 são gerados por código — sem assets externos.
 
+A tela inteira é aproveitada em qualquer proporção: a área jogável continua sendo
+exatamente a mesma coluna de 480×720 de mundo (a dificuldade não muda entre aparelhos),
+e o espaço que sobra vira faixa decorativa com cenário do universo Minecraft — céu
+estendido, chão mais fundo, corte transversal do subsolo do bioma atual e mobs que não
+interagem com o jogo. Tocar sobre a faixa também faz a abelha voar, então nenhuma parte
+da tela é zona morta. A renderização usa aceleração por GPU por padrão (com fallback
+automático até o caminho por superfície da v2, caso o aparelho não suporte), com todo
+o conteúdo estático pré-renderizado na inicialização — ver [Desempenho](#desempenho).
+
+Motivação do projeto, o que é Spec Driven Development e um prompt de exemplo para
+reproduzir o método em outro projeto: ver [Sobre este projeto e o método SDD](#sobre-este-projeto-e-o-metodo-sdd).
+
 ## Requisitos
 
 - Python >= 3.10
@@ -26,6 +38,34 @@ uv run main.py
 O controle é opcional: teclado e mouse funcionam normalmente sem ele, e conectar ou
 desconectar durante a partida não interrompe o jogo.
 
+## Desempenho
+
+O jogo renderiza com aceleração por GPU por padrão. Se o renderizador acelerado não
+puder ser criado, o sistema tenta um renderizador escolhido pelo próprio SDL antes de
+cair para o caminho de desenho por superfície da v2 — o jogo continua funcional em
+qualquer um dos três caminhos, sem exigir configuração do jogador.
+
+### Sobreposição de diagnóstico
+
+```bash
+BLOCKY_PERF=1 uv run main.py
+```
+
+Com `BLOCKY_PERF=1` (desligado por padrão, sem custo quando desligado), a tela exibe
+taxa de quadros, tempo de atualização, tempo de desenho e o caminho de renderização
+efetivamente em uso.
+
+### Benchmark
+
+```bash
+uv run scripts/benchmark.py
+```
+
+Roda sem display real (usa `SDL_VIDEODRIVER=dummy` internamente) e mede tempo por
+quadro (p50/p95) e volume de alocação por quadro nos estados PRONTO, JOGANDO (nos três
+biomas) e GAME_OVER, imprimindo uma tabela markdown comparável entre execuções. Use
+`--frames N` para ajustar a amostra de cada cenário.
+
 ## Testes
 
 ```bash
@@ -33,7 +73,22 @@ SDL_VIDEODRIVER=dummy uv run pytest
 ```
 
 `SDL_VIDEODRIVER=dummy` roda o Pygame sem abrir uma janela real, útil em CI e
-ambientes sem display.
+ambientes sem display. A suíte mede cobertura de `src/` a cada execução
+(`pyproject.toml::tool.pytest.ini_options`) e falha se cair abaixo do mínimo declarado.
+
+## Documentação
+
+```bash
+uv run mkdocs serve
+```
+
+Publica localmente (com recarregamento automático) a página de apresentação do
+projeto, a API extraída das docstrings de `src/` e os documentos de spec de todas as
+versões, lado a lado. `uv run mkdocs build --strict` gera o mesmo site em `site/` e é
+o que valida o build no CI antes do deploy para o GitHub Pages
+([`.github/workflows/docs.yml`](https://github.com/douglaspands/blocky-bird-game/blob/main/.github/workflows/docs.yml)).
+As dependências de documentação ficam restritas ao grupo `dev` — não entram no
+executável nem no APK empacotados.
 
 ## Gerar executável
 
@@ -57,6 +112,8 @@ builda o executável para Windows e Linux automaticamente e anexa aos assets da 
 - `BlockyBee-windows-x64-<tag>.zip`
 - `BlockyBee-linux-x64-<tag>.tar.bz2`
 - `BlockyBee-android-universal-<tag>.apk` (Android — celular/tablet, sempre em retrato, ver abaixo)
+
+Ver [`CHANGELOG.md`](https://github.com/douglaspands/blocky-bird-game/blob/main/CHANGELOG.md) para o que muda em cada versão.
 
 ## Instalar no Android (celular)
 
@@ -102,21 +159,129 @@ O APK gerado fica em `bin/*.apk`. Ver `buildozer.spec` e `specs/v2/design.md`
 ## Estrutura
 
 ```
-main.py           # Entry point
+main.py            # Entry point
 src/
-├── config.py      # Constantes (tela, fisica, gameplay)
-├── game.py        # Loop principal e maquina de estados
-├── bird.py        # Fisica e animacao do passaro
-├── pipes.py       # Colunas/obstaculos
-├── ground.py      # Chao rolante
-├── biome.py       # Overworld / Cave / Nether
-├── decor.py       # Parallax de fundo
-├── score.py       # Pontuacao e recorde (highscore.json)
-├── particles.py   # Particulas de bloco quebrando
-├── textures.py    # Texturas voxel proceduais
-├── sounds.py      # Audio sintetizado 8-bit
-├── input.py       # Teclado, mouse e controle Xbox
-└── ui.py          # HUD e telas (pronto/pausa/game over)
-specs/             # Documentos de requisitos, design e plano (versionados em specs/vN/)
-tests/             # Testes unitarios (pytest)
+├── config.py       # Constantes (tela, fisica, gameplay) e o viewport ativo
+├── game.py         # Loop principal, timestep fixo e maquina de estados
+├── viewport.py     # Canvas logico e area jogavel (faixas decorativas em qualquer proporcao)
+├── bands.py        # Faixas laterais: corte transversal do subsolo do bioma
+├── render.py       # Interface de render + cascata GPU -> SDL -> superficie
+├── bird.py         # Fisica e animacao do passaro
+├── pipes.py        # Colunas/obstaculos
+├── ground.py       # Chao rolante
+├── biome.py        # Overworld / Cave / Nether
+├── decor.py        # Parallax de fundo
+├── mobs.py         # Mobs decorativos das faixas (nao interagem com o jogo)
+├── score.py        # Pontuacao e recorde (highscore.json)
+├── storage.py      # Diretorio gravavel do recorde/qualidade por plataforma
+├── quality.py      # Qualidade adaptativa (mede FPS e ajusta o nivel visual)
+├── perf.py         # Instrumentacao: medicao por frame e sobreposicao de diagnostico
+├── particles.py    # Particulas de bloco quebrando
+├── textures.py     # Texturas voxel proceduais
+├── pixelfont.py    # Fonte bitmap propria, gerada por codigo
+├── sounds.py       # Audio sintetizado 8-bit
+├── input.py        # Teclado, mouse, toque e controle Xbox
+├── assets.py       # Resolucao de caminho de asset bundlado (empacotado ou nao)
+├── scale.py        # Escala/letterbox da resolucao logica para a janela real
+└── ui.py           # HUD e telas (pronto/pausa/game over)
+specs/              # Documentos de requisitos, design e plano (versionados em specs/vN/)
+scripts/            # generate_app_icon.py, benchmark.py
+docs/               # Esqueleto de inclusoes para o site MkDocs (ve Documentacao acima)
+tests/              # Testes unitarios (pytest)
+```
+
+## Contribuindo
+
+Convenções de branch, commit, tag e o fluxo de spec-antes-de-código estão em
+[`CONTRIBUTING.md`](https://github.com/douglaspands/blocky-bird-game/blob/main/CONTRIBUTING.md).
+
+## Licença
+
+Código sob a licença [MIT](LICENSE). A licença cobre o código deste repositório — não
+a marca **Minecraft**: todo gráfico e som do jogo é gerado por código, sem asset nem
+material da Mojang (ver [Sobre este projeto e o método SDD](#sobre-este-projeto-e-o-metodo-sdd)).
+
+## Sobre este projeto e o método SDD
+
+### Por que este projeto existe
+
+Duas motivações, sem rodeio. A primeira é estudar **Spec Driven Development (SDD)**
+na prática, num projeto real e pequeno o bastante para caber na cabeça inteiro. A
+segunda é fazer um jogo para o meu filho, o Pedro, que gosta de jogos e de Minecraft
+— o que explica escolhas que de outro modo pareceriam arbitrárias: a temática voxel,
+o fato de todo gráfico e som ser gerado por código (sem material da Mojang nem asset
+de terceiros) e os créditos ("por Douglas e Pedro") que estão no jogo desde a v1.
+
+### O que é Spec Driven Development
+
+SDD é desenvolver a partir de uma especificação que **governa** o código, em vez de
+um código que a especificação descreve depois de pronto. Na prática, neste
+repositório, isso significa:
+
+- **Três documentos por versão, escritos antes do código:** [`requirements.md`](specs/v3/requirements.md)
+  (o quê e por quê, em critérios de aceitação no formato EARS — `QUANDO <evento>, O
+  sistema DEVE <resposta>`), [`design.md`](specs/v3/design.md) (como, com as decisões
+  técnicas e os porquês de cada uma) e [`tasks.md`](specs/v3/tasks.md) (a ordem de
+  implementação, uma tarefa por vez).
+- **A spec como fonte da verdade, não o código.** Uma dúvida sobre "por que o jogo
+  faz X" se resolve lendo o requisito e a seção de design correspondente, não
+  arqueologia de commit.
+- **Uma tarefa por vez, marcada `[x]` só depois de validada** — testada, com
+  `ruff`/`ty`/`pytest` verdes — nunca antes.
+- **Pastas `specs/vN/` autocontidas e imutáveis.** Cada versão tem seus três
+  documentos completos, refletindo o estado inteiro do jogo naquele momento; versões
+  concluídas nunca são reescritas (ver [`specs/README.md`](specs/README.md)) — são
+  histórico, não rascunho.
+- **A matriz de rastreabilidade** ([`specs/v3/traceability.md`](specs/v3/traceability.md))
+  fechando o ciclo: uma linha por critério de aceitação, ligando requisito → design →
+  tarefa → teste, com um teste automatizado (`tests/test_traceability.py`) garantindo
+  que ela nunca fica desatualizada em silêncio.
+
+### Prompt de exemplo
+
+Um prompt pronto para uso, que planejaria e construiria um projeto como este seguindo
+o método — combinando a voz de quem define o produto com a de quem define a técnica.
+Cada parte vem com uma linha dizendo o porquê; o prompt é genérico o bastante para
+outro domínio, não amarrado a jogos.
+
+```text
+Você vai atuar em duas vozes para planejar e construir este projeto por Spec Driven
+Development (SDD): primeiro como Product Owner, depois como Tech Lead com prática em
+Python. Gere os três documentos de spec ANTES de escrever qualquer código.
+
+## Voz 1 — Product Owner
+
+- Objetivo do produto em uma frase.
+  (Uma frase força prioridade; se não cabe em uma frase, o escopo ainda não está claro.)
+- Público-alvo: quem usa e em que contexto.
+  (Molda decisões de UX e de plataforma que, sem isso, ficam arbitrárias.)
+- User stories no formato "Como <papel>, quero <ação>, para que <benefício>".
+  (O "para que" é o que evita construir a coisa certa pela razão errada.)
+- Critérios de aceitação em EARS para cada user story:
+  "QUANDO <evento>, O sistema DEVE <resposta>" (ou ENQUANTO/SE para condições
+  contínuas ou opcionais).
+  (Testável por construção — cada critério vira um teste, sem ambiguidade de "pronto".)
+- Uma seção explícita de "fora de escopo": o que este projeto DELIBERADAMENTE não
+  faz.
+  (É o item que mais falta em quem está começando, e o que evita que o agente invente
+  funcionalidade não pedida.)
+
+## Voz 2 — Tech Lead com prática em Python
+
+- Stack e versão mínima, gerenciamento de dependências com `uv` (`uv sync`,
+  `uv run`), estrutura de pastas do pacote.
+  (Fixa o ambiente de execução antes de qualquer decisão de design depender dele.)
+- Ferramental de qualidade como GATE, não como sugestão: `ruff` (lint + formatação),
+  `ty` (tipos) e `pytest`, todos rodando em CI.
+  (Sem gate automatizado, "qualidade" vira promessa que ninguém confere.)
+- Restrições de design explícitas (ex.: sem asset externo; nenhuma dependência que
+  não rode no alvo de deploy).
+  (Restrição dita cedo é decisão; restrição descoberta tarde é retrabalho.)
+- Protocolo de trabalho: gerar `requirements.md`, `design.md` e `tasks.md` antes de
+  codar; implementar uma tarefa de `tasks.md` por vez, na ordem; testar cada uma;
+  marcar `[x]` só depois de validada.
+  (É o que faz a spec continuar governando o código depois da primeira tarefa, e não
+  só na primeira hora do projeto.)
+
+Ao final de cada tarefa, pare e aguarde validação antes de seguir para a próxima.
 ```

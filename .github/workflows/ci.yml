@@ -2,6 +2,9 @@ name: CI
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
@@ -23,7 +26,10 @@ jobs:
       - name: Type check (ty)
         run: uv run ty check .
 
-      - name: Run tests
+      - name: Pre-commit hooks (R35.5, R35.6 — enforced even without local install)
+        run: uv run pre-commit run --all-files
+
+      - name: Run tests (with coverage gate, R32.4)
         env:
           SDL_VIDEODRIVER: dummy
         run: uv run pytest

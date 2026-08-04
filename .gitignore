@@ -26,6 +26,9 @@ bin/
 # Site de documentacao gerado (task 66) — publicado pelo CI, nao versionado
 site/
 
+# Relatorio de cobertura gerado a cada `pytest` (task 69, R32.4) — medicao local
+.coverage
+
 # Configuracao local do Claude Code (maquina/usuario especifico)
 .claude/settings.local.json
 .claude/scheduled_tasks.lock

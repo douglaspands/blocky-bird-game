@@ -5,8 +5,9 @@
 ## Descrição
 
 A v3 renomeia o jogo para **Blocky Bee** — o personagem sempre foi uma abelha, e "Bird" era
-herança do gênero — e ataca quatro problemas que sobraram da v2, todos ligados à experiência
-real no Android.
+herança do gênero — ataca quatro problemas que sobraram da v2, todos ligados à experiência
+real no Android, e acrescenta boas práticas de Git/GitHub esperadas de um projeto Python
+público.
 
 **Aproveitamento de tela.** A v2 desenhava numa janela de 480×720 centralizada na tela do
 aparelho, o que deixava barra preta nos quatro lados. A v3 cria o display em tela cheia e
@@ -42,11 +43,21 @@ prova — vigiada por um teste que quebra o build se um requisito ficar sem rast
 cobertura mínima no CI. O `README.md` passa a explicar a motivação do projeto e a trazer um
 prompt de exemplo, para que o método seja reproduzível por quem está começando.
 
+**Boas práticas de Git e GitHub.** As convenções de branch, commit e tag já em uso
+informalmente (`main`/`release/vN`/`feature/<slug>`, commits imperativos citando a task,
+tags `vMAJOR.MINOR.PATCH`) passam a estar documentadas em `CONTRIBUTING.md`. O projeto ganha
+`LICENSE` (MIT), `CHANGELOG.md`, hooks de pre-commit que espelham o gate de CI (`ruff`, `ty`)
+mais checagens básicas de higiene — rodados também no próprio CI, para valer mesmo sem
+instalação local —, `.editorconfig`/`.gitattributes` para final de linha consistente entre o
+desenvolvimento no Windows e o CI no Linux, Dependabot para as dependências Python e as
+GitHub Actions, `permissions` de menor privilégio em todo workflow, e um template de Pull
+Request.
+
 ## Conteúdo desta pasta
 
-- [`requirements.md`](requirements.md) — requisitos R1–R34 em formato EARS. R1–R13 são o jogo base (v1); R14–R17 são a entrega Android e R18–R21 os aumentos de escopo da v2; **R22–R34 são da v3** (identidade, tela e orientação, preservação da dificuldade, faixas decorativas, GPU, desempenho, timestep, qualidade adaptativa, instrumentação, documentação, rastreabilidade, motivação/método e entrada em toda a área visível).
-- [`design.md`](design.md) — arquitetura técnica. Parte I (seções 1–18) é o jogo base; Parte II (19–25) é Android; Parte III (26–28) é qualidade; Parte IV (29) é o ícone; **Parte V (30–43) é a v3**.
-- [`tasks.md`](tasks.md) — plano incremental. Tasks 1–19 são o histórico da v1; 20–41 são a v2; **tasks 42–73 são a v3**.
+- [`requirements.md`](requirements.md) — requisitos R1–R35 em formato EARS. R1–R13 são o jogo base (v1); R14–R17 são a entrega Android e R18–R21 os aumentos de escopo da v2; **R22–R35 são da v3** (identidade, tela e orientação, preservação da dificuldade, faixas decorativas, GPU, desempenho, timestep, qualidade adaptativa, instrumentação, documentação, rastreabilidade, motivação/método, entrada em toda a área visível e boas práticas de Git/GitHub).
+- [`design.md`](design.md) — arquitetura técnica. Parte I (seções 1–18) é o jogo base; Parte II (19–25) é Android; Parte III (26–28) é qualidade; Parte IV (29) é o ícone; **Parte V (30–44) é a v3**.
+- [`tasks.md`](tasks.md) — plano incremental. Tasks 1–19 são o histórico da v1; 20–41 são a v2; **tasks 42–79 são a v3**.
 - [`traceability.md`](traceability.md) — matriz critério → design → task → teste, verificada por `tests/test_traceability.py`.
 
 ## O que muda em relação à v2

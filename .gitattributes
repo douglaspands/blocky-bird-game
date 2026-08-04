@@ -1,0 +1,8 @@
+# Normaliza para LF: o desenvolvimento acontece no Windows (core.autocrlf=true local)
+# e o CI roda em ubuntu-latest — sem isto, um clone novo pode mostrar o repo inteiro
+# como alterado só por causa do final de linha (design.md secao 44).
+* text=auto eol=lf
+
+# Binarios versionados hoje (assets/): nunca passam pela normalizacao de texto.
+*.png binary
+*.ico binary

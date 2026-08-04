@@ -718,17 +718,53 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 
   **Conferido por script, não por leitura.** Duas verificações automatizadas rodaram sobre o arquivo: (1) todo `RN.M` de `requirements.md` aparece exatamente uma vez na matriz, sem sobra nem falta; (2) toda referência `arquivo.py::funcao` citada (197 no total) resolve para um `def` real em `tests/`. As colunas de Design foram checadas por amostragem contra os cabeçalhos reais (`##`/`###`) de `design.md` — inclusive as decimais (`32.4`, `21.2`), que já eram o formato usado no exemplo original da seção 42 do próprio design.md.
 
-- [ ] **68. Teste que verifica a matriz (`tests/test_traceability.py`)**
+- [x] **68. Teste que verifica a matriz (`tests/test_traceability.py`)**
   Parse de `requirements.md` extraindo todo critério `RN.M`; falha se algum não estiver na matriz e falha se a matriz citar um teste inexistente. É o que impede o documento de envelhecer em silêncio. _(R32.2, R32.3)_
 
-- [ ] **69. Cobertura mínima no CI**
+  **A pasta de spec é resolvida em tempo de execução (`specs/vN` de maior `N`), não fixada em `"v3"`.** O convênio do projeto (`CLAUDE.md`) é que a versão vigente é sempre a de maior número; fixar o caminho em `specs/v3/` faria este teste precisar de edição manual no dia em que `specs/v4/` nascer — exatamente o tipo de manutenção esquecível que a task existe para eliminar.
+
+  **Extração de `requirements.md` por seção, não por regex global.** O arquivo tem uma exceção de formato: R9 ("Requisitos não funcionais") não tem o cabeçalho `### Critérios de aceitação` que todas as outras seções têm — a lista numerada vem direto sob o `## R9`. Dividir o texto por `## R\d+` primeiro e procurar `^\d+\. ` dentro de cada fatia cobre os dois formatos sem precisar tratar R9 como caso especial; o total bateu com os 168 critérios que a task 67 já tinha contado por script.
+
+  **Duas asserções, não uma.** Além de "todo critério tem linha" (R32.2), um segundo teste cobre o sentido oposto — uma linha sobrando na matriz sem critério correspondente, rastro de um requisito renumerado ou removido sem atualizar `traceability.md`. R32.2 não pede isso literalmente, mas é o mesmo tipo de silêncio que a task quer impedir.
+
+  **Resolução de teste via `ast`, não `import` nem regex sobre o nome da função.** Fazer `ast.parse` de cada arquivo de `tests/` citado e coletar todo `FunctionDef`/`AsyncFunctionDef` (em qualquer nível, não só no módulo) evita importar os módulos de teste — que têm efeito colateral via fixtures do `conftest.py` — só para checar se um nome existe.
+
+  **Suíte completa (517 testes, +3 desta task), `ruff check`, `ruff format --check` e `ty check` sem violações.** Os 197 `arquivo.py::funcao` citados na matriz resolvem todos para uma função real; nenhum critério de `requirements.md` ficou de fora.
+
+- [x] **69. Cobertura mínima no CI**
   `pytest-cov` no grupo `dev`, `--cov=src --cov-fail-under=N` no `pyproject.toml`, com `N` fixado na primeira medição arredondada para baixo e meta declarada de 90%. Adicionar o relatório ao job de CI. _(R32.4)_
 
-- [ ] **70. Atualizar `README.md` e checklists**
+  **Primeira medição: 96,80% (1725/1782 linhas de `src/`), `N` fixado em 96.** Já folgado acima da meta declarada de 90% — o número existia para não travar o CI no primeiro commit caso o ponto de partida fosse baixo, e não foi o caso. `input.py` (79%) e `render.py` (92%) são os módulos mais furados: o primeiro por ramos de hotplug de joystick sem hardware real para exercitar, o segundo pela cascata de fallback do renderizador acelerado (task 49), cujos ramos de erro exigem simular falha de criação de `Window`/`Renderer` do SDL.
+
+  **Configuração inteira em `pyproject.toml` (`[tool.pytest.ini_options]`), não como flag só do CI.** `addopts = "--cov=src --cov-report=term-missing --cov-fail-under=96"` roda em todo `uv run pytest`, local ou no CI — mesma filosofia de "gate sem infraestrutura nova" já usada pelo `ruff` (task 65): o job de CI não precisa de um passo novo, só o `uv run pytest` que já existia agora imprime a tabela de cobertura (`--cov-report=term-missing`) e falha se cair abaixo de 96%. Renomeado o step do `ci.yml` para deixar o gate visível no log ("Run tests (with coverage gate, R32.4)").
+
+  **Suíte completa (517 testes) segue verde com o gate ativo**, `ruff check`, `ruff format --check` e `ty check` sem violações. `.coverage` (o relatório binário que o `pytest-cov` grava a cada execução) foi para o `.gitignore`, ao lado de `site/`: é medição local que muda a cada rodada, não fonte do projeto.
+
+- [x] **70. Atualizar `README.md` e checklists**
   Nome novo, faixas decorativas, aceleração por GPU, e instruções de documentação, benchmark e sobreposição de diagnóstico. Checklist de verificação manual da v3 no formato já usado na v2. _(R22.1, R23.1, R30.1)_
 
-- [ ] **71. Motivação e método SDD no `README.md`**
+  **A "checklist no formato já usado na v2" é a seção `## Checklist de verificação da v3` já existente neste arquivo** (introduzida na task 67, no mesmo formato de duas listas — desktop/CI e "requer aparelho Android real" — que a v2 usa logo acima, em `## Checklist de verificação da v2`). O `README.md` nunca teve checklist própria em nenhuma versão (conferido em `git log -p -- README.md`); a "atualização de checklists" desta task é revisar essa seção e marcar `[x]` o que já tem teste passando, não criar uma nova.
+
+  **11 itens da checklist da v3 estavam com teste já verde havia várias tasks, só sem o `[x]` marcado** — `tests/test_mobs.py`, `tests/test_input.py` (faixas decorativas e mudo), `tests/test_render.py` (cascata e zero alocação), `tests/test_alloc.py`, `tests/test_decor.py` e `tests/test_game.py` (escrita em disco fora de JOGANDO) já cobriam R25.4, R25.6, R26.2–R26.3, R27.2–R27.3, R27.5, R34.2–R34.5 desde as tasks 49–61; e o nome ("Blocky Bee" em `config.TITLE`, `BlockyBee.spec`, `buildozer.spec`, `release.yml`) e a integridade de `specs/v1/`/`specs/v2/` (R22.1, R22.4) só precisavam de inspeção, já verdadeira desde a task 42. Rodar a suíte de novo (`pytest tests/test_mobs.py tests/test_input.py tests/test_render.py tests/test_game.py tests/test_alloc.py tests/test_decor.py`) confirmou os 219 testes envolvidos passando antes de marcar.
+
+  **`README.md` ganhou três coisas que não existiam desde a v1/v2:** uma seção **Desempenho** (aceleração por GPU e a cascata de fallback, `BLOCKY_PERF=1` para a sobreposição de diagnóstico, e `uv run scripts/benchmark.py` — os três comandos testados de verdade neste ambiente antes de documentar); uma seção **Documentação** (`uv run mkdocs serve`/`build --strict`, dependências restritas ao grupo `dev`); e a árvore de `Estrutura`, que ainda listava os 12 módulos da v1/v2 e ficou muda sobre os 11 que a v3 acrescentou (`viewport.py`, `render.py`, `bands.py`, `mobs.py`, `quality.py`, `perf.py`, `storage.py`, `assets.py`, `scale.py`, `pixelfont.py`, além de `scripts/` e `docs/`).
+
+  **A introdução ganhou um parágrafo sobre faixas decorativas e GPU, e um link para a seção da task 71** (`#sobre-este-projeto-e-o-método-sdd`) — a âncora não existe até aquela task rodar; `mkdocs build --strict` confirma isso como `INFO` (não como erro, porque o link é interno ao Markdown puro, fora do escopo do `--strict` do `mkdocs`), e a lacuna fecha na task seguinte.
+
+  **Suíte completa (517 testes), `ruff check` e `ruff format --check` sem violações.** Nenhum arquivo de `src/`, `scripts/` ou `tests/` mudou nesta task — só documentação — então `ty check` não tinha o que checar de novo.
+
+- [x] **71. Motivação e método SDD no `README.md`**
   Três blocos, reaproveitados como página inicial do site: **por que este projeto existe** (estudar SDD na prática e fazer um jogo para o filho, que gosta de jogos e de Minecraft — o que também explica a temática e o `CREDITS` que está no jogo desde a v1); **o que é SDD**, ancorado nos artefatos deste repositório; e um **prompt de exemplo** pronto para uso, combinando voz de Product Owner (objetivo, público, user stories, critérios EARS, fora de escopo) e de Tech Lead com prática em Python (stack, `uv`, estrutura, `ruff`/`ty`/`pytest` como gate, restrições, e o protocolo de gerar os três documentos antes de codar e implementar uma task por vez), com uma linha explicando o porquê de cada parte e genérico o bastante para servir a outro projeto. _(R33.1, R33.2, R33.3, R33.4, R33.5)_
+
+  **A seção nova (`## Sobre este projeto e o método SDD`) vira a página inicial do site de graça** — `docs/index.md` já era só `--8<-- "README.md"` (task 66), então o `README.md` inteiro, com o bloco novo no fim, aparece na home do MkDocs sem tocar em `docs/`.
+
+  **O link da introdução para a seção precisou do slug sem acento (`#sobre-este-projeto-e-o-metodo-sdd`), não `#...-método-sdd`.** O `mkdocs`/Python-Markdown remove diacríticos ao gerar o `id` do cabeçalho; um link com o "é" acentuado passava no `ruff`/`pytest` (não é código) mas quebraria silenciosamente no site. Pego só porque `uv run mkdocs build --strict` foi rodado depois de escrever o link — sem isso o erro não apareceria em nenhum teste automatizado deste projeto (nenhuma task pede lint de link interno de Markdown fora do `mkdocs --strict`).
+
+  **O "o que é SDD" cita artefatos reais do próprio repositório, com link relativo para cada um** — `specs/v3/requirements.md`, `design.md`, `tasks.md`, `traceability.md` e `specs/README.md` — em vez de descrever o método em abstrato. É o mesmo argumento que já justificou a escolha do MkDocs na task 66: numa spec que governa código, apontar para o artefato de verdade é mais convincente que resumi-lo.
+
+  **O prompt de exemplo não menciona jogo, Pygame nem Blocky Bee em lugar nenhum** — só "este projeto" e placeholders de domínio — para cumprir R33.5 (genérico o bastante para outro ponto de partida) sem precisar de uma segunda versão "genérica" do texto.
+
+  **Nenhum arquivo de `src/`, `scripts/` ou `tests/` mudou** — só `README.md` — então a suíte de 517 testes, `ruff check`, `ruff format --check` e `ty check` seguem no mesmo estado da task 70; a validação desta task foi `uv run mkdocs build --strict` (limpo, sem `ERROR`/`WARNING` novos) confirmando que o link resolve.
 
 ### Bloco J — Fechamento
 
@@ -738,25 +774,89 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 - [ ] **73. Registrar os números medidos**
   Preencher o bloco `BASELINE` da seção 30 do `design.md` com antes/depois e anotar em cada task o que foi validado aqui e o que dependeu de aparelho real, no estilo já usado na v2. _(R30.5)_
 
+### Bloco K — Higiene de Git e GitHub
+
+- [x] **74. `LICENSE` (MIT) e metadados**
+  `LICENSE` no root com a licença MIT; `pyproject.toml` ganha o campo `license`; `README.md` ganha uma seção curta explicando que a licença cobre o código, não a marca Minecraft. Cria `tests/test_repo_hygiene.py`. _(R35.1, R35.2)_
+
+  **`pyproject.toml` não tem `[build-system]`** — o projeto não publica um pacote instalável, só usa `uv`/PyInstaller/Buildozer diretamente. O campo `license = "MIT"` (string SPDX, PEP 639) ainda é válido e lido por `uv sync` sem exigir um backend de build; confirmado rodando `uv sync` depois da mudança.
+
+  **O teste do campo `license` não usa `tomllib`.** `tomllib` só existe a partir do Python 3.11, e o projeto fixa `requires-python >= 3.10` (o ambiente de desenvolvimento roda 3.10.20) — importar `tomllib` quebraria a suíte na CPython mínima suportada. Em vez de puxar um parser TOML de terceiros só para ler uma linha, o teste isola o bloco `[project]` por `str.split` e confere o campo por regex.
+
+  **O disclaimer de marca no `README.md` quebrou o primeiro teste por causa da quebra de linha do Markdown** — "não" e "a marca" caíram em linhas fonte diferentes (só se juntam depois de renderizado), então `"não a marca" in text` falhava contra o texto bruto. Trocado por `"marca **Minecraft**"`, que fica inteiro numa linha só.
+
+  **Suíte completa (520 testes, +3 desta task), `ruff check` e `ruff format --check` sem violações.**
+
+- [x] **75. `.editorconfig` e `.gitattributes`**
+  `.editorconfig` com regras globais e por tipo de arquivo; `.gitattributes` normalizando final de linha para LF, com os binários versionados (`.png`, `.ico`) marcados explicitamente. _(R35.7)_
+
+  **`.editorconfig` desliga `trim_trailing_whitespace` para `.md`.** É a única exceção às regras globais: dois espaços no fim de uma linha de Markdown são uma quebra de linha manual (`<br>`), não sujeira — um editor que os removesse automaticamente mudaria a renderização sem ninguém perceber.
+
+  **`.gitattributes` foi validado de verdade, não só por leitura.** `git add --renormalize .` (a forma de aplicar a regra nova a todo o histórico já commitado) foi rodado como checagem: comparado contra `HEAD`, o único conteúdo que mudou de estado foi exatamente as edições desta sessão (as mesmas 11 linhas de arquivo já esperadas) — nenhuma reescrita de final de linha em massa em arquivo já commitado, então `* text=auto eol=lf` não conflita com o que já está no repositório. Staging desfeito com `git reset` depois da checagem — nenhum commit criado por esta task.
+
+  **Suíte completa (522 testes, +2 desta task), `ruff check` e `ruff format --check` sem violações.**
+
+- [x] **76. `.pre-commit-config.yaml` e o mesmo gate também no CI**
+  Hooks espelhando `ruff check`/`ruff format`/`ty check` mais checagens básicas de higiene; `pre-commit` no grupo `dev`; novo step em `ci.yml` rodando os mesmos hooks, para o gate valer mesmo sem instalação local. _(R35.5, R35.6)_
+
+  **A primeira rodada de `uv run pre-commit run --all-files` "corrigiu" 82 arquivos — e isso era esperado, não um bug.** O hook `mixed-line-ending` reescreveu CRLF→LF no diretório de trabalho inteiro, porque o Windows local tem `core.autocrlf=true` e o `.gitattributes` novo (task 75) declara `eol=lf`. Verificado que era inofensivo antes de seguir: `git diff --stat` contra `HEAD` continuou mostrando só os 11 arquivos desta sessão — os outros 71 são bytes que `core.autocrlf` já tratava como equivalentes ao blob armazenado (confirmado fazendo `git add` num deles e vendo `git status` não acusar nada). Nenhum commit foi criado por esta verificação; o `git add`/`git reset` de teste foi desfeito.
+
+  **`pyyaml` entrou no grupo `dev`, explícito, mesmo já vindo transitivamente pelo `mkdocs`.** Os testes desta task fazem `import yaml` para validar o `.pre-commit-config.yaml` e (task 79) o `dependabot.yml`/`ci.yml` — depender de uma transitiva não declarada quebraria silenciosamente se o `mkdocs` um dia deixasse de precisar dela.
+
+  **`ty` entra como hook `local`/`language: system`, não um repo externo.** Diferente do `ruff` (que tem `astral-sh/ruff-pre-commit` mantido pela Astral), o `ty` ainda não tem repositório oficial de pre-commit — `uv run ty check .` usa a mesma versão pinada em `uv.lock` que o CI já roda, em vez de abrir uma segunda fonte de verdade isolada.
+
+  **O CI ganhou um step novo (`pre-commit run --all-files`) que reexecuta `ruff-check`/`ruff-format` por cima dos steps que já existiam.** Redundância intencional, documentada na seção 44 do design: os hooks de higiene (`trailing-whitespace`, `check-yaml` etc.) não são cobertos por nenhum dos três gates existentes, e um gate que só vale com instalação local lembrada não é gate.
+
+  **Validado de ponta a ponta:** `uv run pre-commit install` + `uv run pre-commit run --all-files` limpo (10 hooks, todos verdes) depois da normalização; suíte completa (525 testes, +3 desta task), `ruff check`, `ruff format --check` e `ty check` sem violações.
+
+- [x] **77. `CONTRIBUTING.md`**
+  Documenta as convenções de branch, commit e tag já em uso informalmente, e aponta para a seção de SDD do `README.md` e para a instalação do hook de pre-commit. _(R35.3)_
+
+  **O link do `README.md` para `CONTRIBUTING.md` precisou ser absoluto (URL do GitHub), não relativo.** `CONTRIBUTING.md` fica na raiz do repositório, fora de `docs/` — um link relativo `[CONTRIBUTING.md](CONTRIBUTING.md)` fazia `uv run mkdocs build --strict` falhar (`WARNING - ... target is not found among documentation files`), porque o `README.md` inteiro vira a home do site (task 71) mas `CONTRIBUTING.md` não tem stub em `docs/`. Mesmo ajuste que a task 66 já fez para o link de `release.yml`; `LICENSE` não precisou do mesmo tratamento porque, sem extensão `.md`, o mkdocs só registra um `INFO` (link deixado como está), não um `WARNING` que quebra o `--strict`.
+
+  **`CONTRIBUTING.md` não duplica o "o que é SDD" do `README.md`** — só linka para lá. O conteúdo novo é só o que ainda não existia: convenções de git (branch/commit/tag) e o checklist de pré-PR.
+
+  **Suíte completa (528 testes, +3 desta task), `ruff check`, `ruff format --check` sem violações, `uv run mkdocs build --strict` limpo (0 avisos).**
+
+- [x] **78. `CHANGELOG.md`**
+  Formato Keep a Changelog, com seção "Não lançado" para a v3 em andamento e nota apontando para `specs/vN/README.md`/Releases do GitHub para o histórico anterior. _(R35.4)_
+
+  **O link do `README.md` para `CHANGELOG.md` também precisou ser absoluto**, pelo mesmo motivo do `CONTRIBUTING.md` na task 77 — `uv run mkdocs build --strict` confirmado limpo depois do ajuste, antes de seguir.
+
+  **A seção "Não lançado" resume a v3 em cinco bullets, sem duplicar `specs/v3/README.md`** — que é a fonte de verdade detalhada, linkada logo no início da seção. O `CHANGELOG.md` existe para quem quer o resumo rápido "o que mudou", não para reescrever o design.
+
+  **Suíte completa (530 testes, +2 desta task), `ruff check`, `ruff format --check` sem violações, `uv run mkdocs build --strict` limpo.**
+
+- [x] **79. Dependabot, `permissions` de menor privilégio e template de PR**
+  `.github/dependabot.yml` (ecossistemas `uv` e `github-actions`); `permissions: contents: read` em `ci.yml`; `.github/PULL_REQUEST_TEMPLATE.md` lembrando o fluxo SDD. _(R35.8, R35.9, R35.10)_
+
+  **`docs.yml` e `release.yml` já declaravam `permissions` — só `ci.yml` estava sem.** O teste (`test_every_workflow_declares_least_privilege_permissions`) confere os três, não só o que mudou, para a lacuna não voltar sem ser notada se um workflow novo entrar sem o bloco.
+
+  **O teste do Dependabot confere o conjunto exato de ecossistemas (`{"uv", "github-actions"}`), não só que "uv" está presente** — um `"pip"` colado por engano ao lado (achado comum ao copiar exemplos da documentação do GitHub) passaria numa checagem de subconjunto e ficaria lendo o ecossistema errado silenciosamente.
+
+  **Fecha o Bloco K.** Todas as dez linhas de `R35` na matriz de rastreabilidade têm teste agora — nenhuma ficou em branco por falta de tempo, diferente de `R31`/`R33`, onde o gate é mesmo o CI (não um `test_*`).
+
+  **Suíte completa (533 testes, +3 desta task), `ruff check`/`ruff format --check`/`ty check` sem violações, `uv run pre-commit run --all-files` limpo (10 hooks), `uv run mkdocs build --strict` limpo.**
+
 ## Checklist de verificação da v3
 
 Verificável automaticamente / no desktop:
 
-- [ ] Nome "Blocky Bee" em título, tela inicial, `.spec` do PyInstaller, `buildozer.spec` e artefatos de release (R22.1) — teste de `TITLE` e inspeção dos arquivos de build
+- [x] Nome "Blocky Bee" em título, tela inicial, `.spec` do PyInstaller, `buildozer.spec` e artefatos de release (R22.1) — `config.TITLE`, `BlockyBee.spec::name`, `tests/test_packaging.py::test_the_app_is_named_blocky_bee`, nomes dos artefatos em `release.yml` — inspeção (sem teste automatizado dedicado ao `set_caption`)
 - [x] `package.name = blockybee` e INI bem formado (R22.2) — validação via `configparser` (`tests/test_packaging.py`)
-- [ ] `specs/v1/` e `specs/v2/` intactas, com o nome antigo preservado (R22.4) — inspeção
+- [x] `specs/v1/` e `specs/v2/` intactas, com o nome antigo preservado (R22.4) — inspeção (nenhum arquivo de `specs/v1/` ou `specs/v2/` tocado nesta versão)
 - [x] Canvas lógico com a proporção da tela, área jogável sempre 480×720 (R23.4, R24.1) — `tests/test_viewport.py`
 - [x] Bandas fecham exatamente com o canvas, sem pixel perdido (R23.4) — `tests/test_viewport.py`
 - [x] Nenhuma constante de física ou de bioma alterada (R24.2) — inspeção + testes de física da v1/v2 ainda verdes, mais `tests/test_bands.py::test_fall_is_identical_in_both_canvases`
 - [x] Coluna nasce em `play.right` e não aparece fora da área jogável (R24.3, R24.4) — `tests/test_bands.py`
 - [x] Teto do voo na borda da área jogável, não do canvas (R24.5) — `tests/test_bands.py`
 - [x] Redimensionar a janela recalcula canvas e faixas, mantendo a área jogável (R23.6) — `tests/test_resize.py`
-- [ ] Mobs sempre fora da área jogável, sem efeito em colisão ou pontuação (R25.4, R34.5) — `tests/test_mobs.py`
-- [ ] Toque/clique em faixa decorativa dispara a ação de voar, com o ícone de mudo como única exceção (R25.6, R34.1, R34.4) — `tests/test_input.py`
-- [ ] Mouse e toque no mesmo ponto produzem a mesma ação; coordenada fora do canvas é ignorada (R34.2, R34.3) — `tests/test_input.py`
-- [ ] Cascata de render cai de nível sem levantar exceção (R26.2, R26.3) — `tests/test_render.py`
-- [ ] Zero `transform.rotate`, `random.Random` ou Surface nova durante o desenho (R27.2, R27.3) — `tests/test_render.py`
-- [ ] Sem escrita em disco durante JOGANDO (R27.5) — `tests/test_game.py`
+- [x] Mobs sempre fora da área jogável, sem efeito em colisão ou pontuação (R25.4, R34.5) — `tests/test_mobs.py`
+- [x] Toque/clique em faixa decorativa dispara a ação de voar, com o ícone de mudo como única exceção (R25.6, R34.1, R34.4) — `tests/test_input.py`
+- [x] Mouse e toque no mesmo ponto produzem a mesma ação; coordenada fora do canvas é ignorada (R34.2, R34.3) — `tests/test_input.py`
+- [x] Cascata de render cai de nível sem levantar exceção (R26.2, R26.3) — `tests/test_render.py`
+- [x] Zero `transform.rotate`, `random.Random` ou Surface nova durante o desenho (R27.2, R27.3) — `tests/test_render.py`, `tests/test_alloc.py`, `tests/test_decor.py`
+- [x] Sem escrita em disco durante JOGANDO (R27.5) — `tests/test_game.py`
 - [x] `FINGERMOTION`/`MOUSEMOTION` bloqueados (R27.6) — `tests/test_input.py`
 - [x] Timestep fixo: 1 passo a 60 FPS, 2 a 30, teto respeitado em stall (R28.1–R28.3) — `tests/test_game.py`
 - [x] Estado após N frames idêntico ao da v2 a 60 FPS (R28.4) — `tests/test_game.py`
@@ -764,8 +864,16 @@ Verificável automaticamente / no desktop:
 - [x] Histerese impede oscilação de nível (R29.4) — `tests/test_quality.py`
 - [x] `ruff check` sem violações de docstring (R31.1–R31.3) — CI
 - [x] `mkdocs build --strict` sem avisos (R31.4) — CI
-- [ ] Todo critério de aceitação presente na matriz (R32.2) — `tests/test_traceability.py`
-- [ ] Cobertura acima do mínimo declarado (R32.4) — CI
+- [x] Todo critério de aceitação presente na matriz (R32.2, R32.3) — `tests/test_traceability.py`
+- [x] Cobertura acima do mínimo declarado (R32.4) — CI, `pyproject.toml::tool.pytest.ini_options` (96% medidos, piso em 96%)
+- [x] `LICENSE` MIT presente e referenciada no `README.md` e no `pyproject.toml` (R35.1, R35.2) — `tests/test_repo_hygiene.py`
+- [x] Convenções de branch/commit/tag documentadas em `CONTRIBUTING.md` (R35.3) — `tests/test_repo_hygiene.py`
+- [x] `CHANGELOG.md` no formato Keep a Changelog, com seção "Não lançado" (R35.4) — `tests/test_repo_hygiene.py`
+- [x] Hooks de pre-commit espelham o gate de CI e rodam também no `ci.yml` (R35.5, R35.6) — `tests/test_repo_hygiene.py`, `uv run pre-commit run --all-files`
+- [x] `.editorconfig`/`.gitattributes` com final de linha LF e binários marcados (R35.7) — `tests/test_repo_hygiene.py`
+- [x] Dependabot cobrindo `uv` e `github-actions` (R35.8) — `tests/test_repo_hygiene.py`
+- [x] Todo workflow com `permissions` de menor privilégio (R35.9) — `tests/test_repo_hygiene.py`
+- [x] Template de Pull Request presente (R35.10) — `tests/test_repo_hygiene.py`
 - [ ] Ganho medido contra o baseline (R30.5) — `scripts/benchmark.py`
 
 Requer aparelho Android real:
