@@ -31,6 +31,14 @@ Ver [`specs/v3/README.md`](specs/v3/README.md) para a descrição completa. Resu
   rastreabilidade verificada por teste automatizado.
 - Boas práticas de Git/GitHub: `LICENSE`, `CONTRIBUTING.md`, hooks de pre-commit
   espelhando o gate de CI, Dependabot, `permissions` de menor privilégio.
+- Última pontuação exibida acima do recorde na tela inicial, quando há uma partida
+  encerrada nesta execução.
+
+### Fixed
+
+- Colisão sensível demais nos cantos de coluna e do chão, causada pela hitbox reta não
+  acompanhar a rotação do sprite da abelha — agora exige sobreposição mínima nos dois
+  eixos antes de contar como colisão.
 
 ## Anterior à v3
 

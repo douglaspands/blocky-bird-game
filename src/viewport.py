@@ -29,12 +29,15 @@ PLAY_H = 720
 """Area jogavel em coordenadas de mundo. Imutavel: e a calibracao de dificuldade da
 v1 (task 12), que a v3 se compromete a nao mexer (R24.1)."""
 
-MAX_GROUND_EXTRA = 2 * BLOCK
-"""Teto do que a sobra vertical pode virar de chao: ate 2 fileiras de bloco.
+MAX_SKY_EXTRA = 2 * BLOCK
+"""Teto do que a sobra vertical pode virar de ceu: ate 2 fileiras de bloco.
 
-O limite existe para que uma tela muito alongada nao vire uma tira fina de jogo sobre
-um bloco de terra gigante; o que passa disso vai para o ceu, que absorve altura sem
-parecer estranho. O valor foi escolhido por inspecao visual, nao por analise."""
+O limite existe para que uma tela muito alongada nao vire um ceu gigante — gradiente do
+tamanho do canvas, parallax e um campo inteiro de mobs espalhados por uma faixa que pode
+passar de 250px de altura num celular alto, exatamente o tipo de decoracao mais caro de
+desenhar. O que passa disso vai para o chao, que e uma faixa tileavel sem gradiente nem
+parallax e por isso absorve altura sem custar mais. O valor foi escolhido por inspecao
+visual, nao por analise."""
 
 DESKTOP_WINDOW = (960, 720)
 """Janela padrao do desktop: mais larga que a area jogavel, para as faixas laterais
@@ -108,8 +111,8 @@ def compute(screen_w: int, screen_h: int) -> Viewport:
     """Deriva o canvas logico e a area jogavel de um tamanho real de tela ou janela.
 
     O canvas recebe a proporcao da tela e cresce a partir da area jogavel, nunca
-    encolhendo abaixo dela. A sobra vertical vira chao (ate `MAX_GROUND_EXTRA`) e o
-    resto vira ceu; a sobra horizontal vira faixa lateral, com a area jogavel
+    encolhendo abaixo dela. A sobra vertical vira ceu (ate `MAX_SKY_EXTRA`) e o
+    resto vira chao; a sobra horizontal vira faixa lateral, com a area jogavel
     centralizada. Tamanho invalido devolve o canvas 2:3, na mesma disciplina de
     `scale.fit_scale` — nunca deveria ocorrer com uma tela real, e um numero
     estranho jamais deve impedir o jogo de abrir.
@@ -127,8 +130,8 @@ def compute(screen_w: int, screen_h: int) -> Viewport:
     canvas_h = max(canvas_h, PLAY_H)
 
     leftover_v = canvas_h - PLAY_H
-    ground_extra = min(leftover_v, MAX_GROUND_EXTRA)
-    sky_extra = leftover_v - ground_extra
+    sky_extra = min(leftover_v, MAX_SKY_EXTRA)
+    ground_extra = leftover_v - sky_extra
 
     play = pygame.Rect((canvas_w - PLAY_W) // 2, sky_extra, PLAY_W, PLAY_H)
     return Viewport(canvas=(canvas_w, canvas_h), play=play, sky_extra=sky_extra, ground_extra=ground_extra)

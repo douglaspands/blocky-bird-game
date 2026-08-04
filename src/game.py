@@ -9,7 +9,7 @@ from src import assets, config, mobs, perf, quality, render, score, sounds, text
 from src.bands import SideBands
 from src.biome import BiomeManager
 from src.bird import Bird, precompute_sprites
-from src.config import BLOCK, CREDITS, FPS, PIPE_W, TITLE
+from src.config import BLOCK, CORNER_TOLERANCE, CREDITS, FPS, PIPE_W, TITLE
 from src.decor import DecorManager
 from src.ground import Ground
 from src.input import (
@@ -66,6 +66,17 @@ def _load_icon() -> pygame.Surface | None:
     with contextlib.suppress(OSError, pygame.error):
         return pygame.image.load(str(assets.asset_path("app_icon_512.png")))
     return None
+
+
+def _collides(a: pygame.Rect, b: pygame.Rect) -> bool:
+    """Colisao AABB que perdoa um resvalar raso de canto (R3.6, `config.CORNER_TOLERANCE`).
+
+    So aritmetica sobre os quatro limites de cada retangulo — nenhum `pygame.Rect` novo
+    e construido aqui (R27.3, `tests/test_alloc.py::test_the_collision_check_builds_no_rectangle_at_all`).
+    """
+    overlap_x = min(a.right, b.right) - max(a.left, b.left)
+    overlap_y = min(a.bottom, b.bottom) - max(a.top, b.top)
+    return overlap_x >= CORNER_TOLERANCE and overlap_y >= CORNER_TOLERANCE
 
 
 class GameState(Enum):
@@ -132,6 +143,9 @@ class Game:
         self.sounds = sounds.SoundManager()
         self.input = InputManager(self.renderer)
         self.score = 0
+        self.last_score: int | None = None
+        """Pontuacao da partida anterior nesta execucao, so em memoria (R36.3). `None`
+        ate a primeira transicao GAME_OVER -> PRONTO; nunca gravado em disco."""
         self.highscore = score.load_highscore()
         self._highscore_dirty = False
         """Recorde superado e ainda nao gravado (R27.5). Ver `_flush_highscore`."""
@@ -222,6 +236,7 @@ class Game:
             # isso, quem pausa via BACK (task 23) ficaria sem como voltar.
             self.state = GameState.JOGANDO
         elif self.state == GameState.GAME_OVER:
+            self.last_score = self.score
             self.reset()
 
     def _toggle_pause(self) -> None:
@@ -275,11 +290,11 @@ class Game:
             self.sounds.toggle_mute()
 
     def _collision_texture(self) -> str | None:
-        """Retorna a chave da textura do bloco atingido, ou None se nao houve colisao (R3.2)."""
-        if self.bird.rect.colliderect(self.ground.rect):
+        """Retorna a chave da textura do bloco atingido, ou None se nao houve colisao (R3.2, R3.6)."""
+        if _collides(self.bird.rect, self.ground.rect):
             return self.biome.current.block_main
         for pipe in self.pipes.pipes:
-            if self.bird.rect.colliderect(pipe.top_rect) or self.bird.rect.colliderect(pipe.bottom_rect):
+            if _collides(self.bird.rect, pipe.top_rect) or _collides(self.bird.rect, pipe.bottom_rect):
                 return pipe.block_main
         return None
 
@@ -373,10 +388,11 @@ class Game:
         level = self.quality.settings
         self.biome.draw_background(renderer)
         self.decor.draw(renderer, b.decor, far=level.far_parallax, near=level.near_parallax)
-        if level.mobs:
-            self.mobs.draw_sky(renderer, b.id)
         self.pipes.draw(renderer, self.textures)
         self.ground.draw(renderer, self.textures, b.block_main, b.block_edge)
+        # depois do chao: o mob vive sobre a terra estendida, nao antes dela.
+        if level.mobs:
+            self.mobs.draw_ground(renderer, b.id)
         self.bird.draw(renderer, self.textures)
         self.particles.draw(renderer)
         # depois das colunas e da abelha, antes do HUD: a faixa e opaca e esconde a
@@ -389,7 +405,7 @@ class Game:
         ui.draw_mute_icon(renderer, self.sounds.muted)
 
         if self.state == GameState.PRONTO:
-            ui.draw_ready_screen(renderer, self.highscore)
+            ui.draw_ready_screen(renderer, self.highscore, self.last_score)
         elif self.state == GameState.JOGANDO:
             ui.draw_hud_score(renderer, self.score)
         elif self.state == GameState.PAUSADO:

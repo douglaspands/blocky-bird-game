@@ -2,9 +2,9 @@
 
 Nove mobs voxel — creeper, bruxa e aldeao no Overworld; enderman, aranha e esqueleto
 na Cave; ghast, blaze e piglin no Nether — habitam **exclusivamente** as faixas
-decorativas: a de ceu, acima da area jogavel, e as laterais, o corte transversal do
-subsolo. Nunca a area jogavel. Isso nao e disciplina de quem desenha: cada mob e
-recortado contra o retangulo da faixa antes de ir para a tela, e as faixas sao
+decorativas: a de chao estendida, abaixo da area jogavel, e as laterais, o corte
+transversal do subsolo. Nunca a area jogavel. Isso nao e disciplina de quem desenha:
+cada mob e recortado contra o retangulo da faixa antes de ir para a tela, e as faixas sao
 disjuntas de `viewport.play` por construcao (`viewport.py`), entao um pixel de mob
 dentro do campo de jogo nao tem por onde acontecer.
 
@@ -52,7 +52,7 @@ Repetida aqui em vez de importada, e a repeticao e o ponto: `mobs.py` nao depend
 nenhum modulo de jogo (R25.4), e uma constante de seis linhas nao vale abrir a
 primeira excecao a isso."""
 
-SKY_PERIOD = 190
+GROUND_PERIOD = 190
 SIDE_PERIOD = 160
 """Distancia horizontal entre dois mobs vizinhos do mesmo campo.
 
@@ -175,10 +175,10 @@ class MobField:
             self._frame_timer = 0
             self.frame = 1 - self.frame
 
-    def draw_sky(self, renderer: render.Renderer, biome_id: str) -> None:
-        """Mobs da faixa de ceu. Desenhados antes das colunas (design secao 32.6)."""
-        band = config.viewport().sky_band
-        self._draw(renderer, biome_id, "sky", SKY_PERIOD, band.top, band.height, (band,))
+    def draw_ground(self, renderer: render.Renderer, biome_id: str) -> None:
+        """Mobs da faixa de chao estendida. Desenhados depois do chao (design secao 32.6)."""
+        band = config.viewport().ground_band
+        self._draw(renderer, biome_id, "ground", GROUND_PERIOD, band.top, band.height, (band,))
 
     def draw_sides(self, renderer: render.Renderer, biome_id: str) -> None:
         """Mobs das faixas laterais. Desenhados **depois** das faixas, que sao opacas.

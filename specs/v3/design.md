@@ -64,7 +64,7 @@ flappy_bird/
     ├── scale.py         # fit_scale: letterbox p/ toque, sem cortar imagem (R14.3)
     ├── input.py         # InputManager: teclado, mouse, gamepad, toque (R10, R15)
     ├── sounds.py        # Síntese de sons 8-bit (R8)
-    └── ui.py            # HUD, telas PRONTO/PAUSADO/GAME_OVER, fonte pixelada (R6, R7.5, R11, R12)
+    └── ui.py            # HUD, telas PRONTO/PAUSADO/GAME_OVER, fonte pixelada (R6, R7.5, R11, R12, R36)
 ```
 
 ### 2.1 Gerenciamento com uv (R9.3)
@@ -113,6 +113,7 @@ PIPE_SPACING = 260      # distância horizontal entre pares
 BLOCK = 48              # tamanho do bloco renderizado (16×16 escalado 3×)
 PIPE_W = BLOCK          # largura da coluna = largura do bloco desenhado (evita hitbox maior que o sprite)
 HITBOX_SCALE = 0.85     # R3.5
+CORNER_TOLERANCE = 4    # px de sobreposicao minima nos dois eixos para contar colisao (R3.6)
 ```
 
 Valores de física são referência inicial; calibrar em playtest (task 12).
@@ -122,7 +123,7 @@ Valores de física são referência inicial; calibrar em playtest (task 12).
 - Atributos: `pos: Vector2`, `vel_y: float`, `angle: float`, `frame: int`.
 - `flap()`: `vel_y = FLAP_IMPULSE`; toca som flap; seta `angle = +30`.
 - `update()`: `vel_y = min(vel_y + GRAVITY, MAX_FALL_SPEED)`; `pos.y += vel_y`; clamp no topo (`pos.y >= 0`, R1.4); interpola `angle` até −60 durante queda (R1.3).
-- `rect` (hitbox): sprite rect escalado por `HITBOX_SCALE` centralizado (R3.5).
+- `rect` (hitbox): sprite rect escalado por `HITBOX_SCALE` centralizado (R3.5). É sempre um quadrado **reto** — nunca acompanha `angle`, mesmo com o sprite desenhado girando de +30° a −60° (ver seção 6 para a tolerância de canto que compensa essa divergência, R3.6).
 - Animação: alterna 2 frames de asa a cada 6 frames de jogo; no estado PRONTO faz bobbing senoidal (R6.1).
 - Sprite: abelha voxel 16×12 desenhada pixel a pixel em `textures.make_bee()` — corpo amarelo com listras pretas, asas cinza translúcido (R7.2).
 
@@ -141,7 +142,13 @@ class PipePair:
 - `PipeManager.update(speed, gap_size, block_main, block_edge)`: recebe os parâmetros do bioma *atual* a cada frame — move todos `x -= speed` (R2.3); spawna novo par (congelando `gap_size`/`block_main`/`block_edge` correntes) quando o último está a `PIPE_SPACING` da borda (R2.1); remove pares com `x + PIPE_W < 0` (R2.4).
 - `gap_y` aleatório uniforme entre margens seguras (topo + `GAP_MARGIN`, chão − `GAP_MARGIN`) (R2.2).
 - Renderização: coluna = pilha de blocos `BLOCK×BLOCK` (largura `PIPE_W = BLOCK`, R3.1/R3.5) com a textura congelada na criação; bloco da boca da abertura usa variante de borda (ex.: grama no Overworld) (R2.5).
-- Colisão: dois `Rect` por par (superior e inferior), largura `PIPE_W` idêntica à largura desenhada; `bird.rect.colliderect()` (R3.1).
+- Colisão: dois `Rect` por par (superior e inferior), largura `PIPE_W` idêntica à largura desenhada (R3.1).
+
+**Tolerância de canto (R3.6, ajuste pós-lançamento da v3).** `Game._collision_texture` não usa mais `bird.rect.colliderect()` puro — a checagem (`_collides`, módulo `game.py`) só conta colisão quando a sobreposição é ≥ `CORNER_TOLERANCE` px nos **dois** eixos (`x` e `y`), calculada por aritmética pura sobre `.left/.right/.top/.bottom`, sem construir nenhum `pygame.Rect` novo (o mesmo orçamento de zero alocação de `_collision_texture` que a seção 36 documenta e `tests/test_alloc.py::test_the_collision_check_builds_no_rectangle_at_all` fixa).
+
+Motivo: `bird.rect` é reto (seção 5), mas o sprite desenhado gira — a caixa reta "sobra" além do contorno visível da abelha justamente nas diagonais, que é onde ficam os cantos internos do vão de uma coluna e a quina do chão. Sem tolerância, 1px de sobreposição em qualquer eixo já matava, então um resvalar raso de canto (fundo num eixo, raso no outro — a marca desse descompasso reto-vs-rotação) matava sem o jogador achar que encostou. Uma batida de frente invade os dois eixos rápido e continua matando na mesma velocidade de sempre; só o resvalar raso passa a ser perdoado.
+
+Alternativa descartada: rotacionar `bird.rect` junto com `angle` (hitbox orientada/OBB). Resolveria a causa raiz de forma mais exata, mas trocaria uma comparação de retângulos alinhados aos eixos — barata, testável por aritmética simples — por geometria de polígono rotacionado, sem ganho perceptível sobre a tolerância fixa para o problema relatado (resvalar em canto, não uma imprecisão generalizada de ângulo).
 
 ## 7. Biomas (`biome.py`) — R5
 
@@ -211,17 +218,18 @@ if self.score > self.highscore:
 - **Android (v2)**: o buffer default do mixer é pequeno demais para o pipeline de áudio do Android e produz estouros/crepitação. Em Android usa-se `buffer=1024` (ou 2048 se necessário) no `mixer.init`; no desktop mantém-se o default. A detecção de plataforma vem de `storage.is_android()` (seção 23), reaproveitando a mesma checagem. Se o `mixer.init` falhar em qualquer plataforma, o comportamento de degradação graciosa da v1 continua valendo (R8.4, R14.6).
 - A síntese dos 4 sons acontece uma vez na inicialização. Em aparelho de entrada, gerar ~0,8 s de áudio em Python puro custa na ordem de centenas de milissegundos — aceitável no boot, mas é o motivo de a síntese **não** poder acontecer durante o jogo.
 
-## 12. UI (`ui.py`) — R6, R7.5, R11, R12
+## 12. UI (`ui.py`) — R6, R7.5, R11, R12, R36
 
 - Fonte (**mudou na v2**): a v1 usava `pygame.font.SysFont("couriernew", ...)`, que **não existe no Android** — o SDL cairia numa fonte substituta arbitrária ou falharia, quebrando toda a UI. A v2 passa a usar a fonte bitmap própria de `pixelfont.py` (seção 19), gerada por código, garantindo resultado idêntico em todas as plataformas (R7.6) e alinhado ao princípio de "tudo gerado por código" (R7.1).
 - Sombra dura (offset 3 px, marrom-escuro) e escala inteira permanecem como na v1 (R7.5).
 - HUD: pontuação centralizada no topo (R4.2). Telas: PRONTO, PAUSADO (overlay escurecido, R6.3), GAME_OVER (painel com pontuação/recorde, R3.3).
 - **Controle de mudo na tela (v2, R15.4)**: ícone de alto-falante desenhado por código no canto superior direito da área lógica, com área de toque generosa (mínimo 44×44 px lógicos) para ser confortável no celular. Estado (com som / mudo) refletido no ícone. Em PAUSADO, o overlay mostra também a dica de mudo por setas do teclado (seção 21.3).
-- Tela PRONTO (R6.1, R11, R12), de cima para baixo:
+- Tela PRONTO (R6.1, R11, R12, R36), de cima para baixo:
   1. Título "BLOCKY BEE" (dourado).
   2. Créditos (`config.CREDITS`, "POR DOUGLAS E PEDRO") logo abaixo do título (R11.1).
   3. Instrução de comando ("ESPAÇO / CLIQUE PARA VOAR").
-  4. Recorde atual ("RECORDE: N", texto dourado simples, sem caixa/contorno) no rodapé da tela, logo acima do chão (R12.1, R12.2).
+  4. SE houve ao menos um GAME_OVER nesta execução: "ANTERIOR: N", branco quase puro e menor que o recorde, acima dele com espaçamento maior que o restante da tela para não colar visualmente no recorde (R36.1). `Game.last_score` guarda esse valor só em memória — `None` até a primeira volta de GAME_OVER para PRONTO, e nunca escrito em `score.py`/`storage.py` (R36.2, R36.3).
+  5. Recorde atual ("RECORDE: N", texto dourado simples, sem caixa/contorno) no rodapé da tela, logo acima do chão (R12.1, R12.2).
 - Título da janela (`pygame.display.set_caption`) inclui os créditos: `"Blocky Bee - por Douglas e Pedro"` (R11.2).
 
 ## 13. Loop principal (`game.py`, `main.py`)
@@ -524,6 +532,7 @@ Registrado explicitamente porque afeta como as tasks devem ser aceitas:
 
 - **Não há aparelho Android nem emulador neste ambiente de desenvolvimento.** Logo, os itens que dependem de Android real — instalar o APK, jogar por toque, medir FPS em aparelho de entrada, confirmar persistência do recorde no storage do app — **precisam de validação manual pelo dono do projeto**.
 - **Atualização (task 28): o Docker local, dado como inacessível na v1** (ao tentar validar o workflow com `act`), **ficou disponível neste ambiente** numa sessão posterior. Isso permitiu rodar o build real (`docker run kivy/buildozer android debug`) ponta a ponta até `BUILD SUCCESSFUL`, algo que a v1 não conseguia verificar — ver seção 24.1/24.2/24.3 para os bugs reais encontrados e corrigidos nesse processo. A disponibilidade do Docker pode variar entre sessões/ambientes; não assumir que builds futuros terão o mesmo acesso sem verificar (`docker ps`) primeiro.
+- **Atualização (task 72): Docker disponível de novo numa sessão posterior, o build da v3 rodou até `BUILD SUCCESSFUL`** (`bin/blockybee-0.3.0-armeabi-v7a_arm64-v8a-debug.apk`), mas um aparelho/emulador Android real continua ausente — o `.apk` gerado nunca chegou a ser instalado nem tocado. Um bug real da mesma família da task 28 apareceu de novo, desta vez no lado do SDK em vez do `hostpython3`: `.buildozer/state.db` (cache local, gitignored) guardava o SDK como já instalado de uma sessão anterior, mas o cache montado (`$HOME/.buildozer`) nasceu vazio nesta sessão — o `buildozer` confiou no marcador em vez do conteúdo real, pulou a instalação dos pacotes do SDK e falhou com `Available Android APIs are ()`. Fix: apagar o `state.db` stale para forçar reinstalação. Ver task 72 em `tasks.md` para o relato completo.
 - O que **pode** ser verificado automaticamente aqui: fonte bitmap (comparação de superfícies renderizadas), conversão de coordenadas de toque para espaço lógico (função pura, testável), resolução do diretório de save por plataforma (com `ANDROID_ARGUMENT` monkeypatched), transições de estado por ações `back`/`focus_lost` (eventos sintéticos), e o jogo inteiro no desktop com `SCALED` (incluindo redimensionamento de janela).
 - O checklist manual em `tasks.md` marca claramente qual item é de qual categoria. Nenhum item dependente de hardware deve ser marcado como concluído sem teste real.
 
@@ -793,7 +802,45 @@ canvas 480×720, driver de vídeo `dummy`:
 | JOGANDO nether | 3.39 | 6.54 | 61 | 2.8 |
 | GAME_OVER | 4.05 | 7.51 | 86 | 3.0 |
 
-_Resultado final a preencher pela task 73._
+**Resultado final da v3** — medido na task 73, mesmo comando e mesma máquina do baseline
+(`uv run python scripts/benchmark.py --frames 300`, Windows / Intel64 Family 6 Model 170 /
+Python 3.10.20 / pygame-ce 2.5.7 (SDL 2.32.10), driver de vídeo `dummy`), mas com o canvas em
+960×720 em vez de 480×720 — a v3 abre a janela de desktop mais larga que a área jogável de
+propósito (R23.7), para que as faixas laterais fiquem visíveis sem redimensionar nada:
+
+| Cenário | p50 (ms) | p95 (ms) | draw calls/frame | KB transitórios/frame |
+|---|---|---|---|---|
+| PRONTO | 9.64 | 11.27 | 21 | 0.6 |
+| JOGANDO overworld | 9.65 | 12.00 | 17 | 0.6 |
+| JOGANDO cave | 10.04 | 12.78 | 17 | 0.6 |
+| JOGANDO nether | 9.90 | 15.58 | 18 | 0.6 |
+| GAME_OVER | 11.21 | 14.68 | 34 | 0.6 |
+
+**O p50/p95 em ms subiu em vez de cair, e isso é esperado — não é o número que mede o
+trabalho desta versão.** Rodar sob `SDL_VIDEODRIVER=dummy` nega a criação do renderizador
+acelerado (`Couldn't find matching render driver`, logado uma vez por cenário), então a
+cascata da task 49 cai para o segundo nível — um `Renderer` do `_sdl2` não acelerado, ainda
+pago em software — e a área desenhada dobrou de largura (960 contra os 480 do baseline da v2)
+para caber as faixas decorativas de R25. A task 50 já registrou essa conta na época (3,3–4,1 ms
+→ 6,2–11,4 ms só de mudar o canvas, antes de qualquer otimização de draw call). O que de fato
+mede o ganho da v3, e é comparável ao baseline apesar da mudança de canvas e de driver, é:
+
+- **Draw calls por frame: de ~96 (baseline da v2, canvas 480×720) para 17–34 (v3, canvas
+  960×720, o dobro de conteúdo)** — mesmo cobrindo área dupla, o total caiu porque cada
+  elemento pré-renderizado (chão, colunas, parallax, abelha, faixas, mobs) virou 1–2 blits em
+  vez de dezenas (tasks 53–56). Essa é a métrica que se traduz diretamente para o aparelho
+  real: no caminho acelerado, cada draw call é uma chamada à GPU, e é o que a task 72 existe
+  para confirmar em hardware.
+- **Memória transitória por frame: de ~3,0 KB (baseline) para 0,6 KB (v3)** — queda de ~80%,
+  sobretudo pelo fim do `random.Random` por tile por frame no parallax (task 55) e pelo cache
+  de rotação da abelha (task 50).
+
+**Não verificável neste ambiente:** o número que R27.1 realmente pede — 60 FPS sustentado —
+só existe em hardware Android real, e o driver `dummy` não exercita o caminho acelerado nem o
+custo de VSync/composição real da GPU do aparelho. Essa confirmação é o objeto da task 72,
+que ficou registrada como pendente de validação manual (ver checklist "Requer aparelho Android
+real" ao fim deste arquivo de tasks) pelas mesmas razões já documentadas na seção 25: não há
+aparelho Android nem emulador neste ambiente de desenvolvimento.
 
 **Como ler estes números.** O orçamento de um frame a 60 FPS é 16,7 ms. Num desktop x86
 moderno o jogo consome ~3,4 ms de p50 — folgado. O problema é que essa conta não sobrevive à
@@ -860,11 +907,13 @@ Duas grandezas passam a ser distintas, e essa distinção é o coração da v3:
 
 Foi uma escolha entre três, e as outras duas já haviam sido tentadas e revertidas na v2: esticar a área jogável (task 39, revertida) muda a dificuldade; cortar por zoom (task 40, revertida) esconde parte da cena. A terceira via — canvas elástico com área jogável fixa — preserva as duas propriedades ao custo de precisar desenhar conteúdo novo, que é justamente o que R25 pede.
 
+**Revisão (task 80): o chão passou a ter prioridade sobre a sobra vertical.** A versão original desta seção mandava a maior parte da sobra vertical para o céu (teto pequeno no chão, resto sem limite para o céu). Em uso real no Android foi observada queda de FPS em telas bem alongadas, que a qualidade adaptativa (task 64, seção 38) reagia desligando decoração — o suspeito natural é o próprio céu: um gradiente do tamanho do canvas, duas camadas de parallax e um campo inteiro de mobs espalhados por uma faixa que passava de 250 px de altura num celular alto. Os tetos foram invertidos: agora é o céu que tem o teto pequeno (`MAX_SKY_EXTRA`, os mesmos 2 blocos que antes limitavam o chão) e o chão que absorve o restante sem limite, por ser uma faixa tileável sem gradiente nem parallax. Os mobs decorativos que viviam na faixa de céu foram para a faixa de chão estendida (seção 35). Ver a nota de task 80 em `specs/v3/tasks.md` para os números de antes/depois medidos por `scripts/benchmark.py`.
+
 ### 32.3 Cálculo (`src/viewport.py`)
 
 ```python
 PLAY_W, PLAY_H = 480, 720          # mundo, imutável
-MAX_GROUND_EXTRA = 2 * BLOCK       # 96 px: o que sobra na vertical vira chão, até 2 fileiras
+MAX_SKY_EXTRA = 2 * BLOCK          # 96 px: teto do céu; o resto da sobra vira chão
 
 def compute(screen_w: int, screen_h: int) -> Viewport:
     aspect = screen_w / screen_h
@@ -878,8 +927,8 @@ def compute(screen_w: int, screen_h: int) -> Viewport:
     canvas_h = max(canvas_h, PLAY_H)
 
     leftover_v = canvas_h - PLAY_H
-    ground_extra = min(leftover_v, MAX_GROUND_EXTRA)
-    sky_extra = leftover_v - ground_extra
+    sky_extra = min(leftover_v, MAX_SKY_EXTRA)
+    ground_extra = leftover_v - sky_extra
 
     play = pygame.Rect((canvas_w - PLAY_W) // 2, sky_extra, PLAY_W, PLAY_H)
     return Viewport(canvas=(canvas_w, canvas_h), play=play,
@@ -894,8 +943,8 @@ Por construção só um dos dois eixos sobra: o canvas tem exatamente a proporç
 
 | Aparelho | Tela | Canvas lógico | Faixas |
 |---|---|---|---|
-| Celular 20:9 | 1080×2400 | 480×1067 | céu 251 px, chão extra 96 px |
-| Celular 16:9 | 1080×1920 | 480×853 | céu 37 px, chão extra 96 px |
+| Celular 20:9 | 1080×2400 | 480×1067 | céu 96 px, chão extra 251 px |
+| Celular 16:9 | 1080×1920 | 480×853 | céu 96 px, chão extra 37 px |
 | Janela padrão do desktop | 960×720 | 960×720 | laterais de 240 px |
 | Monitor 16:9 maximizado | 1920×1080 | 1280×720 | laterais de 400 px |
 | Exatamente 2:3 | 480×720 | 480×720 | nenhuma |
@@ -919,11 +968,11 @@ O teto da abelha fica na borda **da área jogável**, não do canvas (R24.5): a 
 
 ### 32.5 O que vai em cada faixa
 
-**Faixa de céu (topo, quando a tela é mais alongada).** Recebe o gradiente do bioma e as camadas de parallax, que já são desenhados na altura toda do canvas. As colunas continuam sendo desenhadas do topo do canvas para baixo, atravessando a faixa como se viessem de fora da tela. O HUD de pontuação e o ícone de mudo migram para cá quando a faixa existe (R25.7), o que libera a área de jogo e aproxima a ação da base da tela — melhor para o polegar em celular.
+**Faixa de céu (topo, quando a tela é mais alongada).** Recebe o gradiente do bioma e as camadas de parallax, que já são desenhados na altura toda do canvas. As colunas continuam sendo desenhadas do topo do canvas para baixo, atravessando a faixa como se viessem de fora da tela. O HUD de pontuação e o ícone de mudo migram para cá quando a faixa existe e comporta o conteúdo (R25.7), o que libera a área de jogo e aproxima a ação da base da tela — melhor para o polegar em celular. Desde a task 80 a faixa tem um teto pequeno (`MAX_SKY_EXTRA`, 2 fileiras de bloco): é a faixa mais cara de desenhar (gradiente, parallax) e, ao contrário do chão, sem conteúdo que valha a pena esticar por muitas centenas de pixels.
 
 > Efeito colateral assumido: com céu visível acima do teto invisível da abelha, o teto fica menos evidente do que na v2 (onde coincidia com a borda da tela). Posicionar o HUD nessa faixa ajuda a lê-la como área de interface. Se a validação em aparelho mostrar que incomoda, a saída barata é uma fileira de blocos decorativa marcando o limite.
 
-**Chão estendido (base).** Até duas fileiras de bloco a mais (`MAX_GROUND_EXTRA`). `Ground.draw` já preenche de `ground_y()` até a base do canvas, então a faixa é consequência direta do canvas mais alto — o chão só fica mais fundo. Limitar a 96 px evita que uma tela muito alongada vire uma tira fina de jogo sobre um bloco de terra gigante; o que passa disso vai para o céu, que absorve altura sem parecer estranho.
+**Chão estendido (base).** Desde a task 80, absorve o restante da sobra vertical sem limite — o que passa do teto do céu (`MAX_SKY_EXTRA`) vira chão. `Ground.draw` já preenche de `ground_y()` até a base do canvas, então a faixa é consequência direta do canvas mais alto — o chão só fica mais fundo. É a faixa mais barata das duas (uma textura tileável, sem gradiente nem parallax), e é onde os mobs decorativos agora aparecem (`mobs.draw_ground`, seção 35) — antes viviam na faixa de céu.
 
 **Faixas laterais (quando a tela é mais larga).** Cada lateral recebe um **corte transversal do subsolo do bioma**, ocupando a altura inteira do canvas: camadas de bloco empilhadas (Overworld grama→terra→pedra; Cave pedra→pedregulho; Nether netherrack→obsidiana) com veios de minério, reaproveitando as texturas da seção 10 e os desenhadores de minério de `decor.py`. A área jogável passa a ser lida como um **poço vertical cortado na terra** — a única parte onde se enxerga o céu. É a estética de mineshaft do Minecraft, e resolve dois problemas de uma vez: preenche a tela com conteúdo temático e é **opaca**.
 
@@ -939,15 +988,15 @@ A linha do chão das faixas laterais é alinhada com `ground_y()` da área jogá
 clear
 gradiente do bioma            (largura toda do canvas)
 parallax distante/próximo     (largura toda do canvas)
-mobs da faixa de céu
 colunas                       (só na área jogável; ocultadas depois)
 chão                          (largura toda do canvas)
+mobs da faixa de chão         -> sobre a textura do chão, não antes dela (task 80)
 abelha
 partículas
 faixas laterais               (opacas, cobrem o que vazou)
 mobs das faixas laterais
 banner de bioma
-HUD (pontuação, ícone de mudo)     -> na faixa de céu quando existe
+HUD (pontuação, ícone de mudo)     -> na faixa de céu quando existe e comporta o conteúdo
 overlay de estado (pausa / game over)
 sobreposição de diagnóstico        -> só com BLOCKY_PERF=1
 present
@@ -1085,7 +1134,7 @@ Nove sprites voxel 16×16 novos em `textures.py`, no mesmo estilo procedural de 
 | Cave | enderman, aranha, esqueleto |
 | Nether | ghast, blaze, piglin |
 
-Os mobs vivem **exclusivamente nas faixas decorativas** — a de céu e as laterais — e nunca na área jogável. Têm deriva de parallax própria, mais lenta que a camada distante de `decor.py`, para ficarem claramente ao fundo e para não competirem com o obstáculo pela atenção do jogador.
+Os mobs vivem **exclusivamente nas faixas decorativas** — a de chão estendida e as laterais — e nunca na área jogável. Desde a task 80 (seção 32.2), moraram na faixa de céu; passaram para a de chão junto com a inversão dos tetos: `MobField.draw_ground` substitui o antigo `draw_sky`, desenhando sobre `viewport.ground_band` em vez de `sky_band`, e a chamada em `Game.draw` migrou para depois de `Ground.draw` (o mob fica sobre a textura do chão, não antes dela). Têm deriva de parallax própria, mais lenta que a camada distante de `decor.py`, para ficarem claramente ao fundo e para não competirem com o obstáculo pela atenção do jogador.
 
 R25.4 é a restrição que importa: eles **não** colidem, **não** pontuam, **não** alteram velocidade nem qualquer regra. `Game._collision_texture` não os consulta, e `mobs.py` não tem acesso ao estado de jogo — recebe apenas o `Viewport`, o bioma corrente e o deslocamento de parallax. É uma dependência de mão única, e é o que torna o requisito verificável por teste em vez de por inspeção.
 

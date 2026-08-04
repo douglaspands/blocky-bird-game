@@ -312,12 +312,12 @@ def test_the_file_is_written_next_to_the_highscore(tmp_path):
 
 
 WIDE = (1920, 1080)
-"""Monitor: canvas 1280x720, com faixas laterais e sem faixa de ceu — e onde os mobs
-de `draw_sides` aparecem."""
+"""Monitor: canvas 1280x720, com faixas laterais e sem faixa de chao estendida — e onde
+os mobs de `draw_sides` aparecem."""
 
 PHONE = (1080, 2400)
-"""Celular alongado: canvas 480x1067, com faixa de ceu e sem faixas laterais — e onde
-os mobs de `draw_sky` aparecem.
+"""Celular alongado: canvas 480x1067, com faixa de chao estendida e sem faixas laterais
+— e onde os mobs de `draw_ground` aparecem.
 
 As duas telas entram no teste porque cada uma exercita um dos dois desenhos de mob.
 Numa so, desligar apenas o outro passaria despercebido."""

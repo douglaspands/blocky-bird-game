@@ -8,7 +8,7 @@ O documento é vigiado por `tests/test_traceability.py`, que falha o build quand
 de aceitação não aparece aqui ou quando esta matriz referencia um teste inexistente (R32.2,
 R32.3). É o que impede a matriz de envelhecer em silêncio.
 
-> **Completa até a task 79.** Todo critério `R1.1`–`R35.10` de `requirements.md` tem uma
+> **Completa até a task 82.** Todo critério `R1.1`–`R36.3` de `requirements.md` tem uma
 > linha. Para os critérios cuja task implementadora ainda está pendente nesta versão (tasks
 > 72–73 — build do APK em aparelho real e registro dos números medidos), a coluna Testes
 > fica em branco: citar um teste ali seria inventar uma referência que
@@ -35,6 +35,7 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 | R3.3 | 3, 12 | 6 | `test_ui_layout.py::test_game_over_screen_texts_do_not_overlap` |
 | R3.4 | 3 | 6 | `test_game.py::test_flap_in_game_over_resets_to_pronto` |
 | R3.5 | 6, 16 | 5, 14 | `test_bird.py::test_hitbox_is_scaled_and_centered_on_sprite` |
+| R3.6 | 6 | 82 | `test_game.py::test_collides_requires_the_minimum_overlap_in_both_axes`, `test_game.py::test_a_shallow_corner_graze_does_not_end_the_round`, `test_game.py::test_an_overlap_past_the_corner_tolerance_still_ends_the_round` |
 | R4.1 | 8 | 7 | `test_game.py::test_score_increments_once_per_pipe` |
 | R4.2 | 8, 12 | 7 | `test_ui_layout.py::test_hud_score_text_in_bounds` |
 | R4.3 | 8, 36 | 22, 60 | `test_score.py::test_save_and_load_roundtrip`, `test_game.py::test_reaching_game_over_writes_the_record` |
@@ -134,7 +135,7 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 | R24.3 | 32.4 | 47 | `test_bands.py::test_pipe_spawns_at_the_play_right_edge`, `test_bands.py::test_time_from_spawn_to_bird_is_the_same_in_both_canvases` |
 | R24.4 | 32.5 | 47 | `test_bands.py::test_side_bands_hide_a_pipe_that_has_not_entered_the_play_area`, `test_bands.py::test_the_pipe_under_the_band_is_drawn_before_it` |
 | R24.5 | 32.4 | 46 | `test_bands.py::test_bird_ceiling_is_the_play_top_not_the_canvas_top`, `test_bands.py::test_ground_line_sits_on_the_play_bottom_not_the_canvas_bottom` |
-| R25.1 | 32.3, 32.5 | 46 | `test_bands.py::test_the_phone_canvas_really_has_both_bands`, `test_bands.py::test_ground_fills_the_decorative_band_below_the_play_area` |
+| R25.1 | 32.3, 32.5 | 46, 80 | `test_bands.py::test_the_phone_canvas_really_has_both_bands`, `test_bands.py::test_ground_fills_the_decorative_band_below_the_play_area` |
 | R25.2 | 32.5 | 47 | `test_bands.py::test_side_band_is_opaque_over_its_whole_height`, `test_bands.py::test_band_ground_line_matches_the_play_ground_line` |
 | R25.3 | 35 | 57 | `test_mobs.py::test_each_biome_has_three_varieties_and_none_repeats_across_biomes`, `test_mobs.py::test_every_field_carries_the_three_varieties_of_its_biome` |
 | R25.4 | 35 | 57 | `test_mobs.py::test_the_whole_simulation_is_identical_with_and_without_mobs`, `test_mobs.py::test_a_mob_over_the_bird_does_not_collide`, `test_mobs.py::test_mobs_module_imports_nothing_from_the_game` |
@@ -199,3 +200,6 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 | R35.8 | 44 | 79 | `test_repo_hygiene.py::test_dependabot_covers_uv_and_github_actions` |
 | R35.9 | 44 | 79 | `test_repo_hygiene.py::test_every_workflow_declares_least_privilege_permissions` |
 | R35.10 | 44 | 79 | `test_repo_hygiene.py::test_pull_request_template_points_back_to_the_sdd_workflow` |
+| R36.1 | 12 | 81 | `test_game.py::test_last_score_is_captured_when_returning_from_game_over`, `test_ui_layout.py::test_ready_screen_with_last_score_texts_do_not_overlap` |
+| R36.2 | 12 | 81 | `test_game.py::test_starts_with_no_last_score`, `test_ui_layout.py::test_ready_screen_omits_last_score_line_when_none` |
+| R36.3 | 12 | 81 | `test_game.py::test_last_score_does_not_survive_a_fresh_game_instance` |

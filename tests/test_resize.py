@@ -74,8 +74,8 @@ def test_resize_to_a_taller_window_moves_the_play_area_down():
     game.apply_resize((1080, 2400))
 
     assert game.viewport.canvas == (480, 1067)
-    assert game.viewport.play.top == game.viewport.sky_band.height == 251
-    assert game.viewport.ground_band.height == 96
+    assert game.viewport.play.top == game.viewport.sky_band.height == 96
+    assert game.viewport.ground_band.height == 251
     assert config.ground_y() == game.viewport.play.bottom - config.GROUND_H
 
 

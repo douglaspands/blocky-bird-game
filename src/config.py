@@ -22,6 +22,17 @@ PIPE_W = BLOCK  # colisao deve casar com a largura da coluna de blocos renderiza
 GAP_MARGIN = 80
 HITBOX_SCALE = 0.85
 
+CORNER_TOLERANCE = 4
+"""Sobreposicao minima, em px, exigida nos dois eixos para contar como colisao (R3.6).
+
+`Bird.rect` e sempre um quadrado reto (nunca acompanha o angulo de rotacao do sprite
+desenhado, de +30 a -60 graus), entao a caixa reta "sobra" alem do contorno visivel da
+abelha exatamente nas diagonais — onde ficam os cantos internos do vao das colunas e a
+quina do chao. Sem esta tolerancia, 1px de sobreposicao em qualquer eixo ja mata;
+com ela, um resvalar raso (fundo num eixo, raso no outro — a marca de um erro de
+AABB-vs-rotacao) deixa de contar, e uma batida de frente (que invade os dois eixos
+rapido) continua matando na mesma velocidade de sempre."""
+
 _viewport: "Viewport | None" = None
 
 

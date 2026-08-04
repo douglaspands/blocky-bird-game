@@ -156,8 +156,16 @@ def _dim_overlay(renderer: render.Renderer) -> None:
     renderer.fill(OVERLAY_COLOR, pygame.Rect(0, 0, config.screen_w(), config.screen_h()))
 
 
-def draw_ready_screen(renderer: render.Renderer, highscore: int) -> None:
-    """Desenha a tela PRONTO: titulo, creditos, instrucao de voo e recorde."""
+LAST_SCORE_COLOR = (235, 235, 235)
+"""Cor da linha de ultima pontuacao: branco quase puro, para bom contraste contra o
+fundo, mas ainda visualmente subordinada ao dourado `GOLD` do recorde (R36.1)."""
+
+
+def draw_ready_screen(renderer: render.Renderer, highscore: int, last_score: int | None) -> None:
+    """Desenha a tela PRONTO: titulo, creditos, instrucao de voo, recorde e, se houver.
+
+    A pontuacao da partida anterior nesta execucao (R36).
+    """
     play = config.play()
     next_y = _stack(
         renderer,
@@ -178,13 +186,27 @@ def draw_ready_screen(renderer: render.Renderer, highscore: int) -> None:
         base_size=9,
         color=GOLD,
     )
+    record_y = config.ground_y() - 24
     draw_text(
         renderer,
         f"RECORDE: {highscore}",
-        (play.centerx, config.ground_y() - 24),
+        (play.centerx, record_y),
         base_size=8,
         color=GOLD,
     )
+    if last_score is not None:
+        record_scale = _fit_scale(f"RECORDE: {highscore}", _scale_for(8))
+        record_top = record_y - (pixelfont.GLYPH_H * record_scale) // 2
+        last_score_text = f"ANTERIOR: {last_score}"
+        last_score_scale = _fit_scale(last_score_text, _scale_for(6))
+        last_score_y = record_top - 14 - (pixelfont.GLYPH_H * last_score_scale) // 2
+        draw_text(
+            renderer,
+            last_score_text,
+            (play.centerx, last_score_y),
+            base_size=6,
+            color=LAST_SCORE_COLOR,
+        )
 
 
 def _paint_mute_icon(muted: bool) -> pygame.Surface:
