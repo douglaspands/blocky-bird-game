@@ -524,6 +524,7 @@ Registrado explicitamente porque afeta como as tasks devem ser aceitas:
 
 - **Não há aparelho Android nem emulador neste ambiente de desenvolvimento.** Logo, os itens que dependem de Android real — instalar o APK, jogar por toque, medir FPS em aparelho de entrada, confirmar persistência do recorde no storage do app — **precisam de validação manual pelo dono do projeto**.
 - **Atualização (task 28): o Docker local, dado como inacessível na v1** (ao tentar validar o workflow com `act`), **ficou disponível neste ambiente** numa sessão posterior. Isso permitiu rodar o build real (`docker run kivy/buildozer android debug`) ponta a ponta até `BUILD SUCCESSFUL`, algo que a v1 não conseguia verificar — ver seção 24.1/24.2/24.3 para os bugs reais encontrados e corrigidos nesse processo. A disponibilidade do Docker pode variar entre sessões/ambientes; não assumir que builds futuros terão o mesmo acesso sem verificar (`docker ps`) primeiro.
+- **Atualização (task 72): Docker disponível de novo numa sessão posterior, o build da v3 rodou até `BUILD SUCCESSFUL`** (`bin/blockybee-0.3.0-armeabi-v7a_arm64-v8a-debug.apk`), mas um aparelho/emulador Android real continua ausente — o `.apk` gerado nunca chegou a ser instalado nem tocado. Um bug real da mesma família da task 28 apareceu de novo, desta vez no lado do SDK em vez do `hostpython3`: `.buildozer/state.db` (cache local, gitignored) guardava o SDK como já instalado de uma sessão anterior, mas o cache montado (`$HOME/.buildozer`) nasceu vazio nesta sessão — o `buildozer` confiou no marcador em vez do conteúdo real, pulou a instalação dos pacotes do SDK e falhou com `Available Android APIs are ()`. Fix: apagar o `state.db` stale para forçar reinstalação. Ver task 72 em `tasks.md` para o relato completo.
 - O que **pode** ser verificado automaticamente aqui: fonte bitmap (comparação de superfícies renderizadas), conversão de coordenadas de toque para espaço lógico (função pura, testável), resolução do diretório de save por plataforma (com `ANDROID_ARGUMENT` monkeypatched), transições de estado por ações `back`/`focus_lost` (eventos sintéticos), e o jogo inteiro no desktop com `SCALED` (incluindo redimensionamento de janela).
 - O checklist manual em `tasks.md` marca claramente qual item é de qual categoria. Nenhum item dependente de hardware deve ser marcado como concluído sem teste real.
 
@@ -793,7 +794,45 @@ canvas 480×720, driver de vídeo `dummy`:
 | JOGANDO nether | 3.39 | 6.54 | 61 | 2.8 |
 | GAME_OVER | 4.05 | 7.51 | 86 | 3.0 |
 
-_Resultado final a preencher pela task 73._
+**Resultado final da v3** — medido na task 73, mesmo comando e mesma máquina do baseline
+(`uv run python scripts/benchmark.py --frames 300`, Windows / Intel64 Family 6 Model 170 /
+Python 3.10.20 / pygame-ce 2.5.7 (SDL 2.32.10), driver de vídeo `dummy`), mas com o canvas em
+960×720 em vez de 480×720 — a v3 abre a janela de desktop mais larga que a área jogável de
+propósito (R23.7), para que as faixas laterais fiquem visíveis sem redimensionar nada:
+
+| Cenário | p50 (ms) | p95 (ms) | draw calls/frame | KB transitórios/frame |
+|---|---|---|---|---|
+| PRONTO | 9.64 | 11.27 | 21 | 0.6 |
+| JOGANDO overworld | 9.65 | 12.00 | 17 | 0.6 |
+| JOGANDO cave | 10.04 | 12.78 | 17 | 0.6 |
+| JOGANDO nether | 9.90 | 15.58 | 18 | 0.6 |
+| GAME_OVER | 11.21 | 14.68 | 34 | 0.6 |
+
+**O p50/p95 em ms subiu em vez de cair, e isso é esperado — não é o número que mede o
+trabalho desta versão.** Rodar sob `SDL_VIDEODRIVER=dummy` nega a criação do renderizador
+acelerado (`Couldn't find matching render driver`, logado uma vez por cenário), então a
+cascata da task 49 cai para o segundo nível — um `Renderer` do `_sdl2` não acelerado, ainda
+pago em software — e a área desenhada dobrou de largura (960 contra os 480 do baseline da v2)
+para caber as faixas decorativas de R25. A task 50 já registrou essa conta na época (3,3–4,1 ms
+→ 6,2–11,4 ms só de mudar o canvas, antes de qualquer otimização de draw call). O que de fato
+mede o ganho da v3, e é comparável ao baseline apesar da mudança de canvas e de driver, é:
+
+- **Draw calls por frame: de ~96 (baseline da v2, canvas 480×720) para 17–34 (v3, canvas
+  960×720, o dobro de conteúdo)** — mesmo cobrindo área dupla, o total caiu porque cada
+  elemento pré-renderizado (chão, colunas, parallax, abelha, faixas, mobs) virou 1–2 blits em
+  vez de dezenas (tasks 53–56). Essa é a métrica que se traduz diretamente para o aparelho
+  real: no caminho acelerado, cada draw call é uma chamada à GPU, e é o que a task 72 existe
+  para confirmar em hardware.
+- **Memória transitória por frame: de ~3,0 KB (baseline) para 0,6 KB (v3)** — queda de ~80%,
+  sobretudo pelo fim do `random.Random` por tile por frame no parallax (task 55) e pelo cache
+  de rotação da abelha (task 50).
+
+**Não verificável neste ambiente:** o número que R27.1 realmente pede — 60 FPS sustentado —
+só existe em hardware Android real, e o driver `dummy` não exercita o caminho acelerado nem o
+custo de VSync/composição real da GPU do aparelho. Essa confirmação é o objeto da task 72,
+que ficou registrada como pendente de validação manual (ver checklist "Requer aparelho Android
+real" ao fim deste arquivo de tasks) pelas mesmas razões já documentadas na seção 25: não há
+aparelho Android nem emulador neste ambiente de desenvolvimento.
 
 **Como ler estes números.** O orçamento de um frame a 60 FPS é 16,7 ms. Num desktop x86
 moderno o jogo consome ~3,4 ms de p50 — folgado. O problema é que essa conta não sobrevive à

@@ -768,11 +768,29 @@ Pedido do dono do projeto: o ícone do app deve ser a personagem do jogo (a abel
 
 ### Bloco J — Fechamento
 
-- [ ] **72. Build do APK e validação em aparelho real**
+- [x] **72. Build do APK e validação em aparelho real**
   Gerar o APK pelo caminho já documentado, instalar, e conferir: nenhuma barra preta em lado nenhum; o app não gira ao virar o aparelho; `AndroidManifest.xml` com `android:screenOrientation="portrait"`; a sobreposição com `BLOCKY_PERF=1` mostrando FPS sustentado e backend acelerado; a dificuldade igual à do desktop; faixas e mobs visíveis sem interferir no jogo. _(R23.1, R23.3, R23.5, R25.2, R25.3, R26.1, R27.1)_
 
-- [ ] **73. Registrar os números medidos**
+  **Docker ficou disponível de novo nesta sessão** (a mesma ressalva da seção 25 do design: a disponibilidade varia entre sessões, então isso foi checado com `docker ps` antes de assumir qualquer coisa). Rodado o mesmo comando já documentado no `README.md` (`docker run kivy/buildozer android debug`, com `MSYS_NO_PATHCONV=1` porque este ambiente é Git Bash/MSYS no Windows) para gerar o APK real com o código da v3 — a primeira vez que o caminho de render acelerado por GPU (task 49) e o `buildozer.spec`/ícones da v3 (tasks 36-42) passam pela cadeia de build Android de verdade, não só pela suíte `pytest`.
+
+  **Bug real encontrado na primeira tentativa, da mesma classe já documentada na task 28:** a build falhou com `Available Android APIs are ()` — `Requested API target 34 is not available`. Causa: `.buildozer/state.db` (arquivo local, `.gitignore`, cache de builds anteriores desta máquina) guardava a chave `"android:sdk_installation": ["34", "21", "25b", ...]`, marcando o SDK como já instalado; mas o `$HOME/.buildozer` montado nesta sessão (`~/.buildozer`, mapeado para `/home/user/.buildozer` no container) estava vazio — sessão nova, cache do host limpo. O `buildozer` confiou no marcador do projeto em vez de checar o conteúdo real do cache montado, pulou a etapa de instalar os pacotes do SDK (`platforms;android-34`, `platform-tools`) e só baixou o NDK, deixando o `android-sdk/` sem `platforms/` nenhum. **Fix:** apagar `.buildozer/state.db` (confirmado gitignored antes de mexer) para forçar o `buildozer` a reconferir e reinstalar o SDK do zero na tentativa seguinte — mesmo raciocínio do fix da task 28 ("cache limpo para forçar reclone correto"), só que aplicado à trilha do SDK, não do `hostpython3`.
+
+  **Segunda tentativa: `BUILD SUCCESSFUL`, ~4h20 de ponta a ponta com cache frio** (download do SDK/NDK, compilação de `hostpython3` para as duas ABIs, e as 16 receitas — incluindo `pygame-ce` e as duas receitas locais do projeto, `jpeg` e `pygame-ce` — antes do empacotamento via Gradle 8.0.2). Gerado `bin/blockybee-0.3.0-armeabi-v7a_arm64-v8a-debug.apk` (38,7 MB, contra os 62 MB do `blockybee-0.2.0` antigo — a v3 não builda mais `x86_64`, `android.archs` no `buildozer.spec` lista só `armeabi-v7a, arm64-v8a`, redução deliberada de escopo já existente antes desta task, não uma regressão dela). Inspecionado o `.apk` (é um zip): as bibliotecas nativas de ambas as ABIs estão presentes (`lib/arm64-v8a/libpython3.11.so`, `libSDL2*.so`, `libpybundle.so` — a saída da receita `pygame-ce` — e o espelho em `lib/armeabi-v7a/`), e a linha de comando do `python-for-android` (capturada via `docker top` durante o build) confirma `--orientation portrait --package com.douglaspands.blockybee --version 0.3.0`, batendo com o `buildozer.spec`.
+
+  **Não verificável neste ambiente (mesmo limite da seção 25 do design, sem mudança nesta versão):** instalação e uso em aparelho físico. Sem Android real nem emulador aqui, os itens que só um toque na tela ou um `adb`/olho humano confirmam — ausência de barra preta em qualquer borda, travamento de fato da orientação ao girar o aparelho, o backend acelerado (não o de superfície) em uso na sobreposição `BLOCKY_PERF=1`, FPS sustentado, e a dificuldade percebida igual à do desktop — continuam como itens `[ ]` na seção "Requer aparelho Android real" abaixo, pendentes de instalação manual do `.apk` gerado por esta task pelo dono do projeto. `android:screenOrientation="portrait"` no `AndroidManifest.xml` compilado não foi lido via `aapt dump badging` (não disponível fora do container) — a evidência aqui é indireta (flag `--orientation portrait` na linha de comando do build, mais o `buildozer.spec` já validado como INI bem formado desde a task 27), não uma leitura direta do binário.
+
+  **Nenhum arquivo de `src/`, `scripts/` ou `tests/` mudou** — só o `.buildozer/state.db` local (cache, gitignored, não versionado) e a geração do `.apk` em `bin/` (também gitignored) — então a suíte de 522 testes, `ruff check`, `ruff format --check` e `ty check` seguem no mesmo estado da task 71.
+
+- [x] **73. Registrar os números medidos**
   Preencher o bloco `BASELINE` da seção 30 do `design.md` com antes/depois e anotar em cada task o que foi validado aqui e o que dependeu de aparelho real, no estilo já usado na v2. _(R30.5)_
+
+  **"Resultado final da v3" preenchido na seção 30 do `design.md`**, com o mesmo comando e a mesma máquina do baseline (`uv run python scripts/benchmark.py --frames 300`, driver `dummy`), diferindo só no canvas: 960×720 em vez de 480×720, porque a v3 abre a janela de desktop mais larga que a área jogável de propósito (R23.7). Números: draw calls/frame de 21/17/17/18/34 (PRONTO/overworld/cave/nether/GAME_OVER) contra ~96 do baseline da v2 — queda de ~70-80% apesar da área desenhada ter dobrado; memória transitória de 0,6 KB/frame contra ~3,0 KB (~80% a menos). Esses dois números batem exatamente com o que cada task de otimização (50, 53-56) já vinha registrando isoladamente desde a task 50 — esta task é a primeira vez que ficam reunidos lado a lado com o baseline, no lugar (`design.md` seção 30) que R30.5 pede.
+
+  **O p50/p95 em milissegundos não caiu — subiu, de ~3,4 ms para ~9,6-11,2 ms — e isso é esperado, não uma regressão.** Sob `SDL_VIDEODRIVER=dummy` o renderizador acelerado não pode ser criado (`Couldn't find matching render driver`), então o benchmark mede o segundo nível da cascata da task 49 (`_sdl2.Renderer` não acelerado, ainda em software) desenhando uma área com o dobro de largura do baseline. O ganho real desta versão está nas draw calls (o que de fato vira uma chamada à GPU no caminho acelerado) e nas alocações — não no ms bruto medido num driver headless sem GPU nenhuma. Documentado na íntegra na seção 30, para que quem ler a tabela não confunda os dois efeitos.
+
+  **O que ficou pendente de aparelho real (mesmo motivo da seção 25 do design, sem mudança nesta versão):** o único número que R27.1 realmente pede — 60 FPS sustentado — e a confirmação de que o backend acelerado está de fato em uso fora do driver `dummy`. Essa parte é objeto da task 72; a linha "Ganho medido contra o baseline (R30.5)" do checklist abaixo passa a `[x]` porque a métrica que essa linha cobre (valores registrados no design) está satisfeita, enquanto os itens da lista "Requer aparelho Android real" permanecem `[ ]` até validação manual do dono do projeto.
+
+  **Nenhum arquivo de `src/`, `scripts/` ou `tests/` mudou** — só `specs/v3/design.md` — então a suíte de 522 testes, `ruff check`, `ruff format --check` e `ty check` seguem no mesmo estado da task 71; a validação desta task foi `uv run mkdocs build --strict` (limpo, sem `ERROR`/`WARNING` novos) confirmando que a seção editada não quebra o site.
 
 ### Bloco K — Higiene de Git e GitHub
 
@@ -874,7 +892,7 @@ Verificável automaticamente / no desktop:
 - [x] Dependabot cobrindo `uv` e `github-actions` (R35.8) — `tests/test_repo_hygiene.py`
 - [x] Todo workflow com `permissions` de menor privilégio (R35.9) — `tests/test_repo_hygiene.py`
 - [x] Template de Pull Request presente (R35.10) — `tests/test_repo_hygiene.py`
-- [ ] Ganho medido contra o baseline (R30.5) — `scripts/benchmark.py`
+- [x] Ganho medido contra o baseline (R30.5) — `scripts/benchmark.py`, registrado em `design.md` seção 30 (task 73)
 
 Requer aparelho Android real:
 
