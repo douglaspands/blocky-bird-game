@@ -1,0 +1,32 @@
+# Espelha o gate de CI (ruff check/format, ty check) mais checagens basicas de
+# higiene que nenhum dos tres cobre (design.md secao 44). Instalar com
+# `uv run pre-commit install`; roda tambem no CI via `uv run pre-commit run --all-files`,
+# para valer mesmo sem instalacao local.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: ty
+        name: ty check
+        entry: uv run ty check .
+        language: system
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-toml
+      - id: check-yaml
+      - id: mixed-line-ending
+        args: [--fix=lf]

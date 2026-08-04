@@ -4,8 +4,7 @@ from dataclasses import dataclass
 
 import pygame
 
-from src import ui
-from src.config import SCREEN_W
+from src import config, render, ui
 
 FADE_FRAMES = 60  # <= 1s a 60 FPS (R5.4)
 BANNER_FRAMES = 90
@@ -13,6 +12,8 @@ BANNER_FRAMES = 90
 
 @dataclass(frozen=True)
 class Biome:
+    """Parametros de um bioma: threshold de ativacao, velocidade, texturas e ceu."""
+
     id: str
     name: str
     threshold: int
@@ -89,23 +90,14 @@ def _biome_for_score(score: int) -> Biome:
 
 
 class BiomeManager:
+    """Acompanha o bioma ativo e as transicoes de fade/banner conforme o score."""
+
     def __init__(self) -> None:
-        self._gradients: dict[str, pygame.Surface] = {}
-        self._gradient_size: tuple[int, int] | None = None
+        """Inicia no primeiro bioma (Overworld), sem fade nem banner em curso."""
         self.current = BIOMES[0]
         self.previous = BIOMES[0]
         self.fade_timer = 0
         self.banner_timer = 0
-
-    def _ensure_gradients(self, size: tuple[int, int]) -> None:
-        """Regenera os gradientes so quando o tamanho do canvas muda (R14.3) —
-        no Android o canvas real (celular/TV) so e conhecido em runtime, maior
-        que a area jogavel 480x720 quando estica para preencher a tela sem barra."""
-        if self._gradient_size == size:
-            return
-        width, height = size
-        self._gradients = {b.id: _make_gradient(b.sky_top, b.sky_bottom, width, height) for b in BIOMES}
-        self._gradient_size = size
 
     def update(self, score: int) -> bool:
         """Detecta cruzamento de threshold (R5.1) e ativa fade + banner (R5.4).
@@ -123,20 +115,33 @@ class BiomeManager:
         self.banner_timer = max(0, self.banner_timer - 1)
         return False
 
-    def draw_background(self, surface: pygame.Surface) -> None:
-        self._ensure_gradients(surface.get_size())
-        current_grad = self._gradients[self.current.id]
-        if self.fade_timer > 0:
-            prev_grad = self._gradients[self.previous.id]
-            prev_grad.set_alpha(255)
-            surface.blit(prev_grad, (0, 0))
-            alpha = round(255 * (1 - self.fade_timer / FADE_FRAMES))
-            current_grad.set_alpha(alpha)
-            surface.blit(current_grad, (0, 0))
-        else:
-            current_grad.set_alpha(255)
-            surface.blit(current_grad, (0, 0))
+    def _gradient(self, renderer: render.Renderer, biome: Biome) -> render.Image:
+        """Gradiente de ceu do bioma, construido uma vez por tamanho de canvas (R14.3).
 
-    def draw_banner(self, surface: pygame.Surface) -> None:
+        A chave inclui o tamanho porque o canvas real so e conhecido em runtime e pode
+        mudar num redimensionamento (R23.6).
+        """
+        width, height = renderer.size
+        return renderer.image(
+            ("sky", biome.id, width, height),
+            lambda: _make_gradient(biome.sky_top, biome.sky_bottom, width, height),
+        )
+
+    def draw_background(self, renderer: render.Renderer) -> None:
+        """Desenha o ceu do bioma atual, cruzando com o anterior durante o fade."""
+        current_grad = self._gradient(renderer, self.current)
+        if self.fade_timer > 0:
+            prev_grad = self._gradient(renderer, self.previous)
+            prev_grad.alpha = 255
+            renderer.draw(prev_grad, (0, 0))
+            current_grad.alpha = round(255 * (1 - self.fade_timer / FADE_FRAMES))
+            renderer.draw(current_grad, (0, 0))
+        else:
+            current_grad.alpha = 255
+            renderer.draw(current_grad, (0, 0))
+
+    def draw_banner(self, renderer: render.Renderer) -> None:
+        """Desenha o nome do bioma no topo da area jogavel enquanto o banner dura."""
         if self.banner_timer > 0:
-            ui.draw_text(surface, self.current.name.upper(), (SCREEN_W // 2, 110), base_size=16)
+            play = config.play()
+            ui.draw_text(renderer, self.current.name.upper(), (play.centerx, play.top + 110), base_size=16)

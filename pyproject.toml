@@ -1,8 +1,9 @@
 [project]
-name = "blocky-bird"
+name = "blocky-bee"
 version = "0.1.0"
-description = "Add your description here"
+description = "Flappy Bird com tematica Minecraft em Python/Pygame — graficos e sons gerados por codigo, sem assets externos"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "pygame-ce>=2.5",
@@ -10,23 +11,44 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.7",
+    "mkdocstrings[python]>=1.0.6",
+    "pre-commit>=4.6.1",
     "pyinstaller>=6.21.0",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pyyaml>=6.0.3",
     "ruff>=0.16.0",
     "ty>=0.0.65",
 ]
 
+[tool.pytest.ini_options]
+# R32.4: cobertura medida em toda execucao de `pytest`, nao so no CI. N fixado na
+# primeira medicao (96%, arredondada para baixo), ja acima da meta declarada de 90%
+# (design.md secao 42) — sobe conforme as tarefas avancam, nunca desce sem justificativa.
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=96"
+
 [tool.ruff]
 line-length = 110
 target-version = "py310"
-extend-exclude = ["specs"]
+# p4a-recipes: copiado de um PR upstream do python-for-android (task 27/28), nao e
+# codigo deste projeto — mesma exclusao ja usada por [tool.ty.src].
+extend-exclude = ["specs", "p4a-recipes"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "D"]
 ignore = []
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Docstrings (R31) cobrem src/, scripts/, main.py e conftest.py — nao os testes.
+"tests/*.py" = ["D"]
 
 [tool.ty.environment]
 python-version = "3.10"

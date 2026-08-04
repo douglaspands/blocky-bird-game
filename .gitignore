@@ -9,9 +9,32 @@ wheels/
 # Virtual environments
 .venv
 
+# Cache de ferramentas de lint/teste
+.pytest_cache/
+.ruff_cache/
+
 # Save local do jogo
 highscore.json
+# Nivel de qualidade detectado no aparelho (task 64, R29.5): e medicao local,
+# nao configuracao do projeto — o nivel de uma maquina nao diz nada sobre outra.
+quality.json
 
 # Cache de build do Buildozer/Android (task 27-29)
 .buildozer/
 bin/
+
+# Site de documentacao gerado (task 66) — publicado pelo CI, nao versionado
+site/
+
+# Relatorio de cobertura gerado a cada `pytest` (task 69, R32.4) — medicao local
+.coverage
+
+# Configuracao local do Claude Code (maquina/usuario especifico)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

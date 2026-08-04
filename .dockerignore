@@ -1,0 +1,39 @@
+# O build do APK Android roda o kivy/buildozer via bind-mount
+# (`docker run -v "$(pwd)":/home/user/hostcwd`, ver README.md e
+# .github/workflows/release.yml) — .dockerignore nao tem efeito sobre
+# bind-mounts, so sobre contexto de `docker build`. Este arquivo existe por
+# padronizacao e para um eventual `docker build` futuro no projeto.
+
+.git/
+.github/
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Cache de ferramentas de lint/teste
+.pytest_cache/
+.ruff_cache/
+
+# Save local do jogo
+highscore.json
+
+# Cache de build do Buildozer/Android
+.buildozer/
+bin/
+
+# Configuracao local do Claude Code
+.claude/
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

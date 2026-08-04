@@ -1,0 +1,1 @@
+--8<-- "specs/v3/design.md"

@@ -2,9 +2,7 @@
 
 import pygame
 
-from src import ui
-from src.config import SCREEN_H, SCREEN_W
-from src.scale import fit_scale
+from src import config, render, ui
 
 BUTTON_A = 0
 BUTTON_Y = 3
@@ -24,24 +22,57 @@ ACTION_BACK = "back"
 ACTION_FOCUS_LOST = "focus_lost"
 ACTION_LEFT = "left"
 ACTION_RIGHT = "right"
+ACTION_RESIZE = "resize"
 
 # eventos de ciclo de vida do app (R16.1): WINDOWFOCUSLOST cobre o desktop (alt-tab)
 # como fallback nas plataformas que nao emitem os eventos de app do SDL.
 FOCUS_LOST_EVENTS = (pygame.APP_WILLENTERBACKGROUND, pygame.APP_DIDENTERBACKGROUND, pygame.WINDOWFOCUSLOST)
 
+CONSUMED_EVENTS = (
+    pygame.QUIT,
+    *FOCUS_LOST_EVENTS,
+    pygame.WINDOWRESIZED,
+    pygame.KEYDOWN,
+    pygame.MOUSEBUTTONDOWN,
+    pygame.FINGERDOWN,
+    pygame.JOYBUTTONDOWN,
+    pygame.JOYDEVICEADDED,
+    pygame.JOYDEVICEREMOVED,
+)
+"""Todo tipo de evento que `poll` reconhece — e, por `configure_event_filter`, todo
+tipo que chega a existir como objeto Python.
 
-def _touch_to_logical(norm_x: float, norm_y: float) -> tuple[float, float]:
-    """Converte coordenada de toque normalizada (0.0-1.0, relativa a janela
-    inteira) para o espaco logico fixo 480x720, desfazendo o letterbox/
-    pillarbox que `pygame.SCALED` aplica automaticamente (R14.3). Mouse ja
-    chega pre-convertido pelo SDL; so toque precisa disso."""
-    win_w, win_h = pygame.display.get_window_size()
-    scale, off_x, off_y = fit_scale(SCREEN_W, SCREEN_H, win_w, win_h)
-    return (norm_x * win_w - off_x) / scale, (norm_y * win_h - off_y) / scale
+E a mesma lista para as duas coisas de proposito: um tipo tratado no `poll` mas
+esquecido aqui seria filtrado antes de chegar la, e o bug apareceria como uma acao
+que simplesmente parou de funcionar."""
+
+
+def configure_event_filter() -> None:
+    """Deixa entrar na fila so o que o jogo consome (R27.6). Chamar apos `pygame.init()`.
+
+    Lista de permissao, e nao de bloqueio: bloquear nominalmente `FINGERMOTION` e
+    `MOUSEMOTION` resolveria o caso conhecido de hoje e deixaria o de amanha passar.
+
+    O caso que motiva a regra e o `FINGERMOTION`. Enquanto o dedo esta na tela, o
+    Android o emite na taxa de amostragem do digitalizador — 120 a 240 Hz em aparelhos
+    correntes —, e cada evento vira um objeto Python que e criado, percorrido no laco
+    de `poll` e descartado, tres a quatro vezes por frame, para nao virar acao nenhuma.
+    `MOUSEMOTION` tem o mesmo perfil no desktop. Sao alocacoes por frame no caminho
+    quente, que e o que a secao 36 do design esta eliminando (R27.3).
+
+    Bloquear e mais forte que ignorar: o SDL descarta o evento antes de ele virar
+    objeto — `pygame.event.post` de um tipo bloqueado sequer entra na fila.
+    """
+    pygame.event.set_blocked(None)  # None = todos
+    pygame.event.set_allowed(CONSUMED_EVENTS)
 
 
 class InputManager:
-    def __init__(self) -> None:
+    """Traduz teclado, mouse, toque e joystick em acoes abstratas do jogo."""
+
+    def __init__(self, renderer: render.Renderer) -> None:
+        """Detecta e guarda os joysticks ja conectados na inicializacao."""
+        self.renderer = renderer
         pygame.joystick.init()
         self.joysticks: dict[int, pygame.joystick.JoystickType] = {}
         for device_index in range(pygame.joystick.get_count()):
@@ -54,13 +85,33 @@ class InputManager:
     def _remove_joystick(self, instance_id: int) -> None:
         self.joysticks.pop(instance_id, None)
 
+    def _tap(self, actions: set[str], window_x: float, window_y: float) -> None:
+        """Converte um ponto da janela para o canvas e resolve a acao.
+
+        Mouse e toque passam pelo mesmo `to_logical` do renderizador ativo, sem
+        nenhuma regra divergente entre eles (R34.2). Na v2 o tratamento era
+        assimetrico — `pygame.SCALED` pre-convertia o mouse e so o toque era
+        convertido a mao —, e a assimetria desapareceu junto com o `SCALED` (design
+        secao 33.4).
+        """
+        self._handle_tap(actions, *self.renderer.to_logical(window_x, window_y))
+
     def _handle_tap(self, actions: set[str], lx: float, ly: float) -> None:
-        """Toque/clique fora da area logica (na barra de letterbox/pillarbox) e
-        ignorado; no icone de mudo alterna mudo; em qualquer outro ponto da
-        area de jogo, voa (R15.1, R15.4)."""
-        if not (0 <= lx <= SCREEN_W and 0 <= ly <= SCREEN_H):
+        """Toque/clique em qualquer ponto do canvas voa; no icone de mudo alterna mudo.
+
+        Fora do canvas e ignorado (R34.1, R34.3, R15.1, R15.4).
+
+        O recorte e contra o **canvas**, e nao contra a area jogavel. Na v2 o que
+        caisse fora dos 480x720 era barra preta de letterbox, moldura morta do SDL, e
+        descartar era certo; na v3 aquele espaco e faixa decorativa desenhada e, num
+        celular 20:9, ocupa mais tela que o jogo — justamente onde o polegar cai
+        (R25.6, design secao 32.8). Como o canvas tem a proporcao da tela e a cobre
+        por construcao, o descarte de R34.3 so sobra para o arredondamento da
+        conversao.
+        """
+        if not (0 <= lx <= config.screen_w() and 0 <= ly <= config.screen_h()):
             return
-        if ui.MUTE_ICON_RECT.collidepoint(lx, ly):
+        if ui.mute_icon_rect().collidepoint(lx, ly):
             actions.add(ACTION_MUTE)
         else:
             actions.add(ACTION_FLAP)
@@ -75,6 +126,10 @@ class InputManager:
                 quit_requested = True
             elif event.type in FOCUS_LOST_EVENTS:
                 actions.add(ACTION_FOCUS_LOST)
+            elif event.type == pygame.WINDOWRESIZED:
+                # so acontece no desktop: no Android a janela e a tela inteira e a
+                # orientacao esta travada (R23.5, R23.6).
+                actions.add(ACTION_RESIZE)
             elif event.type == pygame.KEYDOWN:
                 if event.key in FLAP_KEYS:
                     actions.add(ACTION_FLAP)
@@ -89,10 +144,12 @@ class InputManager:
                 elif event.key in RIGHT_KEYS:
                     actions.add(ACTION_RIGHT)
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # com pygame.SCALED, event.pos ja vem em coordenadas logicas (R9.1)
-                self._handle_tap(actions, *event.pos)
+                # `event.pos` vem em pixels reais da janela
+                self._tap(actions, *event.pos)
             elif event.type == pygame.FINGERDOWN:
-                self._handle_tap(actions, *_touch_to_logical(event.x, event.y))
+                # o toque chega normalizado (0.0-1.0) sobre a janela inteira
+                win_w, win_h = self.renderer.window_size
+                self._tap(actions, event.x * win_w, event.y * win_h)
             elif event.type == pygame.JOYBUTTONDOWN:
                 if event.button == BUTTON_A:
                     actions.add(ACTION_FLAP)

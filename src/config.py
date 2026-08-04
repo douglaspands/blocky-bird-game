@@ -1,14 +1,14 @@
 """Constantes globais do jogo."""
 
-SCREEN_W = 480
-SCREEN_H = 720  # resolucao logica FIXA (proporcao 2:3), calibracao da task 12 — nunca
-# muda com o aparelho; `pygame.SCALED` (em game.py) escala e aplica letterbox
-# automatico para caber na tela real, sem cortar nada (task 41, ver design.md
-# secao 20.1.5). Combinado com `orientation = portrait` no buildozer.spec, a
-# barra que sobra e sempre no topo/base, nunca nas laterais.
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pygame
+
+    from src.viewport import Viewport
 
 FPS = 60
-TITLE = "Blocky Bird"
+TITLE = "Blocky Bee"
 CREDITS = "por Douglas e Pedro"
 
 GRAVITY = 0.45
@@ -22,7 +22,63 @@ PIPE_W = BLOCK  # colisao deve casar com a largura da coluna de blocos renderiza
 GAP_MARGIN = 80
 HITBOX_SCALE = 0.85
 
+_viewport: "Viewport | None" = None
+
+
+def set_viewport(vp: "Viewport") -> None:
+    """Define o viewport ativo.
+
+    Chamado pelo `Game` depois de criar o display e de novo a cada
+    redimensionamento da janela (R23.6).
+    """
+    global _viewport
+    _viewport = vp
+
+
+def viewport() -> "Viewport":
+    """Viewport ativo.
+
+    Sem display criado (testes de unidade, scripts), o padrao e o canvas 2:3 —
+    identico a area jogavel, que e exatamente o comportamento da v2.
+    """
+    global _viewport
+    if _viewport is None:
+        from src import viewport as viewport_module
+
+        _viewport = viewport_module.compute(viewport_module.PLAY_W, viewport_module.PLAY_H)
+    return _viewport
+
+
+def screen_w() -> int:
+    """Largura do canvas logico ativo (R23.4).
+
+    Deixou de ser constante de modulo na v3: o canvas tem a proporcao da tela real,
+    entao a largura so existe depois que o display foi criado. Funcao pelo mesmo
+    motivo de `ground_y()` — uma constante importada congelaria o valor de quem
+    importou antes do viewport ser definido.
+    """
+    return viewport().canvas[0]
+
+
+def screen_h() -> int:
+    """Altura do canvas logico ativo (R23.4). Ver `screen_w()`."""
+    return viewport().canvas[1]
+
+
+def play() -> "pygame.Rect":
+    """Area jogavel dentro do canvas.
+
+    Onde a abelha voa, onde as colunas existem e onde a colisao acontece.
+    Sempre 480x720 de mundo, em qualquer tela (R24.1).
+    """
+    return viewport().play
+
 
 def ground_y() -> int:
-    """Topo do chao em coordenadas jogaveis."""
-    return SCREEN_H - GROUND_H
+    """Topo do chao, na borda de baixo da area jogavel — nao na do canvas (R24.5).
+
+    O que fica abaixo dele e faixa decorativa de chao (R25.1): `Ground.draw` enche
+    ate a base do canvas, entao a fileira extra e consequencia direta do canvas mais
+    alto, sem regra nova.
+    """
+    return play().bottom - GROUND_H

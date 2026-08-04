@@ -17,7 +17,7 @@ def is_android() -> bool:
 
 
 def is_frozen() -> bool:
-    """PyInstaller define sys.frozen no executavel empacotado (BlockyBird.spec).
+    """PyInstaller define sys.frozen no executavel empacotado (BlockyBee.spec).
 
     No modo onefile, __file__ aponta para o diretorio temporario de extracao
     (sys._MEIPASS), apagado ao fechar o app — usar esse caminho como base faz
@@ -27,6 +27,7 @@ def is_frozen() -> bool:
 
 
 def save_dir() -> Path:
+    """Diretorio gravavel para dados persistentes (recorde, qualidade), por plataforma."""
     if is_android():
         try:
             # fornecido pelo p4a em runtime; indisponivel no venv de dev

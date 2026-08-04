@@ -1,0 +1,16 @@
+version: 2
+
+updates:
+  # Dependencias Python (pyproject.toml/uv.lock) — GA nativo desde marco/2025
+  # (design.md secao 44); "pip" nao le uv.lock.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Versoes fixadas nos workflows (actions/checkout@v4 etc.), nos tres arquivos de
+  # .github/workflows/.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

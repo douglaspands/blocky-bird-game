@@ -1,0 +1,66 @@
+site_name: Blocky Bee
+site_description: Flappy Bird com temática Minecraft, feito em Python/Pygame por Spec Driven Development.
+repo_url: https://github.com/douglaspands/blocky-bird-game
+strict: true
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Tema escuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Tema claro
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["."]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            heading_level: 3
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences
+
+nav:
+  - Blocky Bee: index.md
+  - API: api.md
+  - Specs:
+      - specs/README.md
+      - v1 (Blocky Bird):
+          - specs/v1/README.md
+          - Requisitos: specs/v1/requirements.md
+          - Design: specs/v1/design.md
+          - Tarefas: specs/v1/tasks.md
+      - v2 (Android):
+          - specs/v2/README.md
+          - Requisitos: specs/v2/requirements.md
+          - Design: specs/v2/design.md
+          - Tarefas: specs/v2/tasks.md
+      - v3 (Blocky Bee, atual):
+          - specs/v3/README.md
+          - Requisitos: specs/v3/requirements.md
+          - Design: specs/v3/design.md
+          - Tarefas: specs/v3/tasks.md
+          - Rastreabilidade: specs/v3/traceability.md
