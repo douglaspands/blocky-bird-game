@@ -6,6 +6,7 @@ se ajusta e, de quebra, muda a dificuldade, destrui a comparabilidade dos record
 R24 garante.
 """
 
+import asyncio
 import json
 import random
 
@@ -373,7 +374,7 @@ def _run_frames(game: Game, frame_ms: float, frames: int, monkeypatch, on_frame=
             return frame_ms
 
     monkeypatch.setattr(game, "clock", _ScriptedClock())
-    game.run()
+    asyncio.run(game.run())
     return requested
 
 

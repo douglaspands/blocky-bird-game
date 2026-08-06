@@ -1,5 +1,6 @@
 """Classe Game: loop principal e maquina de estados (R6)."""
 
+import asyncio
 import contextlib
 from enum import Enum, auto
 
@@ -448,8 +449,14 @@ class Game:
             self.accumulator = 0.0
         return steps
 
-    def run(self) -> None:
-        """Laco principal: relogio, simulacao em passos fixos e desenho, ate fechar."""
+    async def run(self) -> None:
+        """Laco principal: relogio, simulacao em passos fixos e desenho, ate fechar.
+
+        `await asyncio.sleep(0)` devolve o controle ao navegador a cada quadro (R37.2)
+        - sob Emscripten/pygbag e o unico jeito de a aba nao travar; em CPython nativo
+        o mesmo await custa uma cessao de controle sem I/O real, entao o MESMO laco
+        roda sem ramo de plataforma no desktop/Android (R37.3).
+        """
         profiler = self.profiler
         while self.running:
             # o teto de quadros vem do nivel de qualidade: cai para 30 no BAIXO, e a
@@ -469,6 +476,7 @@ class Game:
                 profiler.end_update()
                 self.draw()
                 profiler.end_draw()
+            await asyncio.sleep(0)
         # saida ordenada (fechar a janela, BACK fora de JOGANDO): um recorde batido numa
         # partida que o jogador abandonou sem colidir nao pode se perder aqui (R4.3).
         self._flush_to_disk()

@@ -1,3 +1,4 @@
+import asyncio
 import random
 
 import pygame
@@ -511,7 +512,7 @@ def test_leaving_the_loop_writes_a_record_from_an_abandoned_round(monkeypatch):
     _beat_the_record(game)
     game.running = False
 
-    game.run()  # o laco nao roda nenhum frame; so a saida
+    asyncio.run(game.run())  # o laco nao roda nenhum frame; so a saida
 
     assert written == [1]
     assert score_module.load_highscore() == 1
@@ -737,7 +738,7 @@ def _run_frames(game: Game, frames, monkeypatch) -> list[int]:
 
     monkeypatch.setattr(game, "clock", _ScriptedClock())
     game.renderer = FakeRenderer(game.viewport.canvas)
-    game.run()
+    asyncio.run(game.run())
     return requested
 
 
