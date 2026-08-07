@@ -23,6 +23,12 @@ quality.json
 .buildozer/
 bin/
 
+# Cache do build web (task 91): stage persistente do pygbag e o runtime
+# WebAssembly vendorizado (~22 MiB, baixados do CDN do pygbag na primeira
+# execucao de scripts/build_web.py) - local, reproduzivel, nao pertence ao
+# controle de versao (R40.2).
+.cache/
+
 # Site de documentacao gerado (task 66) — publicado pelo CI, nao versionado
 site/
 

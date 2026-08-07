@@ -224,7 +224,7 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 | R39.4 | 50 | 87 | |
 | R39.5 | 50 | 87 | |
 | R40.1 | 51 | 90 | manual |
-| R40.2 | 51 | 89 | |
+| R40.2 | 51 | 89, 91 | `test_build_web.py::test_vendor_runtime_assets_downloads_only_files_missing_from_the_cache` |
 | R40.3 | 51 | 90 | manual |
 | R40.4 | 46 | 85 | manual |
 | R40.5 | 51 | 89 | |
