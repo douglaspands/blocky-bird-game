@@ -990,8 +990,14 @@ Requer aparelho Android real:
 
   **Não verificável neste ambiente:** persistência real do `window.localStorage` entre recarregamentos de página (R39.5 deixa isso explicitamente para a task 96, com Chrome de verdade).
 
-- [ ] **88. Confirmar entrada nativa sob Emscripten**
+- [x] **88. Confirmar entrada nativa sob Emscripten**
   Revisita o spike da task 85 focado em teclado/mouse/toque: confirma que `input.py` não precisa de mudança porque a ponte SDL2 do Emscripten já mapeia eventos DOM para os mesmos tipos de evento consumidos hoje. Ajuste mínimo aqui só se algo faltar. _(R38.1)_ — Requer verificação manual no Chrome; sem teste novo se a hipótese se confirmar.
+
+  **Hipótese confirmada, sem nenhuma mudança em `input.py`.** Repetido o mesmo spike isolado da task 85 (cópia fora do repo com `main.py` + `src/` + `assets/`, mais o `import pygame` explícito de nível superior para o pré-carregador do `pygbag` detectar a dependência — mesmo achado da task 85, ainda não aplicado ao `main.py` real porque isso é escopo da task 89), construído via `uv run pygbag` e servido pelo test server nativo do próprio `pygbag` (porta 8000 — necessário porque o índice de pacotes do wheel do `pygame-ce` está hardcoded para `localhost:8000` no `pygbag/aio.py`, então servir por um `http.server` genérico em outra porta quebra o fetch do wheel). Aberto em Chrome real headless via CDP (`Target.attachToTarget`/`Input.dispatchKeyEvent`/`Input.dispatchMouseEvent`/`Input.dispatchTouchEvent`), com um `print` de diagnóstico temporário em `handle_events` (só na cópia do spike, nunca no repositório) expondo `actions`/`state` via o mesmo shim de `console.log` da task 85.
+
+  **Os três tipos de evento confirmados, cada um gerando exatamente a ação abstrata esperada, sem exceção:** `KEYDOWN` (barra de espaço → `{'flap'}`, Escape → `{'pause'}`, `M` → `{'mute'}`), `MOUSEBUTTONDOWN` (clique no centro do canvas → `{'flap'}`) e `FINGERDOWN` (toque simulado via `Input.dispatchTouchEvent` no mesmo ponto → `{'flap'}`). O `state` do jogo evoluiu de PRONTO para JOGANDO e, ao longo da sequência de eventos, chegou a GAME_OVER e voltou a PRONTO via um novo flap — confirmando que a simulação de jogo roda corretamente enquanto processa entrada real do navegador, não só que os eventos chegam. Nenhum ajuste foi necessário em `input.py`: a ponte SDL2 do Emscripten mapeia clique/toque/tecla do DOM para os mesmos `pygame.MOUSEBUTTONDOWN`/`pygame.FINGERDOWN`/`pygame.KEYDOWN` já tratados pelo `InputManager.poll` (R38.1).
+
+  **Não verificado nesta task, fora do escopo de R38.1:** controle Xbox via Gamepad API (task 93) e a sobreposição `BLOCKY_PERF` (gap de instrumentação já registrado na task 85). Ambiente de teste (build isolado, servidor, Chrome) não persiste — mesma limitação registrada na task 85.
 
 - [ ] **89. `scripts/build_web.py`: inliner base64**
   `inline_assets(html, asset_dir)` puro, mais checagem final que falha o build se sobrar referência externa. Testável com fixture sintética, sem `pygbag` real. _(R40.1, R40.2, R40.5)_ — `tests/test_build_web.py`.
