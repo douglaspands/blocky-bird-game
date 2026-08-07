@@ -1019,6 +1019,8 @@ O `(0, 0)` com `FULLSCREEN` faz o SDL usar o modo de vídeo corrente do aparelho
 
 Para conferir a proporção de um celular sem aparelho, a variável de ambiente `BLOCKY_CANVAS=LxA` força o canvas no desktop. É ferramenta de desenvolvimento, no mesmo espírito de `BLOCKY_PERF` (seção 39).
 
+**Redimensionamento sob Emscripten (R37.8, task 96).** O lado `game.py` do mecanismo acima — `WINDOWRESIZED` recalculando o `Viewport` via `apply_resize` — já é agnóstico de plataforma (R37.3): nenhum ramo `is_web()` deveria ser necessário. O que é incerto é o lado do navegador: o `index.html` que o `pygbag` gera embute um tamanho de canvas fixo, e redimensionar a janela do navegador só chega ao SDL se algo (CSS + um listener de `resize` que ajuste o elemento `<canvas>`) fizer a ponte — o mesmo tipo de suposição sobre o comportamento do `pygbag`/Emscripten que as tasks 85 e 88 já mostraram não valer sem checagem real. A task 96 é por isso um spike, não uma implementação assumida: confirma em Chrome real se o canvas já acompanha a janela (nesse caso R37.8 já está satisfeito de graça) e só adiciona a ponte CSS/JS que faltar, no mesmo passo de pós-processamento de `scripts/build_web.py` que já reescreve o `index.html` (seção 51) — sem tocar `src/`.
+
 ### 32.8 Entrada
 
 Sem `pygame.SCALED`, o SDL deixa de converter as coordenadas do mouse para o espaço lógico — na v2, `input.py` dependia disso (`# com pygame.SCALED, event.pos já vem em coordenadas lógicas`). Na v3 a conversão passa a vir do renderizador (`to_logical`, seção 33), que usa `Renderer.coordinates_from_window` no caminho de GPU e a `scale.fit_scale` já existente no caminho de superfície. Mouse e toque passam a usar o mesmo caminho, e `input.py` deixa de ter dois tratamentos diferentes.
@@ -1397,7 +1399,7 @@ def write_json(filename: str, data: dict) -> None:
 
 **Disciplina de gravação (R39.4).** Nenhuma mudança em `game.py`: os três pontos de flush já existentes (fim de partida, perda de foco, saída do laço — R27.5) continuam sendo os únicos lugares que chamam `write_json`, valendo tanto para arquivo quanto para `localStorage`.
 
-**Testabilidade sem navegador (R39.5).** `_web_storage()` é um seam isolado, substituível em teste por um `FakeLocalStorage` (novo, em `tests/fakes.py`, mesmo padrão já usado por `FakeRenderer`/`FakeImage` naquele arquivo) — um dicionário simples implementando `getItem`/`setItem`. Isso cobre por `pytest` toda a lógica de serialização/desserialização e de dado ausente/corrompido; só o comportamento real de persistência do `window.localStorage` entre recarregamentos de página precisa de um humano no Chrome (task 96).
+**Testabilidade sem navegador (R39.5).** `_web_storage()` é um seam isolado, substituível em teste por um `FakeLocalStorage` (novo, em `tests/fakes.py`, mesmo padrão já usado por `FakeRenderer`/`FakeImage` naquele arquivo) — um dicionário simples implementando `getItem`/`setItem`. Isso cobre por `pytest` toda a lógica de serialização/desserialização e de dado ausente/corrompido; só o comportamento real de persistência do `window.localStorage` entre recarregamentos de página precisa de um humano no Chrome (task 97).
 
 ## 51. Empacotamento como `.html` único (R40)
 
@@ -1436,3 +1438,4 @@ Mesmo espírito da seção 25 (v3, aparelho Android real): o que só um humano n
 - Se o arquivo único, aberto local ou via GitHub Pages, realmente não faz nenhuma requisição de rede adicional (seção 51).
 - Se o tamanho final e o tempo até PRONTO são aceitáveis numa conexão móvel real — decisão do dono do produto, não um número que o CI possa aprovar sozinho.
 - Se o recorde sobrevive a fechar a aba e reabrir o link.
+- Se redimensionar a janela do navegador propaga até o canvas (seção 32.7) sem uma ponte CSS/JS extra, ou se ela precisa ser construída (R37.8).

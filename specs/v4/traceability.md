@@ -10,7 +10,7 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 
 > **Completa até a task 83 (v3).** Todo critério `R1.1`–`R36.3` tem uma linha com teste real,
 > como no fechamento da v3. **Os critérios `R37.1`–`R41.4` são o trabalho da v4 (tasks
-> 84–96), ainda não implementado nesta pasta** — ficam com a coluna Testes em branco onde a
+> 84–97), ainda não implementado nesta pasta** — ficam com a coluna Testes em branco onde a
 > task implementadora ainda não rodou (citar um teste que não existe quebraria
 > `test_every_test_reference_in_the_matrix_resolves_to_a_real_function`, R32.3), ou com o
 > marcador `manual` onde o próprio design (`design.md` seções 45–53) já reconhece que só um
@@ -212,7 +212,8 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 | R37.4 | 45, 46 | 85 | manual |
 | R37.5 | 46 | 85 | manual |
 | R37.6 | 47 | 86 | |
-| R37.7 | 53 | 96 | manual |
+| R37.7 | 53 | 97 | manual |
+| R37.8 | 32.7 | 96 | manual |
 | R38.1 | 48 | 88 | manual |
 | R38.2 | 49 | 93 | manual |
 | R38.3 | 49 | 93 | manual |
@@ -229,5 +230,5 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 | R40.5 | 51 | 89 | |
 | R41.1 | 52 | 94 | |
 | R41.2 | 52 | 95 | |
-| R41.3 | 52 | 96 | manual |
-| R41.4 | 53 | 96 | manual |
+| R41.3 | 52 | 97 | manual |
+| R41.4 | 53 | 97 | manual |

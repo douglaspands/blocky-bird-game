@@ -491,6 +491,7 @@ Notação: critérios de aceitação em formato EARS (`QUANDO <evento>, O sistem
 5. A camada de renderização DEVE tentar a mesma cascata de três níveis já usada nas demais plataformas (R26.1-R26.3); QUANDO o backend acelerado por GPU não estiver disponível sob Emscripten, O sistema DEVE cair para o próximo nível sem exceção não tratada, com o backend em uso exposto pela mesma sobreposição de diagnóstico já existente (R26.5, R30.2).
 6. O áudio (os 4 efeitos sintetizados) DEVE tocar sem interromper o jogo mesmo que o navegador negue ou atrase a inicialização do dispositivo de áudio.
 7. QUANDO a aba perde o foco ou é minimizada durante JOGANDO, o comportamento DEVE se aproximar ao máximo do já garantido em R16.1/R16.2, reconhecendo que o navegador pode não emitir o mesmo evento SDL que desktop/Android.
+8. QUANDO a janela do navegador que hospeda o jogo é redimensionada, O sistema DEVE recalcular o canvas lógico e as faixas decorativas pelo mesmo mecanismo de R23.6, sem recarregar a página nem exigir ação do jogador. Alternar o modo de tela cheia do navegador está fora de escopo.
 
 ---
 

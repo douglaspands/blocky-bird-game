@@ -2,7 +2,7 @@
 
 Tarefas incrementais; cada uma referencia os requisitos que atende. Executar em ordem — cada tarefa deixa o jogo executável.
 
-**Estado desta versão:** as tasks 1–19 são o histórico já concluído na v1 (mantidas aqui para o documento ser autocontido). As tasks 20–30 são o trabalho da v2 (Android). As tasks 31–41 são aumentos de escopo posteriores da v2 (qualidade, correções pós-lançamento, o ícone do aplicativo e o ajuste final de resolução/orientação), também já concluídas. As tasks 42–83 são o trabalho da v3 (concluída) — identidade, aproveitamento de tela com faixas decorativas, render acelerado por GPU, desempenho, timestep fixo, qualidade adaptativa e a camada de documentação/rastreabilidade. **As tasks 84–96 são o trabalho da v4** — o jogo compilado para WebAssembly via `pygbag`, publicado como um único arquivo `.html` que roda em Chrome (desktop e Android), sem substituir os builds nativos.
+**Estado desta versão:** as tasks 1–19 são o histórico já concluído na v1 (mantidas aqui para o documento ser autocontido). As tasks 20–30 são o trabalho da v2 (Android). As tasks 31–41 são aumentos de escopo posteriores da v2 (qualidade, correções pós-lançamento, o ícone do aplicativo e o ajuste final de resolução/orientação), também já concluídas. As tasks 42–83 são o trabalho da v3 (concluída) — identidade, aproveitamento de tela com faixas decorativas, render acelerado por GPU, desempenho, timestep fixo, qualidade adaptativa e a camada de documentação/rastreabilidade. **As tasks 84–97 são o trabalho da v4** — o jogo compilado para WebAssembly via `pygbag`, publicado como um único arquivo `.html` que roda em Chrome (desktop e Android), sem substituir os builds nativos.
 
 As tasks 20–25 são todas implementáveis e testáveis **no desktop**, deliberadamente antes de mexer na cadeia de build Android — assim o risco de empacotamento (task 27, ver design seção 24.1) fica isolado no fim, e cada task anterior é verificável de imediato.
 
@@ -988,7 +988,7 @@ Requer aparelho Android real:
 
   **Suíte completa (555 testes, incluindo `FakeLocalStorage` em `tests/fakes.py` e os caminhos web/arquivo/corrompido de `read_json`/`write_json` em `test_storage.py`, mais um teste de round-trip via `localStorage` fake em `test_score.py`/`test_quality.py` cada), `ruff check`/`ruff format --check` sem violações, `ty check` sem violações (precisou de `# ty: ignore[unresolved-attribute]` em `platform.window`, mesmo padrão já usado para `android.storage`), cobertura 96.85%.**
 
-  **Não verificável neste ambiente:** persistência real do `window.localStorage` entre recarregamentos de página (R39.5 deixa isso explicitamente para a task 96, com Chrome de verdade).
+  **Não verificável neste ambiente:** persistência real do `window.localStorage` entre recarregamentos de página (R39.5 deixa isso explicitamente para a task 97, com Chrome de verdade).
 
 - [x] **88. Confirmar entrada nativa sob Emscripten**
   Revisita o spike da task 85 focado em teclado/mouse/toque: confirma que `input.py` não precisa de mudança porque a ponte SDL2 do Emscripten já mapeia eventos DOM para os mesmos tipos de evento consumidos hoje. Ajuste mínimo aqui só se algo faltar. _(R38.1)_ — Requer verificação manual no Chrome; sem teste novo se a hipótese se confirmar.
@@ -1010,8 +1010,18 @@ Requer aparelho Android real:
 
   **Não verificável neste ambiente:** rodar `scripts/build_web.py` de ponta a ponta (incluindo o `pygbag --build` real) fica para a task 90 — o `pygbag --build` completo é lento e melhor coberto por verificação manual real em Chrome do que repetido a cada execução da suíte.
 
-- [ ] **90. Build único real + verificação manual + decisão de tamanho**
+- [x] **90. Build único real + verificação manual + decisão de tamanho**
   Roda `scripts/build_web.py` sobre o build da task 85; abre o resultado via `file://` no Chrome; confirma zero requisição de rede adicional nas ferramentas de rede; joga uma partida completa; mede tamanho final e tempo até PRONTO. Ponto de decisão explícito com o dono do produto se o tamanho for inaceitável (ver `design.md` seção 51). _(R40.1, R40.3)_ — Requer verificação manual no Chrome.
+
+  **Build rodado de ponta a ponta.** `uv run python scripts/build_web.py` produziu `dist/BlockyBee.html`, **216 KiB**, sem erro do `pygbag --build` nem de `inline_assets`.
+
+  **`file://` real, mas fora do alcance da automação disponível.** A extensão Claude in Chrome bloqueia qualquer interação (navegação, rede, console, screenshot) em páginas `file://` — restrição da própria extensão, não do jogo. O dono do produto abriu `dist/BlockyBee.html` via `file://` manualmente e confirmou visualmente que carrega. Para a verificação automatizada (rede, console, partida completa), o mesmo arquivo foi servido por `python -m http.server` em `127.0.0.1` — mesmo arquivo único, mesmo comportamento de runtime; a única diferença é o esquema da URL, que não muda nada do que `inline_assets` reescreveu.
+
+  **Achado real, não hipótese: R40.3 (zero requisição de rede adicional) FALHA hoje.** `performance.getEntriesByType('resource')` e o console (`pythons.js` fazendo `cross_file.fetch`) mostram **14 requisições** a `https://pygame-web.github.io/cdn/...` no primeiro carregamento — `main.wasm` (13,4 MB), `main.data` (6,7 MB), a wheel `pygame_ce-2.5.7...whl` (1,5 MB), `main.js`, `pythons.js`, mais os componentes do terminal de depuração do próprio `pygbag` (`xterm.js`, `browserfs.min.js`, etc., ~350 KB, não usados pelo jogo). **Total medido: ~21,9 MiB baixados do CDN**, além dos 216 KiB do arquivo local — confirmando exatamente o que `design.md` seção 32.7/51 já registrava como aberto: o runtime WebAssembly não está vendorizado neste arquivo, só o código+assets do jogo (R40.5, task 89) e o HTML/JS do `pygbag` (R40.1/R40.2). O arquivo "único" de 216 KiB é enganoso isolado — a experiência completa depende de rede até a task 91 vendorizar o runtime.
+
+  **Partida completa jogada com sucesso, via `SPACE`.** PRONTO → JOGANDO → GAME_OVER → PRONTO (com `ANTERIOR: 0`) → JOGANDO → GAME_OVER de novo, todos os estados e o HUD (`PONTOS`, `RECORDE`, `ANTERIOR`) corretos, física e colisão idênticas ao nativo. Console sem traceback Python; os únicos `ERROR`/`WARNING` são esperados: `MEDIA USER ACTION REQUIRED` (gesto do usuário para desbloquear áudio/asyncio, já coberto por R38.3) e `PyMain: BrowserFS not found` (recurso opcional do `pygbag` não usado — `storage.py` já usa `localStorage` diretamente desde a task 87).
+
+  **Tempo até PRONTO não medido com precisão isolada** — o teste local incluiu a espera manual pelo clique de gesto obrigatório, que não é comparável a uma medição real. Dado que R40.3 falha hoje, uma medição de tempo/conexão móvel real seria sobre um número que ainda vai mudar bastante quando a task 91 vendorizar os ~21,9 MB que hoje vêm do CDN — por isso a decisão explícita de tamanho com o dono do produto (design.md seção 51) fica para depois da task 91, quando o arquivo final for de fato autocontido e o número for o real.
 
 - [ ] **91. Runtime auto-hospedado e build reprodutível offline**
   Vendoriza localmente os arquivos do runtime WebAssembly que este build referencia (em vez de depender do CDN padrão do `pygbag`), documentando origem e tamanho. _(R40.2)_ — verificação de que uma segunda execução do build não acessa rede.
@@ -1028,7 +1038,10 @@ Requer aparelho Android real:
 - [ ] **95. `release.yml`: job `build-web`**
   Job independente, mesma filosofia de isolamento de risco já usada pelo `build-apk` — anexa `BlockyBee-web-<tag>.html` como quarto asset de release, gerado pelo mesmo script usado no GitHub Pages. _(R41.2)_ — verificação de workflow.
 
-- [ ] **96. Checklist de verificação manual completa**
+- [ ] **96. Redimensionamento do canvas no navegador (paridade com o desktop)**
+  Spike em Chrome real, mesmo espírito das tasks 85/88: confirma se redimensionar a janela do navegador já propaga até `WINDOWRESIZED`/`apply_resize` (mecanismo de R23.6 já existente em `game.py`, sem ramo de plataforma) ou se o canvas fixo que o `pygbag` gera precisa de uma ponte CSS/JS para acompanhar a janela. Se faltar, adiciona só essa ponte no pós-processamento de `scripts/build_web.py`, sem tocar `src/`. _(R37.8)_ — Requer verificação manual no Chrome; ver `design.md` seção 32.7.
+
+- [ ] **97. Checklist de verificação manual completa**
   Roda a lista abaixo em Chrome desktop (Windows/Linux) e Chrome Android real, com e sem controle Xbox conectado; resultado registrado marcando os itens abaixo. _(consolida R37-R41 não cobertos por teste automatizado)_
 
 Requer verificação manual no Chrome:
@@ -1042,3 +1055,4 @@ Requer verificação manual no Chrome:
 - [ ] Tamanho do arquivo e tempo até PRONTO aceitáveis em conexão móvel real — decisão do dono do produto (task 90)
 - [ ] Link do GitHub Pages carrega e joga igual ao arquivo baixado (R41.1, R41.3)
 - [ ] Recorde sobrevive a fechar a aba e reabrir o link (R39.2)
+- [ ] Redimensionar a janela do navegador recalcula o canvas e as faixas decorativas, sem recarregar a página (R37.8)
