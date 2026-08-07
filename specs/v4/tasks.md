@@ -999,8 +999,16 @@ Requer aparelho Android real:
 
   **Não verificado nesta task, fora do escopo de R38.1:** controle Xbox via Gamepad API (task 93) e a sobreposição `BLOCKY_PERF` (gap de instrumentação já registrado na task 85). Ambiente de teste (build isolado, servidor, Chrome) não persiste — mesma limitação registrada na task 85.
 
-- [ ] **89. `scripts/build_web.py`: inliner base64**
+- [x] **89. `scripts/build_web.py`: inliner base64**
   `inline_assets(html, asset_dir)` puro, mais checagem final que falha o build se sobrar referência externa. Testável com fixture sintética, sem `pygbag` real. _(R40.1, R40.2, R40.5)_ — `tests/test_build_web.py`.
+
+  **Implementado conforme planejado, com os dois ajustes de escopo já previstos pela nota da task 85.** `main.py` ganhou `import pygame` explícito de nível superior (com comentário curto explicando a limitação do pré-carregador léxico do `pygbag`, o mesmo achado da task 85/88). `scripts/build_web.py` novo, mesma categoria dev-only de `generate_app_icon.py`/`benchmark.py`: `_stage()` copia só `main.py`+`src/`+`assets/` para um diretório temporário antes de `pygbag --build` (resolve o achado da task 85 de que o build direto na raiz arrastaria `.venv` junto, sem precisar de `pygbag.ini`), `_pygbag_build()` roda o build isolado, e `inline_assets(html, asset_dir)` — a função pura pedida pela task — reescreve o `index.html` resultante.
+
+  `inline_assets` trata três padrões de referência local, os três confirmados contra um `index.html` real do `pygbag` (spike isolado fora do repo, mesmo padrão de ambiente das tasks 85/88, descartado ao final): `<script src="...">` local vira texto inline; `<link href="...">` local (o `favicon.png`) vira `data:` URI; qualquer outro arquivo binário local só referenciado por nome dentro de outro `<script>` — caso real do pacote `tar.gz` de código+assets, buscado pelo carregador do `pygbag` via `platform.fopen(nome)`, não por um `fetch()` ou `<script src>` literal no HTML — vira um bloco `<script type="application/octet-stream;base64">` mais um shim que sobrescreve `window.fetch` para resolver pelo nome do arquivo, sem reescrever o texto que faz a chamada original. A checagem final (R40.5) varre o HTML por qualquer `src=`/`href=` que ainda aponte para caminho relativo (excluindo âncora/`mailto:`/`javascript:`/`data:`/URL absoluta) e levanta `SystemExit` se sobrar alguma — verificado tanto por fixture sintética quanto rodando contra o `index.html` real do spike, sem nenhuma referência local restante além das URLs absolutas do CDN (fora do escopo de R40.5, que fala em arquivo *local* — vendorizar o runtime WASM do CDN é a task 91, não esta).
+
+  **Suíte completa (562 testes, 7 novos em `tests/test_build_web.py`), `ruff check`/`ruff format --check` sem violações, `ty check` sem violações, cobertura 96.85%.**
+
+  **Não verificável neste ambiente:** rodar `scripts/build_web.py` de ponta a ponta (incluindo o `pygbag --build` real) fica para a task 90 — o `pygbag --build` completo é lento e melhor coberto por verificação manual real em Chrome do que repetido a cada execução da suíte.
 
 - [ ] **90. Build único real + verificação manual + decisão de tamanho**
   Roda `scripts/build_web.py` sobre o build da task 85; abre o resultado via `file://` no Chrome; confirma zero requisição de rede adicional nas ferramentas de rede; joga uma partida completa; mede tamanho final e tempo até PRONTO. Ponto de decisão explícito com o dono do produto se o tamanho for inaceitável (ver `design.md` seção 51). _(R40.1, R40.3)_ — Requer verificação manual no Chrome.
