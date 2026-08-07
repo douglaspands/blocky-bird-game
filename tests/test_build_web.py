@@ -18,6 +18,7 @@ import pytest
 
 import scripts.build_web as build_web
 from scripts.build_web import (
+    _ensure_utf8_declared_early,
     _inline_pythons_js,
     _patch_pythons_js,
     _patch_vtx_js,
@@ -270,6 +271,34 @@ def test_strip_dead_browserfs_script_removes_the_tag():
 
     assert "browserfs.min.js" not in result
     assert "conteudo" in result
+
+
+def test_ensure_utf8_declared_early_inserts_meta_charset_right_after_the_html_tag():
+    """`pythons.js` roda `if (document.characterSet.toLowerCase() !== "utf-8")
+    alert(...)` no boot - o `<meta charset="UTF-8">` que o `pygbag` ja gera
+    fica la longe, depois do `<script>` inline gigante de `pythons.js`
+    (dezenas de MiB em base64 apos `inline_assets`), muito alem dos 1024
+    bytes que o pre-scan de encoding do HTML5 examina, entao o navegador
+    nunca o ve a tempo (achado real, task 98: reproduzido abrindo
+    `dist/BlockyBee.html` no Chrome). A tag precisa cair logo apos `<html>`,
+    antes de qualquer `<script>`, pra entrar na janela de pre-scan."""
+    html = '<html lang="en-us"><script>console.log("boot");</script><head></head></html>'
+
+    result = _ensure_utf8_declared_early(html)
+
+    assert result.index('<meta charset="utf-8">') < result.index("<script>")
+    assert result.startswith('<html lang="en-us"><meta charset="utf-8">')
+
+
+def test_ensure_utf8_declared_early_only_touches_the_first_html_tag():
+    """So a abertura real de `<html>` conta - nao um `<html>` que aparece,
+    por exemplo, dentro de texto/comentario embutido mais adiante."""
+    html = "<html><body>texto com &lt;html&gt; escapado</body></html>"
+
+    result = _ensure_utf8_declared_early(html)
+
+    assert result.count('<meta charset="utf-8">') == 1
+    assert "&lt;html&gt;" in result
 
 
 def test_vendor_runtime_assets_downloads_only_files_missing_from_the_cache(tmp_path, monkeypatch):

@@ -228,6 +228,31 @@ _PYTHONS_JS_OPEN_TAG = re.compile(
     r'<script\b(?P<pre>[^>]*?)\ssrc="https://pygame-web\.github\.io/cdn/[^"]*pythons\.js"(?P<post>[^>]*)>'
 )
 
+# `pythons.js` roda `if (document.characterSet.toLowerCase() !== "utf-8") alert(...)`
+# logo no boot - o `index.html` do `pygbag` ja tem um `<meta charset="UTF-8">`,
+# mas ele fica dentro do `<head>`, depois do `<script>` inline gigante de
+# `pythons.js` (o bootstrap Python embutido via `data:` URI, dezenas de MiB em
+# base64 apos `inline_assets`). Isso passa muito alem dos primeiros 1024 bytes
+# que o algoritmo de pre-scan de encoding do HTML5 examina para decidir a
+# codificacao do documento antes mesmo de começar a parsê-lo - o navegador
+# nunca chega a ver essa tag a tempo e cai no encoding padrao do locale (nem
+# sempre UTF-8), disparando o `alert()` de `pythons.js` ao abrir o arquivo
+# (achado real, task 98: reproduzido abrindo `dist/BlockyBee.html` direto no
+# Chrome). Inserir uma segunda tag logo apos `<html ...>`, antes de qualquer
+# `<script>`, garante que ela caia dentro da janela de pre-scan - a tag
+# original mais adiante no `<head>` fica redundante mas inofensiva.
+_HTML_OPEN_TAG = re.compile(r"<html\b[^>]*>", re.IGNORECASE)
+
+
+def _ensure_utf8_declared_early(html: str) -> str:
+    """Garante `<meta charset="utf-8">` dentro da janela de pre-scan do HTML5.
+
+    Ver comentario de `_HTML_OPEN_TAG` para o porque: sem isso,
+    `document.characterSet` nao fica `"utf-8"` no navegador e o boot de
+    `pythons.js` trava num `alert()` bloqueante (R40.3, task 98).
+    """
+    return _HTML_OPEN_TAG.sub(lambda m: m.group(0) + '<meta charset="utf-8">', html, count=1)
+
 
 def _download(url: str, dest: Path) -> None:
     """Baixa `url` para `dest`, criando o diretorio pai se preciso."""
@@ -442,6 +467,7 @@ def build(output: Path) -> None:
 
     html = (web_dir / "index.html").read_text(encoding="utf-8")
     html = _strip_dead_browserfs_script(html)
+    html = _ensure_utf8_declared_early(html)
     html = _inline_pythons_js(html, pythons_js, main_js=main_js)
     final_html = inline_assets(html, web_dir, force_embed=frozenset(vendored))
 

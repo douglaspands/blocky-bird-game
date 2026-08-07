@@ -1113,3 +1113,16 @@ Requer verificação manual no Chrome:
 - [ ] Recorde sobrevive a fechar a aba e reabrir o link (R39.2)
 - [ ] Redimensionar a janela do navegador recalcula o canvas e as faixas decorativas, sem recarregar a página (R37.8)
 - [ ] Tela PRONTO inicial (antes de qualquer redimensionamento) sem barras pretas de discrepância — achado real da task 96, não corrigido: hoje só corrige sozinho depois que o jogador redimensiona a janela uma vez
+
+- [x] **98. Correção: `alert()` de codificação UTF-8 ao abrir o `.html` gerado**
+  Achado real ao abrir `dist/BlockyBee.html` diretamente no Chrome (fora do checklist da task 97): boot trava atrás de um `alert()` bloqueante — "Host page encoding must be set to UTF-8 with tag :  meta charset=utf-8". _(R40.1)_
+
+  **Causa raiz confirmada, não hipótese: `pythons.js` roda `if (document.characterSet.toLowerCase() !== "utf-8") alert(...)` no boot, e o `<meta charset="UTF-8">` que o `index.html` do `pygbag` já gera fica tarde demais no documento para o navegador aplicar.** O `<script>` inline de `pythons.js` que `_inline_pythons_js` embute vem ANTES do `<head>`/`<meta charset>` no HTML do `pygbag`, e depois de `inline_assets` esse script sozinho passa de dezenas de MiB em base64 — muito além dos 1024 bytes que o algoritmo de pre-scan de encoding do HTML5 examina antes de decidir a codificação do documento. O navegador nunca chega a ver a tag a tempo, cai no encoding padrão do locale (não necessariamente UTF-8) e `document.characterSet` acusa divergência.
+
+  **Correção em `scripts/build_web.py`: nova função pura `_ensure_utf8_declared_early`, chamada em `build()` logo após `_strip_dead_browserfs_script` e antes de `_inline_pythons_js`.** Insere um segundo `<meta charset="utf-8">` logo após a abertura de `<html ...>`, antes de qualquer `<script>` — cai dentro da janela de pre-scan independente do que vem depois. A tag original mais adiante no `<head>` do `pygbag` fica redundante, mas inofensiva.
+
+  **Verificado neste ambiente com Chrome real (`google-chrome --headless=new --dump-dom` sobre o `dist/BlockyBee.html` reconstruído), não só lendo o código:** a árvore resultante mostra `<meta charset="utf-8">` como primeiro filho de um `<head>` implicitamente aberto pelo parser, a poucas dezenas de bytes do início do arquivo — dentro da janela de pre-scan, ao contrário do `<meta charset="UTF-8">` original do `pygbag`.
+
+  **Dois testes novos em `test_build_web.py`** (`test_ensure_utf8_declared_early_inserts_meta_charset_right_after_the_html_tag`, `test_ensure_utf8_declared_early_only_touches_the_first_html_tag`), mesmo padrão de fixture sintética das demais funções puras do módulo. `traceability.md`: R40.1 ganha esse teste ao lado da verificação manual já existente (task 90), já que o teste automatizado cobre a transformação de texto mas não substitui confirmar em Chrome real que o `alert()` não dispara mais — isso continua parte do checklist da task 97.
+
+  **Suíte completa (578 testes, 2 novos), `ruff check`/`ruff format --check`/`ty check`/`pre-commit run --all-files` sem violações, cobertura 96,85%.**
