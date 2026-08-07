@@ -137,6 +137,26 @@ def test_docs_workflow_publishes_the_web_build_alongside_the_docs_site():
     assert docs_build_index < build_web_index < upload_index
 
 
+def test_release_workflow_attaches_the_web_build_as_a_fourth_asset():
+    """R41.2: mesmo padrao de isolamento de risco do build-apk (design v2 secao 24.1) —
+
+    um job independente, para que uma falha no build web nao impeca a publicacao dos
+    binarios de desktop/Android ja existentes.
+    """
+    data = yaml.safe_load(RELEASE_WORKFLOW.read_text(encoding="utf-8"))
+    jobs = data["jobs"]
+    assert "build-web" in jobs
+    assert jobs["build-web"] != jobs.get("build-apk"), "precisa ser um job proprio, nao um alias"
+
+    steps = jobs["build-web"]["steps"]
+    run_steps = " ".join(step.get("run", "") for step in steps)
+    assert "scripts/build_web.py" in run_steps
+
+    gh_release_action = "softprops/action-gh-release"
+    upload_step = next(step for step in steps if step.get("uses", "").startswith(gh_release_action))
+    assert "BlockyBee-web-${{ github.event.release.tag_name }}.html" in upload_step["with"]["files"]
+
+
 def test_contributing_documents_the_branch_naming_convention():
     """R35.3: os tres prefixos ja usados em `git branch -a` precisam estar documentados."""
     text = CONTRIBUTING.read_text(encoding="utf-8")

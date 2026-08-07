@@ -1069,12 +1069,22 @@ Requer aparelho Android real:
 
   **Teste novo em `tests/test_repo_hygiene.py`** (`test_docs_workflow_publishes_the_web_build_alongside_the_docs_site`), mesmo padrão do `test_ci_runs_a_build_web_smoke_test_on_every_push` da task 92: faz parse do YAML do job `build` e confirma tanto a presença dos passos quanto a ordem (`mkdocs build` → `scripts/build_web.py` → `upload-pages-artifact`) — uma referência solta ao script sem garantir a ordem passaria mesmo com o passo no lugar errado. `traceability.md`: R41.1 ganha esse teste (antes só apontava para a task, sem coluna de teste, já que a implementação ainda não existia).
 
-  **Suíte completa (576 testes, 1 novo em `tests/test_repo_hygiene.py`), `ruff check`/`ruff format --check`/`ty check`/`pre-commit run --all-files` sem violações, cobertura 96.85%.**
+  **Suíte completa (575 testes, 1 novo em `tests/test_repo_hygiene.py`), `ruff check`/`ruff format --check`/`ty check`/`pre-commit run --all-files` sem violações, cobertura 96.85%.**
 
   **Não verificável neste ambiente: a execução real do job `build` (deploy) no GitHub Actions** — mesma limitação já registrada para `build-web-smoke` (task 92) e `build-apk` (v2): só confirma de fato após o primeiro push com este workflow, incluindo se o link `.../play/` do GitHub Pages carrega e joga (R41.3, adiado para a verificação manual da task 97).
 
-- [ ] **95. `release.yml`: job `build-web`**
+- [x] **95. `release.yml`: job `build-web`**
   Job independente, mesma filosofia de isolamento de risco já usada pelo `build-apk` — anexa `BlockyBee-web-<tag>.html` como quarto asset de release, gerado pelo mesmo script usado no GitHub Pages. _(R41.2)_ — verificação de workflow.
+
+  **Job `build-web` novo em `release.yml`, paralelo a `build` (desktop) e `build-apk` (Android), mesmo padrão de isolamento de risco documentado no comentário do `build-apk` (v2, design seção 24.1) — uma falha aqui não impede a publicação dos outros três assets.** Mesmos passos do job `build-web-smoke` (`ci.yml`, task 92) até o build: cache de `.cache/pygbag-runtime` por hash de `scripts/build_web.py`, depois `uv run python scripts/build_web.py`. Um passo a mais, específico desta task: `cp dist/BlockyBee.html BlockyBee-web-${{ github.event.release.tag_name }}.html` — mesmo arquivo do GitHub Pages (task 94), só renomeado com a tag, exatamente como a seção 52 do design pede ("os dois workflows consomem o mesmo script com a mesma saída"). `softprops/action-gh-release@v2` anexa esse arquivo, mesma ação já usada pelos outros três assets (`.exe`/`.tar.bz2`/`.apk`); `permissions: contents: write` já declarado no topo do workflow cobre o job novo sem alteração.
+
+  **Rodado de ponta a ponta neste ambiente antes de subir** (cache já populado, sem rede nova): `uv run python scripts/build_web.py && cp dist/BlockyBee.html BlockyBee-web-v4.0.0.html` produziu um arquivo de 30 485 KiB, confirmando a sequência exata que o job novo roda.
+
+  **Teste novo em `tests/test_repo_hygiene.py`** (`test_release_workflow_attaches_the_web_build_as_a_fourth_asset`), mesmo padrão dos testes das tasks 92/94: confirma que `build-web` existe como job próprio (não um alias de `build-apk`), que seus passos invocam `scripts/build_web.py`, e que o passo `softprops/action-gh-release` referencia `BlockyBee-web-${{ github.event.release.tag_name }}.html`. `traceability.md`: R41.2 ganha esse teste.
+
+  **Suíte completa (576 testes, 1 novo), `ruff check`/`ruff format --check`/`ty check`/`pre-commit run --all-files` sem violações, cobertura 96.85%.**
+
+  **Não verificável neste ambiente: a execução real do job no GitHub Actions, disparado por uma Release publicada de verdade** — mesma limitação já registrada para `build-apk` (v2) e `build-web-smoke`/`build` do `docs.yml` (tasks 92/94): só confirma de fato após a próxima tag publicada.
 
 - [ ] **96. Redimensionamento do canvas no navegador (paridade com o desktop)**
   Spike em Chrome real, mesmo espírito das tasks 85/88: confirma se redimensionar a janela do navegador já propaga até `WINDOWRESIZED`/`apply_resize` (mecanismo de R23.6 já existente em `game.py`, sem ramo de plataforma) ou se o canvas fixo que o `pygbag` gera precisa de uma ponte CSS/JS para acompanhar a janela. Se faltar, adiciona só essa ponte no pós-processamento de `scripts/build_web.py`, sem tocar `src/`. _(R37.8)_ — Requer verificação manual no Chrome; ver `design.md` seção 32.7.

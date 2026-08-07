@@ -98,3 +98,34 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: BlockyBee-android-universal-${{ github.event.release.tag_name }}.apk
+
+  build-web:
+    # Job independente, mesmo padrao de isolamento de risco do build-apk acima:
+    # uma falha aqui nao deve impedir a publicacao dos binarios de desktop/Android
+    # (design.md v2 secao 24.1, v4 secao 52).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Cache runtime WebAssembly vendorizado (task 91, ~21.9 MiB)
+        uses: actions/cache@v4
+        with:
+          path: .cache/pygbag-runtime
+          key: pygbag-runtime-${{ hashFiles('scripts/build_web.py') }}
+
+      - name: Build web (pygbag --build + inline_assets, R40.1/R40.2/R40.5)
+        run: uv run python scripts/build_web.py
+
+      - name: Renomeia com a tag da release (mesmo arquivo do GitHub Pages, R41.2)
+        run: cp dist/BlockyBee.html BlockyBee-web-${{ github.event.release.tag_name }}.html
+
+      - name: Upload web asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BlockyBee-web-${{ github.event.release.tag_name }}.html
