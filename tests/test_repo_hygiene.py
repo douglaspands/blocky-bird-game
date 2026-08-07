@@ -105,6 +105,19 @@ def test_ci_also_runs_the_pre_commit_hooks():
     assert "pre-commit run --all-files" in text
 
 
+def test_ci_runs_a_build_web_smoke_test_on_every_push():
+    """R40.5: sem isto, uma referencia externa remanescente so quebraria o build web
+
+    na proxima vez que um humano lembrasse de rodar `scripts/build_web.py` manualmente
+    (tasks 90/91) - o `SystemExit` de `inline_assets` so protege quem roda o script.
+    """
+    data = yaml.safe_load(CI_WORKFLOW.read_text(encoding="utf-8"))
+    jobs = data["jobs"]
+    assert "build-web-smoke" in jobs
+    steps = " ".join(step.get("run", "") for step in jobs["build-web-smoke"]["steps"])
+    assert "scripts/build_web.py" in steps
+
+
 def test_contributing_documents_the_branch_naming_convention():
     """R35.3: os tres prefixos ja usados em `git branch -a` precisam estar documentados."""
     text = CONTRIBUTING.read_text(encoding="utf-8")

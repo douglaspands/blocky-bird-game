@@ -1042,8 +1042,18 @@ Requer aparelho Android real:
 
   **Suíte completa (573 testes, 11 novos em `tests/test_build_web.py` cobrindo `vendor_runtime_assets`, os patches de `pythons.js`/`vtx.js` e o `force_embed` de `inline_assets`), `ruff check`/`ruff format --check` sem violações, `ty check` sem violações, cobertura 96.85%.**
 
-- [ ] **92. Smoke test de CI para o build web**
+- [x] **92. Smoke test de CI para o build web**
   Etapa de CI que roda o build `pygbag` + `scripts/build_web.py` a cada push, falhando o pipeline se qualquer um dos dois falhar — sem Chrome, só confirma que o pipeline de build continua produzindo um arquivo válido. Não substitui a verificação manual das tasks 90/96. _(R40.5)_ — automatizável headless.
+
+  **Job novo `build-web-smoke` em `ci.yml`, independente de `lint-and-test` (mesmo padrão de isolamento de risco do `build-apk` em `release.yml`), rodando em todo push/PR.** `uv sync` (o grupo `dev` já traz `pygbag`) seguido de `uv run python scripts/build_web.py` — o mesmo comando documentado no docstring do script, sem argumentos extras: `_pygbag_build` já propaga falha via `subprocess.run(check=True)`, e `inline_assets` já levanta `SystemExit` se sobrar referência local externa (R40.5, task 89) — nenhum dos dois precisou de tratamento novo para o job falhar corretamente. Um passo final (`test -s dist/BlockyBee.html`) confirma explicitamente que o arquivo final existe e não é vazio, em vez de confiar implicitamente no código de saída do passo anterior.
+
+  **Cache de `.cache/pygbag-runtime` via `actions/cache`, chave por hash de `scripts/build_web.py`.** Sem isso, todo push baixaria de novo os ~21,9 MiB do runtime vendorizado (task 91) do CDN do `pygbag` — só a primeira execução (ou uma mudança no script, que já muda a versão pinada de `pygbag`/o manifesto) paga esse custo; as seguintes só leem o cache, mesmo espírito do cache de `.buildozer` já usado no job `build-apk`.
+
+  **Rodado de ponta a ponta neste ambiente antes de subir**, com o cache local já populado pelas tasks 90/91 (sem rede nova): `uv run python scripts/build_web.py` produziu `dist/BlockyBee.html` (30 485 KiB) sem erro, confirmando o comando exato que o novo job roda.
+
+  **Suíte completa (574 testes, 1 novo em `tests/test_repo_hygiene.py` — `test_ci_runs_a_build_web_smoke_test_on_every_push`, parseando `ci.yml` e checando que o job `build-web-smoke` invoca `scripts/build_web.py`), `ruff check`/`ruff format --check`/`ty check`/`pre-commit run --all-files` sem violações, cobertura 96.85%.** `traceability.md`: R40.5 ganha a task 92 e o teste novo (antes só apontava para a task 89, sem coluna de teste).
+
+  **Não verificável neste ambiente: a execução real do job `build-web-smoke` no GitHub Actions** (runner limpo, cache frio na primeira vez) — mesma limitação já registrada nas tasks 27+ para o `build-apk`: só confirma de fato após o primeiro push com este workflow.
 
 - [ ] **93. Controle Xbox no navegador**
   Confirma manualmente (Chrome desktop, controle físico) que `JOYDEVICEADDED`/`JOYBUTTONDOWN` chegam via Gamepad API depois de um gesto do usuário, com paridade de índice de botão em relação ao caminho nativo. _(R38.2, R38.3)_ — Requer verificação manual no Chrome; impossível sob `SDL_VIDEODRIVER=dummy`.

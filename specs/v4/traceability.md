@@ -227,7 +227,7 @@ R32.3). É o que impede a matriz de envelhecer em silêncio.
 | R40.2 | 51 | 89, 91 | `test_build_web.py::test_vendor_runtime_assets_downloads_only_files_missing_from_the_cache` |
 | R40.3 | 51 | 90 | manual |
 | R40.4 | 46 | 85 | manual |
-| R40.5 | 51 | 89 | |
+| R40.5 | 51 | 89, 92 | `test_repo_hygiene.py::test_ci_runs_a_build_web_smoke_test_on_every_push` |
 | R41.1 | 52 | 94 | |
 | R41.2 | 52 | 95 | |
 | R41.3 | 52 | 97 | manual |

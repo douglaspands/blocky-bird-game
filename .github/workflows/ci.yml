@@ -33,3 +33,32 @@ jobs:
         env:
           SDL_VIDEODRIVER: dummy
         run: uv run pytest
+
+  build-web-smoke:
+    # Job independente do lint-and-test, mesmo padrao de isolamento de risco
+    # ja usado pelo build-apk em release.yml: uma falha aqui e sobre o
+    # pipeline de build web, nao sobre o jogo em si. So confirma que
+    # `pygbag --build` + `scripts/build_web.py` continuam produzindo um
+    # arquivo valido a cada push - sem Chrome, isso fica para a verificacao
+    # manual das tasks 90/96/97 (R40.5).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Cache runtime WebAssembly vendorizado (task 91, ~21.9 MiB)
+        uses: actions/cache@v4
+        with:
+          path: .cache/pygbag-runtime
+          key: pygbag-runtime-${{ hashFiles('scripts/build_web.py') }}
+
+      - name: Build web (pygbag --build + inline_assets, R40.2/R40.5)
+        run: uv run python scripts/build_web.py
+
+      - name: Confirma que o build produziu um arquivo valido
+        run: test -s dist/BlockyBee.html
