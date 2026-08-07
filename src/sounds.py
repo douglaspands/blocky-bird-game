@@ -7,10 +7,14 @@ from typing import TypedDict
 
 import pygame
 
-from src.storage import is_android
+from src.storage import is_android, is_web
 
 SAMPLE_RATE = 44100
 ANDROID_MIXER_BUFFER = 1024
+WEB_MIXER_BUFFER = 1024
+"""Placeholder a calibrar por verificacao manual em Chrome (R37.6, design secao 47) -
+sem playtest real ainda, comeca com o mesmo valor usado no Android pelo mesmo motivo
+(evitar estouro/crepitacao com o buffer padrao do pygame)."""
 
 
 class MixerParams(TypedDict, total=False):
@@ -30,13 +34,16 @@ class MixerParams(TypedDict, total=False):
 def mixer_params() -> MixerParams:
     """Parametros do mixer: 44.1 kHz, 16 bits com sinal, mono.
 
-    O buffer maior so no Android, onde o padrao do pygame e pequeno demais para o
-    caminho de audio do aparelho e o som sai crepitando (R8.4, R14.6, design secao 11).
-    No desktop a chave nem e passada, para continuar valendo o padrao do pygame.
+    O buffer maior no Android e na web, onde o padrao do pygame e pequeno demais para
+    o caminho de audio e o som sai crepitando (R8.4, R14.6, R37.6, design secoes 11 e
+    47). No desktop nativo a chave nem e passada, para continuar valendo o padrao do
+    pygame.
     """
     params: MixerParams = {"frequency": SAMPLE_RATE, "size": -16, "channels": 1}
     if is_android():
         params["buffer"] = ANDROID_MIXER_BUFFER
+    elif is_web():
+        params["buffer"] = WEB_MIXER_BUFFER
     return params
 
 

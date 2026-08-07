@@ -974,8 +974,12 @@ Requer aparelho Android real:
 
   **Para as próximas tasks:** (1) task 89 (`scripts/build_web.py`) deve incluir `import pygame` (e qualquer outra dependência de terceiros usada só transitivamente) como import explícito no `main.py` real, documentando o motivo (limitação do pré-carregador do `pygbag`) num comentário curto; (2) a mesma task 89 também precisa de uma estratégia real de escopo de arquivos para o build (`pygbag.ini` ou passo de staging) — `pygbag --build main.py` direto na raiz tenta empacotar a árvore inteira, inclusive `.venv` (sem `pygbag.ini`, `Ignored dirs: []`); os builds deste spike foram feitos a partir de cópias isoladas (só `main.py` + `src/` + `assets/`) em diretórios temporários fora do repositório, que não persistem; (3) task 86 segue como planejada (`is_web()`/buffer de mixer) — nada neste spike indica necessidade de mudança de escopo ali.
 
-- [ ] **86. `storage.is_web()` e buffer de áudio para web**
+- [x] **86. `storage.is_web()` e buffer de áudio para web**
   `is_web()` detecta o runtime WebAssembly em tempo de execução; `sounds.mixer_params()` ganha o mesmo ramo hoje reservado a `is_android()`, com buffer placeholder a calibrar na task 85/93. _(R37.6, R39.1)_ — `tests/test_storage.py`, `tests/test_sounds.py`.
+
+  **Implementado conforme planejado, sem desvios.** `storage.is_web()` detecta `sys.platform == "emscripten"` — o mesmo sinal que o próprio `pygbag` usa internamente para ramificar (confirmado em `pygbag/support/cross/aio/fetch.py` e `cross.py` do pacote instalado), então não é uma suposição, é o mesmo contrato que o runtime real expõe. `sounds.mixer_params()` ganhou um `elif is_web()` ao lado do `if is_android()` já existente, com `WEB_MIXER_BUFFER = 1024` — mesmo valor do Android, como placeholder inicial pela mesma razão (evitar estouro/crepitação), documentado como não calibrado por playtest real; a task 85 (spike) não indicou necessidade de mudar esse valor nem de mudar o escopo desta task.
+
+  **Suíte completa (549 testes, 2 novos em `test_storage.py` mockando `sys.platform`, 1 novo em `test_sounds.py` cobrindo o ramo web, mais o teste "off android" renomeado para cobrir também "off web"), `ruff check`/`ruff format --check` sem violações, `ty check` sem violações, cobertura 96.85%.**
 
 - [ ] **87. `storage.py`: leitura/gravação via `localStorage`**
   `read_json`/`write_json` com ramo `is_web()`, seam `_web_storage()` mockável; `FakeLocalStorage` novo em `tests/fakes.py`; `score.py`/`quality.py` passam a usar `storage.read_json`/`write_json` em vez de `open()` direto, preservando API pública e degradação graciosa. _(R39.2-R39.5)_ — `tests/test_storage.py`, `tests/test_score.py`, `tests/test_quality.py`.

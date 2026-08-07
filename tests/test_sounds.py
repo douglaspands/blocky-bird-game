@@ -1,20 +1,37 @@
 import pygame
 
 from src import sounds
-from src.sounds import ANDROID_MIXER_BUFFER, SAMPLE_RATE, SoundManager, mixer_params, pre_init
+from src.sounds import (
+    ANDROID_MIXER_BUFFER,
+    SAMPLE_RATE,
+    WEB_MIXER_BUFFER,
+    SoundManager,
+    mixer_params,
+    pre_init,
+)
 
 ANDROID_PARAMS = {"frequency": SAMPLE_RATE, "size": -16, "channels": 1, "buffer": ANDROID_MIXER_BUFFER}
+WEB_PARAMS = {"frequency": SAMPLE_RATE, "size": -16, "channels": 1, "buffer": WEB_MIXER_BUFFER}
 DESKTOP_PARAMS = {"frequency": SAMPLE_RATE, "size": -16, "channels": 1}
 
 
 def test_mixer_params_use_a_larger_buffer_on_android(monkeypatch):
     """Buffer pequeno demais no Android estoura/crepita (R8.4, R14.6, design secao 11)."""
     monkeypatch.setattr("src.sounds.is_android", lambda: True)
+    monkeypatch.setattr("src.sounds.is_web", lambda: False)
     assert mixer_params() == ANDROID_PARAMS
 
 
-def test_mixer_params_use_the_default_buffer_off_android(monkeypatch):
+def test_mixer_params_use_a_larger_buffer_on_web(monkeypatch):
+    """Placeholder a calibrar (R37.6, design secao 47) — mesma logica do Android."""
     monkeypatch.setattr("src.sounds.is_android", lambda: False)
+    monkeypatch.setattr("src.sounds.is_web", lambda: True)
+    assert mixer_params() == WEB_PARAMS
+
+
+def test_mixer_params_use_the_default_buffer_off_android_and_web(monkeypatch):
+    monkeypatch.setattr("src.sounds.is_android", lambda: False)
+    monkeypatch.setattr("src.sounds.is_web", lambda: False)
     assert mixer_params() == DESKTOP_PARAMS
 
 

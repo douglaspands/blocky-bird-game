@@ -16,6 +16,11 @@ def is_android() -> bool:
     return "ANDROID_ARGUMENT" in os.environ
 
 
+def is_web() -> bool:
+    """sys.platform == "emscripten" e o runtime WebAssembly do pygbag (R39.1)."""
+    return sys.platform == "emscripten"
+
+
 def is_frozen() -> bool:
     """PyInstaller define sys.frozen no executavel empacotado (BlockyBee.spec).
 

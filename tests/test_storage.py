@@ -15,6 +15,16 @@ def test_is_android_true_with_env_var(monkeypatch):
     assert storage.is_android() is True
 
 
+def test_is_web_false_off_emscripten(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "linux", raising=False)
+    assert storage.is_web() is False
+
+
+def test_is_web_true_under_emscripten(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "emscripten", raising=False)
+    assert storage.is_web() is True
+
+
 def test_save_dir_desktop_is_project_root(monkeypatch):
     # o conftest.py isola storage.save_dir() para nao gravar na raiz real do
     # projeto durante os testes; aqui queremos testar a implementacao de
