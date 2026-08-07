@@ -90,6 +90,39 @@ o que valida o build no CI antes do deploy para o GitHub Pages
 As dependências de documentação ficam restritas ao grupo `dev` — não entram no
 executável nem no APK empacotados.
 
+## Jogar no navegador (build web)
+
+O mesmo código-fonte compila para um único `.html` autocontido via
+[`pygbag`](https://github.com/pygame-web/pygbag) (WebAssembly):
+
+```bash
+uv run python scripts/build_web.py
+```
+
+Gera `dist/BlockyBee.html`. Para testar localmente num navegador (abrir via
+`file://` não reflete como o GitHub Pages serve o jogo, e as ferramentas de
+rede/console do navegador exigem uma origem http(s) real), builda e sobe um
+servidor local em um só passo:
+
+```bash
+uv run python scripts/serve_web.py
+```
+
+Abre `http://127.0.0.1:8000/BlockyBee.html` no navegador. `--port` muda a
+porta; `--no-build` pula o build e só serve o `dist/BlockyBee.html` que já
+existe (útil para reabrir rápido sem rebuildar).
+
+> **Achado em aberto (task 91/99 de [`specs/v4/tasks.md`](specs/v4/tasks.md)):**
+> hoje o `.html` gerado por `scripts/build_web.py` fica preso em "Loading,
+> please wait ..." e nunca termina de carregar — bug real, já investigado a
+> fundo (não é falha de rede nem de configuração local) e registrado como
+> tarefa em aberto, não uma regressão desta sessão. O mesmo código, buildado
+> só com `uv run python -m pygbag --build main.py` (sem o empacotamento em
+> arquivo único de `scripts/build_web.py`, então ainda depende de rede para
+> buscar o runtime do CDN do `pygbag`) carrega e joga normalmente — útil como
+> alternativa para testar o jogo em si enquanto o bug do build único
+> continua aberto.
+
 ## Gerar executável
 
 Para distribuir um binário que roda com duplo clique, sem precisar instalar Python:
@@ -185,7 +218,7 @@ src/
 ├── scale.py        # Escala/letterbox da resolucao logica para a janela real
 └── ui.py           # HUD e telas (pronto/pausa/game over)
 specs/              # Documentos de requisitos, design e plano (versionados em specs/vN/)
-scripts/            # generate_app_icon.py, benchmark.py
+scripts/            # generate_app_icon.py, benchmark.py, build_web.py, serve_web.py
 docs/               # Esqueleto de inclusoes para o site MkDocs (ve Documentacao acima)
 tests/              # Testes unitarios (pytest)
 ```
