@@ -138,3 +138,20 @@ class FakeRenderer(render.Renderer):
 
     def _of(self, kind: str) -> list[tuple]:
         return [call for call in self.calls if call[0] == kind]
+
+
+class FakeLocalStorage:
+    """`window.localStorage` de teste: um dicionario com `getItem`/`setItem` (R39.5).
+
+    Injetado em `storage._web_storage` para exercitar o ramo web de
+    `storage.read_json`/`write_json` sem navegador real.
+    """
+
+    def __init__(self) -> None:
+        self._data: dict[str, str] = {}
+
+    def getItem(self, key: str) -> str | None:
+        return self._data.get(key)
+
+    def setItem(self, key: str, value: str) -> None:
+        self._data[key] = value

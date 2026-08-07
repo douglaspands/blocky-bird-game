@@ -1,8 +1,10 @@
+import json
 import sys
 import types
 from pathlib import Path
 
 from src import storage
+from tests.fakes import FakeLocalStorage
 
 
 def test_is_android_false_without_env_var(monkeypatch):
@@ -82,3 +84,44 @@ def test_save_dir_android_fallback_defaults_to_dot(monkeypatch):
     monkeypatch.delitem(sys.modules, "android.storage", raising=False)
 
     assert storage.save_dir() == Path(".")
+
+
+# --- read_json / write_json: arquivo (R39.2, R39.3) --------------------------------
+
+
+def test_read_json_missing_file_returns_none():
+    assert storage.read_json("nao-existe.json") is None
+
+
+def test_write_json_and_read_json_roundtrip_on_file():
+    storage.write_json("dados.json", {"a": 1})
+
+    assert storage.read_json("dados.json") == {"a": 1}
+
+
+def test_write_json_ignores_write_errors(tmp_path, monkeypatch):
+    """Diretorio inexistente: engolido em silencio, como ja era no recorde."""
+    monkeypatch.setattr(storage, "save_dir", lambda: tmp_path / "sem" / "essa" / "pasta")
+
+    storage.write_json("dados.json", {"a": 1})  # nao deve lancar
+
+
+# --- read_json / write_json: localStorage (R39.2, R39.5) ---------------------------
+
+
+def test_read_json_missing_key_in_web_storage_returns_none(monkeypatch):
+    monkeypatch.setattr(storage, "is_web", lambda: True)
+    monkeypatch.setattr(storage, "_web_storage", lambda: FakeLocalStorage())
+
+    assert storage.read_json("dados.json") is None
+
+
+def test_write_json_and_read_json_roundtrip_on_web_storage(monkeypatch):
+    fake = FakeLocalStorage()
+    monkeypatch.setattr(storage, "is_web", lambda: True)
+    monkeypatch.setattr(storage, "_web_storage", lambda: fake)
+
+    storage.write_json("dados.json", {"a": 1})
+
+    assert fake.getItem("dados.json") == json.dumps({"a": 1})
+    assert storage.read_json("dados.json") == {"a": 1}

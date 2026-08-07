@@ -7,16 +7,15 @@ R24 garante.
 """
 
 import asyncio
-import json
 import random
 
 import pygame
 import pytest
 
-from src import config, quality, viewport
+from src import config, quality, storage, viewport
 from src.game import Game, GameState
 from src.quality import DROP_FPS, RISE_FPS, RISE_WINDOW_FRAMES, WINDOW_FRAMES, Level, Quality
-from tests.fakes import FakeRenderer
+from tests.fakes import FakeLocalStorage, FakeRenderer
 
 SIXTY = 1000 / 60
 """Duracao de um quadro a 60 FPS, em milissegundos."""
@@ -270,16 +269,15 @@ def test_the_particle_count_follows_the_level():
 # --- persistencia (R29.5, R29.6) --------------------------------------------------
 
 
-def test_the_level_survives_between_sessions(tmp_path):
-    path = tmp_path / quality.FILENAME
-    quality.save_level(Level.MEDIO, path)
+def test_the_level_survives_between_sessions():
+    quality.save_level(Level.MEDIO)
 
-    assert quality.load_level(path) is Level.MEDIO
+    assert quality.load_level() is Level.MEDIO
 
 
-def test_a_missing_file_means_full_quality(tmp_path):
+def test_a_missing_file_means_full_quality():
     """R29.6: sem arquivo, comeca no maximo e redetecta."""
-    assert quality.load_level(tmp_path / "nao-existe.json") is Level.ALTO
+    assert quality.load_level() is Level.ALTO
 
 
 @pytest.mark.parametrize("content", ["", "{", "[]", '{"level": "TURBO"}', '{"level": null}', '{"nivel": 2}'])
@@ -287,26 +285,35 @@ def test_a_corrupted_file_means_full_quality(tmp_path, content):
     """Mesma disciplina de `score.load_highscore`: um arquivo de preferencia quebrado
     nunca pode impedir o jogo de abrir. Comecar no maximo e a unica escolha que se
     corrige sozinha em dois segundos — comecar no minimo ficaria feio para sempre."""
-    path = tmp_path / quality.FILENAME
-    path.write_text(content, encoding="utf-8")
+    (tmp_path / quality.FILENAME).write_text(content, encoding="utf-8")
 
-    assert quality.load_level(path) is Level.ALTO
+    assert quality.load_level() is Level.ALTO
 
 
-def test_saving_is_not_allowed_to_crash_the_game(tmp_path):
+def test_saving_is_not_allowed_to_crash_the_game(tmp_path, monkeypatch):
     """Disco cheio, diretorio somente leitura: engolido, como no recorde (R4.4)."""
-    quality.save_level(Level.BAIXO, tmp_path / "sem" / "essa" / "pasta.json")
+    monkeypatch.setattr(storage, "save_dir", lambda: tmp_path / "sem" / "essa" / "pasta")
+
+    quality.save_level(Level.BAIXO)
 
 
 def test_the_file_is_written_next_to_the_highscore(tmp_path):
     """R29.5 pede o mesmo diretorio gravavel do recorde (R4.5) — no Android, o unico
     lugar onde escrever funciona."""
-    from src import score
-
     quality.save_level(Level.MEDIO)
 
     assert (tmp_path / quality.FILENAME).exists()
-    assert score._default_path().parent == quality._default_path().parent
+
+
+def test_persistence_uses_web_storage_when_is_web(monkeypatch):
+    """R39.2, R39.5: mesma API publica, sem navegador real."""
+    fake = FakeLocalStorage()
+    monkeypatch.setattr(storage, "is_web", lambda: True)
+    monkeypatch.setattr(storage, "_web_storage", lambda: fake)
+
+    quality.save_level(Level.BAIXO)
+
+    assert quality.load_level() is Level.BAIXO
 
 
 # --- integracao com o laco e com o desenho ----------------------------------------
@@ -467,4 +474,4 @@ def test_the_level_is_stored_by_name_and_not_by_number():
     um nivel no meio, um dia, reinterpretaria em silencio o arquivo de todo mundo."""
     quality.save_level(Level.MEDIO)
 
-    assert json.loads(quality._default_path().read_text(encoding="utf-8")) == {"level": "MEDIO"}
+    assert storage.read_json(quality.FILENAME) == {"level": "MEDIO"}

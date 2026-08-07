@@ -20,10 +20,8 @@ existe para fazer.
 Ver specs/v3/design.md secao 38.
 """
 
-import json
 from dataclasses import dataclass
 from enum import IntEnum
-from pathlib import Path
 
 from src import storage
 
@@ -91,7 +89,7 @@ histerese propriamente dita (R29.4): entre 50 e 58 nada acontece, e e essa faixa
 que impede um aparelho no limite de alternar para sempre."""
 
 
-def load_level(path: Path | None = None) -> Level:
+def load_level() -> Level:
     """Le o nivel gravado, ou ALTO se nao houver um utilizavel (R29.5, R29.6).
 
     Mesma disciplina de `score.load_highscore`: arquivo ausente, ilegivel, com JSON
@@ -100,32 +98,16 @@ def load_level(path: Path | None = None) -> Level:
     e a escolha certa por ser a unica que se corrige sozinha em dois segundos, ao
     contrario de comecar no minimo.
     """
-    path = path if path is not None else _default_path()
     try:
-        with open(path, encoding="utf-8") as file:
-            data = json.load(file)
-        return Level[str(data["level"])]
-    except (OSError, ValueError, KeyError, TypeError):
+        data = storage.read_json(FILENAME)
+        return Level[str(data["level"])] if data is not None else Level.ALTO
+    except (ValueError, KeyError, TypeError):
         return Level.ALTO
 
 
-def save_level(level: Level, path: Path | None = None) -> None:
-    """Grava o nivel detectado (R29.5). Falha de escrita e ignorada, como no recorde."""
-    path = path if path is not None else _default_path()
-    try:
-        with open(path, "w", encoding="utf-8") as file:
-            json.dump({"level": level.name}, file)
-    except OSError:
-        pass
-
-
-def _default_path() -> Path:
-    """Resolve o caminho padrao do arquivo de qualidade.
-
-    Resolvido a cada chamada, e nao como default de parametro, para acompanhar uma
-    troca de plataforma em tempo de execucao — igual a `score._default_path`.
-    """
-    return storage.save_dir() / FILENAME
+def save_level(level: Level) -> None:
+    """Grava o nivel detectado (R29.5). Falha de escrita e ignorada (tratada em storage)."""
+    storage.write_json(FILENAME, {"level": level.name})
 
 
 class Quality:

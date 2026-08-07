@@ -365,9 +365,9 @@ def _writes(monkeypatch) -> list[int]:
     written: list[int] = []
     original = score_module.save_highscore
 
-    def spy(highscore: int, path=None) -> None:
+    def spy(highscore: int) -> None:
         written.append(highscore)
-        original(highscore, path)
+        original(highscore)
 
     monkeypatch.setattr(score_module, "save_highscore", spy)
     return written
