@@ -118,6 +118,25 @@ def test_ci_runs_a_build_web_smoke_test_on_every_push():
     assert "scripts/build_web.py" in steps
 
 
+def test_docs_workflow_publishes_the_web_build_alongside_the_docs_site():
+    """R41.1: uma implantacao, dois conteudos — o jogo precisa ir para site/play/
+
+    antes do upload-pages-artifact, senao a publicacao do Pages so teria a
+    documentacao (mesma implantacao ja usada por ela, R31.4), nunca o jogo.
+    """
+    data = yaml.safe_load(DOCS_WORKFLOW.read_text(encoding="utf-8"))
+    steps = data["jobs"]["build"]["steps"]
+    run_steps = " ".join(step.get("run", "") for step in steps)
+    assert "scripts/build_web.py" in run_steps
+    assert "site/play/index.html" in run_steps
+
+    build_web_index = next(i for i, s in enumerate(steps) if "scripts/build_web.py" in s.get("run", ""))
+    docs_build_index = next(i for i, s in enumerate(steps) if "mkdocs build" in s.get("run", ""))
+    upload_uses = "actions/upload-pages-artifact"
+    upload_index = next(i for i, s in enumerate(steps) if s.get("uses", "").startswith(upload_uses))
+    assert docs_build_index < build_web_index < upload_index
+
+
 def test_contributing_documents_the_branch_naming_convention():
     """R35.3: os tres prefixos ja usados em `git branch -a` precisam estar documentados."""
     text = CONTRIBUTING.read_text(encoding="utf-8")

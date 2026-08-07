@@ -29,6 +29,20 @@ jobs:
       - name: Build site (mkdocs build --strict)
         run: uv run mkdocs build --strict
 
+      - name: Cache runtime WebAssembly vendorizado (task 91, ~21.9 MiB)
+        uses: actions/cache@v4
+        with:
+          path: .cache/pygbag-runtime
+          key: pygbag-runtime-${{ hashFiles('scripts/build_web.py') }}
+
+      - name: Build web (pygbag --build + inline_assets, R40.1/R40.2/R40.5)
+        run: uv run python scripts/build_web.py
+
+      - name: Publica o jogo em site/play/ (R41.1 — mesma implantacao do site de docs)
+        run: |
+          mkdir -p site/play
+          cp dist/BlockyBee.html site/play/index.html
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

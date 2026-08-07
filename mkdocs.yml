@@ -58,9 +58,15 @@ nav:
           - Requisitos: specs/v2/requirements.md
           - Design: specs/v2/design.md
           - Tarefas: specs/v2/tasks.md
-      - v3 (Blocky Bee, atual):
+      - v3 (Blocky Bee):
           - specs/v3/README.md
           - Requisitos: specs/v3/requirements.md
           - Design: specs/v3/design.md
           - Tarefas: specs/v3/tasks.md
           - Rastreabilidade: specs/v3/traceability.md
+      - v4 (Web, atual):
+          - specs/v4/README.md
+          - Requisitos: specs/v4/requirements.md
+          - Design: specs/v4/design.md
+          - Tarefas: specs/v4/tasks.md
+          - Rastreabilidade: specs/v4/traceability.md
